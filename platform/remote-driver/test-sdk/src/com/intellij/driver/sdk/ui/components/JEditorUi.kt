@@ -25,6 +25,11 @@ fun Finder.codeEditor(@Language("xpath") xpath: String? = null): JEditorUiCompon
            JEditorUiComponent::class.java)
 }
 
+fun Finder.codeEditor(@Language("xpath") xpath: String? = null, action: JEditorUiComponent.() -> Unit) {
+  x(xpath ?: "//div[@class='EditorTabs']//div[@class='EditorComponentImpl']",
+    JEditorUiComponent::class.java).action()
+}
+
 fun Finder.editor(@Language("xpath") xpath: String? = null, action: JEditorUiComponent.() -> Unit) {
   x(xpath ?: "//div[@class='EditorComponentImpl']", JEditorUiComponent::class.java).action()
 }
@@ -87,6 +92,12 @@ class JEditorUiComponent(data: ComponentData) : UiComponent(data) {
     }
   }
 
+  fun moveCaretToOffset(offset: Int) {
+    driver.withContext(OnDispatcher.EDT) {
+      editor.getCaretModel().moveToOffset(offset)
+    }
+  }
+
   fun clickOnPosition(line: Int, column: Int) {
     setFocus()
     click(interact {
@@ -104,6 +115,24 @@ class JEditorUiComponent(data: ComponentData) : UiComponent(data) {
       block.invoke(editor)
     }
   }
+
+  fun invokeIntentionAction(intentionActionName: String) {
+    driver.utility(IntentionActionUtils::class).invokeIntentionAction(editor, intentionActionName)
+  }
+
+  fun invokeAiIntentionAction(intentionActionName: String) {
+    driver.utility(AiTestIntentionUtils::class).invokeAiAssistantIntention(editor, intentionActionName)
+  }
+}
+
+@Remote("com.jetbrains.performancePlugin.utils.IntentionActionUtils", plugin = "com.jetbrains.performancePlugin")
+interface IntentionActionUtils {
+  fun invokeIntentionAction(editor: Editor, intentionActionName: String)
+}
+
+@Remote("com.intellij.ml.llm.intentions.TestIntentionUtils", plugin = "com.intellij.ml.llm/intellij.ml.llm.core")
+interface AiTestIntentionUtils {
+  fun invokeAiAssistantIntention(editor: Editor, intentionName: String)
 }
 
 @Remote("com.intellij.openapi.editor.impl.EditorComponentImpl")

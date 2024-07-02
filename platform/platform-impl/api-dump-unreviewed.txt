@@ -4998,6 +4998,7 @@ c:com.intellij.ide.actions.RevealFileAction
 - getActionUpdateThread():com.intellij.openapi.actionSystem.ActionUpdateThread
 - s:getFileManagerName():java.lang.String
 - s:getFileManagerName(Z):java.lang.String
+- s:isDirectoryOpenSupported():Z
 - s:isSupported():Z
 - s:openDirectory(java.io.File):V
 - s:openDirectory(java.nio.file.Path):V
@@ -7169,9 +7170,6 @@ f:com.intellij.ide.plugins.CountIcon
 f:com.intellij.ide.plugins.CreateAllServicesAndExtensionsActionKt
 - sf:ACTION_ID:java.lang.String
 - sf:performAction():V
-com.intellij.ide.plugins.CustomPluginRepoContributor
-- sf:EP_NAME:com.intellij.openapi.extensions.ExtensionPointName
-- a:getRepoUrls():java.util.List
 f:com.intellij.ide.plugins.CustomPluginRepositoryService
 - com.intellij.ide.plugins.auth.PluginRepositoryAuthListener
 - <init>():V
@@ -16355,6 +16353,12 @@ f:com.intellij.openapi.options.advanced.AdvancedSettingsConfigurable$AdvancedSet
 - f:getReset():kotlin.jvm.functions.Function0
 - hashCode():I
 - f:isDefault():com.intellij.ui.layout.ComponentPredicate
+f:com.intellij.openapi.options.advanced.AdvancedSettingsConfigurable$Config
+- sf:Companion:com.intellij.openapi.options.advanced.AdvancedSettingsConfigurable$Config$Companion
+- <init>():V
+f:com.intellij.openapi.options.advanced.AdvancedSettingsConfigurable$Config$Companion
+- f:getShowFederatedLearningSwitches():Z
+- f:setShowFederatedLearningSwitches(Z):V
 f:com.intellij.openapi.options.advanced.AdvancedSettingsConfigurableKt
 - sf:updateMatchText(javax.swing.JComponent,java.lang.String,java.lang.String):V
 f:com.intellij.openapi.options.advanced.AdvancedSettingsImpl
@@ -20251,10 +20255,14 @@ f:com.intellij.openapi.wm.impl.FocusRequestInfo
 - f:trace:java.lang.Throwable
 - <init>(java.awt.Component,java.lang.Throwable,Z):V
 a:com.intellij.openapi.wm.impl.FrameTitleBuilder
+- sf:Companion:com.intellij.openapi.wm.impl.FrameTitleBuilder$Companion
 - <init>():V
 - a:getFileTitle(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile):java.lang.String
-- s:getInstance():com.intellij.openapi.wm.impl.FrameTitleBuilder
+- *:getFileTitleAsync(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile,kotlin.coroutines.Continuation):java.lang.Object
+- sf:getInstance():com.intellij.openapi.wm.impl.FrameTitleBuilder
 - a:getProjectTitle(com.intellij.openapi.project.Project):java.lang.String
+f:com.intellij.openapi.wm.impl.FrameTitleBuilder$Companion
+- f:getInstance():com.intellij.openapi.wm.impl.FrameTitleBuilder
 f:com.intellij.openapi.wm.impl.IdeBackgroundUtil
 - sf:EDITOR_PROP:java.lang.String
 - sf:FRAME_PROP:java.lang.String
@@ -20397,6 +20405,7 @@ c:com.intellij.openapi.wm.impl.PlatformFrameTitleBuilder
 - com.intellij.openapi.wm.impl.FrameTitleBuilder
 - <init>():V
 - getFileTitle(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile):java.lang.String
+- getFileTitleAsync(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile,kotlin.coroutines.Continuation):java.lang.Object
 - getProjectTitle(com.intellij.openapi.project.Project):java.lang.String
 c:com.intellij.openapi.wm.impl.ProjectFrameHelper
 - com.intellij.openapi.actionSystem.UiDataProvider
@@ -23872,9 +23881,11 @@ a:com.intellij.ui.FilteringTree
 - p:onSpeedSearchUpdateComplete(java.lang.String):V
 - p:useIdentityHashing():Z
 pc:com.intellij.ui.FilteringTree$FilteringSpeedSearch
+- com.intellij.ui.FilteringTree$FilteringTreeUserObjectMatcher
 - com.intellij.ui.speedSearch.SpeedSearch
 - p:<init>(com.intellij.ui.FilteringTree,com.intellij.ui.SearchTextField):V
 - a:checkMatching(java.lang.Object):com.intellij.ui.FilteringTree$Matching
+- f:checkMatching(java.lang.Object,java.lang.Iterable):com.intellij.ui.FilteringTree$Matching
 - checkMatching(javax.swing.tree.DefaultMutableTreeNode):com.intellij.ui.FilteringTree$Matching
 - a:getSelection():java.lang.Object
 - getSelection():javax.swing.tree.DefaultMutableTreeNode
@@ -23882,12 +23893,15 @@ pc:com.intellij.ui.FilteringTree$FilteringSpeedSearch
 - iterate(java.lang.Object,Z,Z):java.util.Iterator
 - iterate(javax.swing.tree.DefaultMutableTreeNode,Z):java.util.Iterator
 - noHits():V
+- p:onMatchingChecked(java.lang.Object,java.lang.Iterable,com.intellij.ui.FilteringTree$Matching):V
 - p:onSearchFieldUpdated(java.lang.String):V
 - p:onUpdatePattern(java.lang.String):V
 - a:select(java.lang.Object):V
 - select(javax.swing.tree.DefaultMutableTreeNode):V
 - update():V
 - updateSelection():V
+p:com.intellij.ui.FilteringTree$FilteringTreeUserObjectMatcher
+- a:checkMatching(java.lang.Object,java.lang.Iterable):com.intellij.ui.FilteringTree$Matching
 e:com.intellij.ui.FilteringTree$Matching
 - java.lang.Enum
 - sf:FULL:com.intellij.ui.FilteringTree$Matching
