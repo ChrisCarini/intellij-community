@@ -240,6 +240,11 @@ public class K2MoveTopLevelTestGenerated extends AbstractK2MoveTopLevelTest {
         runTest("../../idea/tests/testData/refactoring/moveTopLevel/kotlin/moveClassWithImportsRetained/moveClassWithImportsRetained.test");
     }
 
+    @TestMetadata("kotlin/moveClassWithJavaAnnotation/moveClassWithJavaAnnotation.test")
+    public void testKotlin_moveClassWithJavaAnnotation_MoveClassWithJavaAnnotation() throws Exception {
+        runTest("../../idea/tests/testData/refactoring/moveTopLevel/kotlin/moveClassWithJavaAnnotation/moveClassWithJavaAnnotation.test");
+    }
+
     @TestMetadata("kotlin/moveClassWithLongFunction/moveClassWithLongFunction.test")
     public void testKotlin_moveClassWithLongFunction_MoveClassWithLongFunction() throws Exception {
         runTest("../../idea/tests/testData/refactoring/moveTopLevel/kotlin/moveClassWithLongFunction/moveClassWithLongFunction.test");
@@ -248,6 +253,11 @@ public class K2MoveTopLevelTestGenerated extends AbstractK2MoveTopLevelTest {
     @TestMetadata("kotlin/moveCollectionLiteralUsage/moveCollectionLiteralUsage.test")
     public void testKotlin_moveCollectionLiteralUsage_MoveCollectionLiteralUsage() throws Exception {
         runTest("../../idea/tests/testData/refactoring/moveTopLevel/kotlin/moveCollectionLiteralUsage/moveCollectionLiteralUsage.test");
+    }
+
+    @TestMetadata("kotlin/moveDeleteIfOnlyFileAnnotation/moveDeleteIfOnlyFileAnnotation.test")
+    public void testKotlin_moveDeleteIfOnlyFileAnnotation_MoveDeleteIfOnlyFileAnnotation() throws Exception {
+        runTest("../../idea/tests/testData/refactoring/moveTopLevel/kotlin/moveDeleteIfOnlyFileAnnotation/moveDeleteIfOnlyFileAnnotation.test");
     }
 
     @TestMetadata("kotlin/moveEscapedKeyword/moveEscapedKeyword.test")

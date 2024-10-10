@@ -30,6 +30,7 @@ import com.intellij.util.xml.DomElement;
 import com.intellij.util.xml.DomUtil;
 import com.intellij.xml.XmlElementDescriptor;
 import com.intellij.xml.XmlNSDescriptor;
+import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.SystemIndependent;
@@ -45,17 +46,14 @@ import org.jetbrains.idea.maven.execution.MavenRunner;
 import org.jetbrains.idea.maven.execution.MavenRunnerSettings;
 import org.jetbrains.idea.maven.model.MavenConstants;
 import org.jetbrains.idea.maven.model.MavenId;
+import org.jetbrains.idea.maven.model.MavenPlugin;
 import org.jetbrains.idea.maven.plugins.api.MavenPluginDescriptor;
 import org.jetbrains.idea.maven.project.MavenProject;
-import org.jetbrains.idea.maven.server.MavenServerUtil;
 import org.jetbrains.idea.maven.utils.MavenUtil;
 import org.jetbrains.idea.maven.vfs.MavenPropertiesVirtualFileSystem;
 
 import javax.swing.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static icons.OpenapiIcons.RepositoryLibraryLogo;
 
@@ -221,6 +219,10 @@ public class MavenPropertyPsiReference extends MavenPsiReference implements Loca
       if (result != null) return result;
     }
 
+    if ("maven.home".equals(myText)) {
+      return myElement;
+    }
+
     if ("java.home".equals(myText)) {
       PsiElement element = resolveToCustomSystemProperty("java.home", MavenUtil.getModuleJreHome(myProjectsManager, mavenProject));
       if (element != null) {
@@ -269,6 +271,11 @@ public class MavenPropertyPsiReference extends MavenPsiReference implements Loca
 
     if (myText.startsWith("settings.")) {
       return resolveSettingsModelProperty();
+    }
+
+    PsiElement resolved = resolveAsParsedVersion(myText, mavenProject);
+    if (resolved != null) {
+      return resolved;
     }
 
     return null;
@@ -601,5 +608,48 @@ public class MavenPropertyPsiReference extends MavenPsiReference implements Loca
       DefaultXmlSuppressionProvider xmlSuppressionProvider = new DefaultXmlSuppressionProvider();
       xmlSuppressionProvider.suppressForTag(psiElement, MavenPropertyPsiReferenceProvider.UNRESOLVED_MAVEN_PROPERTY_QUICKFIX_ID);
     }
+  }
+
+  /**
+   * If "build-helper-maven-plugin" has `parse-version` goal, probably it could resolve properties starting with a defined prefix
+   * to something related to the version from the `version` tag (e.g., `${parsedVersion.majorVersion}`)
+   * @see <a href="https://www.mojohaus.org/build-helper-maven-plugin/parse-version-mojo.html#propertyPrefix">mojohaus documentation</a>
+   */
+  @Nullable
+  private PsiElement resolveAsParsedVersion(@NotNull String propertyText, @NotNull MavenProject mavenProject) {
+    String prefix = getBuildHelperParseablePrefix();
+    if (prefix == null || !propertyText.startsWith(prefix + ".")) return null;
+
+    MavenDomProjectModel domProjectModel = MavenDomUtil.getMavenDomProjectModel(myProject, mavenProject.getFile());
+    if (domProjectModel == null) {
+      return myElement;
+    }
+    XmlTag versionTag = MavenDomUtil.findTag(domProjectModel, "project.version");
+    if (versionTag == null) {
+      return myElement;
+    }
+    else {
+      return versionTag;
+    }
+  }
+
+  private @Nullable String getBuildHelperParseablePrefix() {
+    MavenPlugin buildHelperPlugin = myMavenProject.findPlugin("org.codehaus.mojo", "build-helper-maven-plugin");
+    if (buildHelperPlugin == null) return null;
+
+    Optional<MavenPlugin.Execution> execution = buildHelperPlugin.getExecutions().stream()
+      .filter(it -> it.getGoals().contains("parse-version"))
+      .findFirst();
+    if (execution.isEmpty()) return null;
+
+    String propertyPrefix = "parsedVersion"; // default value
+    Element configuration = execution.get().getConfigurationElement();
+    if (configuration != null) {
+      Element customPrefix = configuration.getChild("propertyPrefix");
+      if (customPrefix != null) {
+        propertyPrefix = customPrefix.getText();
+      }
+    }
+    return propertyPrefix;
   }
 }

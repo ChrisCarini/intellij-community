@@ -6,7 +6,6 @@ import com.intellij.lang.properties.IProperty
 import com.intellij.maven.testFramework.MavenDomTestCase
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.openapi.util.registry.Registry
 import com.intellij.psi.PsiManager
 import com.intellij.psi.xml.XmlTag
 import kotlinx.coroutines.runBlocking
@@ -891,6 +890,80 @@ class MavenPropertyCompletionAndResolutionTest : MavenDomTestCase() {
   }
 
   @Test
+  fun testMavenHome() = runBlocking {
+    updateProjectPom("""
+                       <groupId>test</groupId>
+                       <artifactId>project</artifactId>
+                       <version>1</version>
+                       <name>${'$'}{<caret>maven.home}</name>
+                       """.trimIndent())
+    val ref = getReferenceAtCaret(projectPom)!!
+    // the reference for maven.home property resolves to its PsiElement
+    assertResolved(projectPom, ref.element)
+  }
+
+  @Test
+  fun testParsedVersionResolving() = runBlocking {
+    updateProjectPom("""
+                        <groupId>test</groupId>
+                        <artifactId>project</artifactId>
+                        <version>1</version>
+                        <name>${'$'}{<caret>parsedVersion.majorVersion}</name>
+                        <build>
+                          <plugins>
+                            <plugin>
+                              <groupId>org.codehaus.mojo</groupId>
+                              <artifactId>build-helper-maven-plugin</artifactId>
+                              <executions>
+                                <execution>
+                                  <goals>
+                                    <goal>parse-version</goal>
+                                  </goals>
+                                </execution>
+                              </executions>
+                            </plugin>
+                          </plugins>
+                        </build>
+                    """.trimIndent())
+    fixture.configureFromExistingVirtualFile(projectPom)
+    // Resolving this property depends on the presence of the build-helper-maven-plugin in pom. Reimport to add the plugin in MavenProject.
+    runBlocking { importProjectAsync() }
+    assertResolved(projectPom, findTag(projectPom, "project.version"))
+  }
+
+  @Test
+  fun testParsedVersionResolvingCustomPrefix() = runBlocking {
+    updateProjectPom("""
+                        <groupId>test</groupId>
+                        <artifactId>project</artifactId>
+                        <version>1</version>
+                        <name>${'$'}{<caret>parsedVersionCustom.majorVersion}</name>
+                        <build>
+                          <plugins>
+                            <plugin>
+                              <groupId>org.codehaus.mojo</groupId>
+                              <artifactId>build-helper-maven-plugin</artifactId>
+                              <executions>
+                                <execution>
+                                  <goals>
+                                    <goal>parse-version</goal>
+                                  </goals>
+                                </execution>
+                              </executions>
+                              <configuration>
+                                <propertyPrefix>parsedVersionCustom</propertyPrefix>
+                              </configuration>
+                            </plugin>
+                          </plugins>
+                        </build>
+                    """.trimIndent())
+    fixture.configureFromExistingVirtualFile(projectPom)
+    // Resolving this property depends on the presence of the build-helper-maven-plugin in pom. Reimport to add the plugin in MavenProject.
+    runBlocking { importProjectAsync() }
+    assertResolved(projectPom, findTag(projectPom, "project.version"))
+  }
+
+  @Test
   fun testNotUpperCaseEnvPropertiesOnWindows() = runBlocking {
     if (!SystemInfo.isWindows) return@runBlocking
 
@@ -927,6 +1000,7 @@ class MavenPropertyCompletionAndResolutionTest : MavenDomTestCase() {
                        ${'$'}{pom.compileArtifacts.empty}
                        ${'$'}{modules.empty}
                        ${'$'}{projectDirectory}
+                       ${'$'}{parsedVersion.majorVersion}
                        </foo>
                        </properties>
                        """.trimIndent()

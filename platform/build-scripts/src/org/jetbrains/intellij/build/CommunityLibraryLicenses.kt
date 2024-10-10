@@ -639,6 +639,19 @@ object CommunityLibraryLicenses {
       .newBsd("https://opensource.org/license/bsd-3-clause/")
       .suppliedByOrganizations("Thai Open Source Software Center Ltd"),
 
+    LibraryLicense(null, libraryName = "jline.terminal", url = "https://github.com/jline/jline3")
+      .newBsd("https://github.com/jline/jline3/blob/master/LICENSE.txt")
+      .suppliedByPersons("Guillaume Nodet"),
+
+    LibraryLicense(null, libraryName = "jline.terminal.jansi", url = "https://github.com/jline/jline3")
+      .newBsd("https://github.com/jline/jline3/blob/master/LICENSE.txt")
+      .suppliedByPersons("Guillaume Nodet"),
+
+    LibraryLicense(null, libraryName = "jline.terminal.jna", url = "https://github.com/jline/jline3")
+      .newBsd("https://github.com/jline/jline3/blob/master/LICENSE.txt")
+      .suppliedByPersons("Guillaume Nodet"),
+
+
     LibraryLicense("JNA", libraryName = "jna", url = "https://github.com/java-native-access/jna")
       .apache("https://github.com/java-native-access/jna/blob/master/LICENSE"),
 
@@ -1244,7 +1257,6 @@ object CommunityLibraryLicenses {
     jetbrainsLibrary("ai.grazie.nlp.langs"),
     jetbrainsLibrary("ai.grazie.spell.gec.engine.local"),
     jetbrainsLibrary("ai.grazie.spell.hunspell.en"),
-    jetbrainsLibrary("ai.grazie.utils.ki"),
     jetbrainsLibrary("ai.grazie.utils.lucene.lt.compatibility"),
     jetbrainsLibrary("change-reminder-prediction-model"),
     jetbrainsLibrary("cloud-config-client"),
