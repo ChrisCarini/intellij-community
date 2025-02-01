@@ -1,8 +1,9 @@
 name: IntelliJ IDEA
 on:
-  schedule:
-    # daily at 4AM for the master branch
-    - cron: '0 4 * * *'
+  # TODO(ChrisCarini) - Do not run this on a schedule; this is a fork. Please don't use all my GHA (free) minutes :) 
+  # schedule:
+  #   # daily at 4AM for the master branch
+  #   - cron: '0 4 * * *'
   push:
     # for each release
     tags:
