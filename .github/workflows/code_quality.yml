@@ -2,8 +2,9 @@ name: Qodana
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * *"
+  # TODO(ChrisCarini) - Do not run this on a schedule; this is a fork. Please don't use all my GHA (free) minutes :)
+  # schedule:
+  #   - cron: "0 0 * * *"
 
 jobs:
   qodana:
