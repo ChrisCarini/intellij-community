@@ -1,18 +1,18 @@
 <component name="libraryTable">
   <library name="kotlinc.kotlin-scripting-dependencies" type="repository">
-    <properties include-transitive-deps="false" maven-id="org.jetbrains.kotlin:kotlin-scripting-dependencies:2.2.20-dev-760">
+    <properties include-transitive-deps="false" maven-id="org.jetbrains.kotlin:kotlin-scripting-dependencies:2.2.20-dev-1475">
       <verification>
-        <artifact url="file://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kotlin-scripting-dependencies/2.2.20-dev-760/kotlin-scripting-dependencies-2.2.20-dev-760.jar">
-          <sha256sum>9de5458ebde48189c85a2f66376b4c223926e6a6bb765a2cb49a0088436ef395</sha256sum>
+        <artifact url="file://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kotlin-scripting-dependencies/2.2.20-dev-1475/kotlin-scripting-dependencies-2.2.20-dev-1475.jar">
+          <sha256sum>d4f1fe47faf1efb9f0dbcd80dbe0fb5eddc271b52c6303c9ac020eb892aa9bf9</sha256sum>
         </artifact>
       </verification>
     </properties>
     <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kotlin-scripting-dependencies/2.2.20-dev-760/kotlin-scripting-dependencies-2.2.20-dev-760.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kotlin-scripting-dependencies/2.2.20-dev-1475/kotlin-scripting-dependencies-2.2.20-dev-1475.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kotlin-scripting-dependencies/2.2.20-dev-760/kotlin-scripting-dependencies-2.2.20-dev-760-sources.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kotlin-scripting-dependencies/2.2.20-dev-1475/kotlin-scripting-dependencies-2.2.20-dev-1475-sources.jar!/" />
     </SOURCES>
   </library>
 </component>
