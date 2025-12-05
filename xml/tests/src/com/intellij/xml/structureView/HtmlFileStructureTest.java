@@ -68,7 +68,7 @@ public class HtmlFileStructureTest extends FileStructureTestBase {
   }
 
   public void setHtml5OutlineMode(boolean enabled) {
-    myPopupFixture.getPopup().setTreeActionState(Html5SectionsNodeProvider.class, enabled);
+    myPopupFixture.getPopup().setTreeActionState(new Html5SectionsNodeProvider(), enabled);
     myPopupFixture.update();
   }
 

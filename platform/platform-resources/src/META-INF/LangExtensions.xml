@@ -626,6 +626,8 @@
                  defaultValue="false"
                  restartRequired="false"/>
 
+    <structurePopupProvider implementation="com.intellij.ide.util.OldStructurePopupProviderImpl"/>
+
     <idIndexer filetype="PLAIN_TEXT" implementationClass="com.intellij.psi.impl.cache.impl.id.PlainTextIdIndexer"/>
     <todoIndexer filetype="PLAIN_TEXT" implementationClass="com.intellij.psi.impl.cache.impl.todo.PlainTextTodoIndexer"/>
     <lang.elementManipulator forClass="com.intellij.psi.PsiPlainTextFile"

@@ -50,12 +50,12 @@ public abstract class JavaFileStructureTestCase extends FileStructureTestBase {
   }
 
   public void setShowAnonymous(boolean show) {
-    myPopupFixture.getPopup().setTreeActionState(JavaAnonymousClassesNodeProvider.class, show);
+    myPopupFixture.getPopup().setTreeActionState(new JavaAnonymousClassesNodeProvider(), show);
     myPopupFixture.update();
   }
 
   public void setShowParents(boolean show) {
-    myPopupFixture.getPopup().setTreeActionState(JavaInheritedMembersNodeProvider.class, show);
+    myPopupFixture.getPopup().setTreeActionState(new JavaInheritedMembersNodeProvider(), show);
     myPopupFixture.update();
   }
 

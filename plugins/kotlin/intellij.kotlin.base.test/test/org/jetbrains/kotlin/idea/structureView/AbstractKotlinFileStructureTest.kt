@@ -29,8 +29,8 @@ abstract class AbstractKotlinFileStructureTest : KotlinFileStructureTestBase() {
         val fileText = FileUtil.loadFile(File(testDataDirectory, fileName()), true)
 
         val withInherited = InTextDirectivesUtils.isDirectiveDefined(fileText, "WITH_INHERITED")
-        setTreeActionState(nodeProviderClass(), withInherited)
+        setTreeActionState(nodeProvider(), withInherited)
     }
 
-    protected abstract fun nodeProviderClass(): Class<out InheritedMembersNodeProvider<*>>
+    protected abstract fun nodeProvider(): InheritedMembersNodeProvider<*>
 }
