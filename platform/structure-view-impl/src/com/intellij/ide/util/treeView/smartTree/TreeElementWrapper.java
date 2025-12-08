@@ -8,14 +8,24 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.IndexNotReadyException;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
 
 public class TreeElementWrapper extends CachingChildrenTreeNode<TreeElement> {
   private static final Logger LOG = Logger.getInstance(TreeElementWrapper.class);
+
+  private final @Nullable NodeProvider<?> myProvider;
+
+  public TreeElementWrapper(Project project, @NotNull TreeElement value, @NotNull TreeModel treeModel, @Nullable NodeProvider<?> provider) {
+    super(project, value, treeModel);
+    myProvider = provider;
+  }
+
   public TreeElementWrapper(Project project, @NotNull TreeElement value, @NotNull TreeModel treeModel) {
     super(project, value, treeModel);
+    myProvider = null;
   }
 
   @Override
@@ -42,7 +52,7 @@ public class TreeElementWrapper extends CachingChildrenTreeNode<TreeElement> {
         LOG.error(value + " returned null child: " + Arrays.toString(children));
         continue;
       }
-      addSubElement(createChildNode(child));
+      addSubElement(createChildNode(child, myProvider));
     }
     if (myTreeModel instanceof ProvidingTreeModel model) {
       Collection<NodeProvider<?>> originalProviders = model.getNodeProviders();
@@ -61,10 +71,14 @@ public class TreeElementWrapper extends CachingChildrenTreeNode<TreeElement> {
             LOG.error(provider + " returned null node: " + nodes);
             continue;
           }
-          addSubElement(createChildNode((TreeElement)node));
+          addSubElement(createChildNode((TreeElement)node, provider));
         }
       }
     }
+  }
+
+  public @Nullable NodeProvider<?> getProvider() {
+    return myProvider;
   }
 
   @Override

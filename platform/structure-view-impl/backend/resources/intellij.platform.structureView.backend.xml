@@ -1,0 +1,9 @@
+<idea-plugin>
+  <dependencies>
+    <module name="intellij.platform.kernel.backend"/>
+  </dependencies>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <platform.rpc.backend.remoteApiProvider implementation="com.intellij.platform.structureView.backend.StructureTreeApiProvider"/>
+  </extensions>
+</idea-plugin>

@@ -1,0 +1,35 @@
+### auto-generated section `build intellij.platform.structureView.backend` start
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
+
+resourcegroup(
+  name = "backend_resources",
+  srcs = glob(["resources/**/*"]),
+  strip_prefix = "resources"
+)
+
+jvm_library(
+  name = "backend",
+  module_name = "intellij.platform.structureView.backend",
+  visibility = ["//visibility:public"],
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":backend_resources"],
+  deps = [
+    "@lib//:kotlin-stdlib",
+    "//platform/structure-view-impl:structureView-impl",
+    "//platform/platform-impl:ide-impl",
+    "//platform/platform-impl/rpc",
+    "//platform/kernel/shared:kernel",
+    "//platform/kernel/rpc.backend",
+    "//platform/editor-ui-api:editor-ui",
+    "//platform/platform-api:ide",
+    "//platform/core-api:core",
+    "//platform/analysis-api:analysis",
+    "//platform/project/shared:project",
+    "//platform/lang-impl",
+    "//platform/core-ui",
+    "//platform/platform-impl/concurrency",
+    "//platform/util/concurrency",
+    "//platform/util",
+  ]
+)
+### auto-generated section `build intellij.platform.structureView.backend` end

@@ -1,2 +1,9 @@
 <idea-plugin>
+  <dependencies>
+    <module name="intellij.platform.frontend"/>
+  </dependencies>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <structurePopupProvider implementation="com.intellij.platform.structureView.frontend.StructurePopupProviderImpl"/>
+  </extensions>
 </idea-plugin>

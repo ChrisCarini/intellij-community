@@ -28,6 +28,16 @@ jvm_library(
     "//libraries/fastutil",
     "//platform/core-ui",
     "//platform/statistics",
+    "@lib//:kotlin-stdlib",
+    "//platform/kernel/shared:kernel",
+    "//libraries/kotlinx/serialization/core",
+    "//platform/platform-impl:ide-impl",
+    "//platform/platform-impl/rpc",
+    "//platform/project/shared:project",
+    "//platform/util/concurrency",
+    "//platform/lang-core",
+    "//platform/platform-impl/concurrency",
+    "//platform/util/coroutines",
   ],
   exports = ["//platform/util"]
 )

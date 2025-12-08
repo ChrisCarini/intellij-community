@@ -779,6 +779,7 @@ platform/statistics/testFramework
 platform/statistics/uploader
 platform/structuralsearch
 platform/structure-view-impl
+platform/structure-view-impl/backend
 platform/structure-view-impl/frontend
 platform/syntax/syntax-api
 platform/syntax/syntax-extensions

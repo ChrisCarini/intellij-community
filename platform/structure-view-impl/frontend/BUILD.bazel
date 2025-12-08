@@ -28,6 +28,7 @@ jvm_library(
     "//platform/platform-impl/concurrency",
     "//platform/lang-core",
     "//platform/lang-impl",
+    "//platform/util/coroutines",
   ]
 )
 ### auto-generated section `build intellij.platform.structureView.frontend` end

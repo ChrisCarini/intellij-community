@@ -704,7 +704,8 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
     return actions;
   }
 
-  private static @Nullable Object findClosestPsiElement(@NotNull PsiElement element,
+  @ApiStatus.Internal
+  public static @Nullable Object findClosestPsiElement(@NotNull PsiElement element,
                                                         @NotNull TreePath adjusted,
                                                         @NotNull TreeModel treeModel) {
     TextRange range = element.getTextRange();
@@ -961,44 +962,7 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
   }
 
   public static @Nullable String getSpeedSearchText(Object object) {
-    String text = String.valueOf(object);
-    Object value = StructureViewComponent.unwrapWrapper(object);
-    if (text != null) {
-      if (value instanceof SearchableTextProvider searchableTextProvider) {
-        String searchableText = searchableTextProvider.getSearchableText();
-        if (searchableText != null) return searchableText;
-      }
-      if (value instanceof PsiTreeElementBase && ((PsiTreeElementBase<?>)value).isSearchInLocationString()) {
-        String locationString = ((PsiTreeElementBase<?>)value).getLocationString();
-        if (!StringUtil.isEmpty(locationString)) {
-          String locationPrefix = null;
-          String locationSuffix = null;
-          if (value instanceof LocationPresentation) {
-            locationPrefix = ((LocationPresentation)value).getLocationPrefix();
-            locationSuffix = ((LocationPresentation)value).getLocationSuffix();
-          }
-
-          return text +
-                 StringUtil.notNullize(locationPrefix, LocationPresentation.DEFAULT_LOCATION_PREFIX) +
-                 locationString +
-                 StringUtil.notNullize(locationSuffix, LocationPresentation.DEFAULT_LOCATION_SUFFIX);
-        }
-      }
-      return text;
-    }
-    // NB!: this point is achievable if the following method returns null
-    // see com.intellij.ide.util.treeView.NodeDescriptor.toString
-    if (value instanceof TreeElement) {
-      return ReadAction.compute(() -> {
-        if (value instanceof SearchableTextProvider searchableTextProvider) {
-          String searchableText = searchableTextProvider.getSearchableText();
-          if (searchableText != null) return searchableText;
-        }
-        return ((TreeElement)value).getPresentation().getPresentableText();
-      });
-    }
-
-    return null;
+    return StructureViewUtil.getSpeedSearchText(object);
   }
 
   @Override

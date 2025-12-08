@@ -37,7 +37,7 @@ public class GroupWrapper extends CachingChildrenTreeNode<Group> {
       if (child == null) {
         LOG.error(group + " returned null child: " + children);
       }
-      TreeElementWrapper childNode = createChildNode(child);
+      TreeElementWrapper childNode = createChildNode(child, null);
       addSubElement(childNode);
     }
   }

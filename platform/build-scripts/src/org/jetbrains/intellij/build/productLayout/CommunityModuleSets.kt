@@ -142,6 +142,9 @@ object CommunityModuleSets {
     module("intellij.platform.navbar.monolith")
     module("intellij.platform.clouds")
 
+    module("intellij.platform.structureView.backend")
+    module("intellij.platform.structureView.frontend")
+
     module("intellij.platform.execution.serviceView")
     module("intellij.platform.execution.serviceView.frontend")
     module("intellij.platform.execution.serviceView.backend")

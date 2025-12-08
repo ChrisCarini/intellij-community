@@ -14,6 +14,7 @@ import com.intellij.openapi.editor.ex.util.EditorUtil;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.openapi.util.registry.Registry;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.ui.PlaceHolder;
 import org.jetbrains.annotations.ApiStatus;
@@ -24,9 +25,10 @@ import java.util.function.Consumer;
 
 import static com.intellij.ide.actions.ViewStructureAction.createStructureViewModel;
 
-public class OldStructurePopupProviderImpl implements StructurePopupProvider {
+class OldStructurePopupProviderImpl implements StructurePopupProvider {
   @Override
   public @Nullable StructurePopup createPopup(@NotNull Project project, @NotNull FileEditor fileEditor) {
+    if (Registry.is("frontend.structure.popup")) return null;
     return createPopup(project, fileEditor, null);
   }
 
