@@ -10,7 +10,6 @@ import com.intellij.ide.structureView.newStructureView.StructurePopup
 import com.intellij.ide.structureView.newStructureView.TreeActionsOwner
 import com.intellij.ide.ui.UISettingsListener
 import com.intellij.ide.util.*
-import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.ide.util.treeView.NodeRenderer
 import com.intellij.ide.util.treeView.smartTree.TreeStructureUtil
 import com.intellij.internal.statistic.collectors.fus.actions.persistence.ActionsCollectorImpl
@@ -21,10 +20,12 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.actionSystem.UiDataProvider.Companion.wrapComponent
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.WriteIntentReadAction
+import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.UI
 import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -63,30 +64,30 @@ import com.intellij.ui.tree.TreeVisitor.VisitThread
 import com.intellij.ui.treeStructure.Tree
 import com.intellij.ui.treeStructure.filtered.FilteringTreeStructure
 import com.intellij.ui.treeStructure.filtered.FilteringTreeStructure.FilteringNode
-import com.intellij.util.Alarm
-import com.intellij.util.Function
+import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.containers.nullize
-import com.intellij.util.ui.EdtInvocationManager
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.SpeedSearchAdvertiser
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeUtil
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.TestOnly
-import org.jetbrains.concurrency.AsyncPromise
-import org.jetbrains.concurrency.Promise
-import org.jetbrains.concurrency.rejectedPromise
-import org.jetbrains.concurrency.resolvedPromise
+import org.jetbrains.concurrency.asDeferred
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.datatransfer.DataFlavor
 import java.awt.event.*
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.*
 import javax.swing.tree.TreeModel
 import javax.swing.tree.TreePath
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * @author Konstantin Bulenkov
@@ -109,7 +110,7 @@ class FileStructurePopup(
 
   private val myCheckBoxes = hashMapOf<String, JBCheckBox>()
   private val myCheckBoxesPanel = Wrapper()
-  private val myAutoClicked= mutableListOf<JBCheckBox>()
+  private val myAutoClicked = mutableListOf<JBCheckBox>()
   private var myTestSearchFilter: String? = null
   private val myTriggeredCheckboxes = mutableListOf<Pair<String, JBCheckBox>>()
   private val myTreeExpander: TreeExpander
@@ -129,9 +130,6 @@ class FileStructurePopup(
   init {
     //Stop code analyzer to speed up the EDT
     DaemonCodeAnalyzer.getInstance(myProject).disableUpdateByTimer(this)
-
-    myModel.setActionEnabled(StructureTreeAction.ALPHA_SORTER, true)
-
     myTreeStructure = object : StructureViewTreeStructure(myProject, myModel) {
       override fun rebuildTree() {
         if (!ApplicationManager.getApplication().isUnitTestMode() && myPopup!!.isDisposed()) {
@@ -159,14 +157,23 @@ class FileStructurePopup(
 
     myStructureTreeModel = StructureTreeModel<FilteringTreeStructure>(myFilteringStructure, this)
     myAsyncTreeModel = AsyncTreeModel(myStructureTreeModel, this)
-    this.tree = MyTree(myAsyncTreeModel)
-    tree.model.addTreeModelListener(SWExpandListener(this.tree, myModel))
-    PopupUtil.applyNewUIBackground(this.tree)
+    tree = MyTree(myAsyncTreeModel)
+    tree.model.addTreeModelListener(SWExpandListener(tree, myModel))
+    PopupUtil.applyNewUIBackground(tree)
     tree.getAccessibleContext().setAccessibleName(LangBundle.message("file.structure.tree.accessible.name"))
 
+    val updaterInstalled = AtomicBoolean(false)
     myModel.addListener(object : StructureUiModelListener {
       override fun onTreeChanged() {
-        rebuild(false)
+        cs.launch {
+          rebuild(false)
+
+          if (!updaterInstalled.get()) {
+            myProject.service<FileStructurePopupLoadingStateUpdater>()
+              .installUpdater({ delayMillis -> installUpdater(delayMillis) }, myProject)
+            updaterInstalled.set(true)
+          }
+        }
       }
 
       override fun onActionsChanged() {
@@ -174,8 +181,9 @@ class FileStructurePopup(
       }
     })
     tree.setCellRenderer(NodeRenderer())
-    myProject.getMessageBus().connect(this).subscribe<UISettingsListener>(UISettingsListener.TOPIC,
-                                                                          UISettingsListener { rebuild(false) })
+    myProject.getMessageBus()
+      .connect(this)
+      .subscribe<UISettingsListener>(UISettingsListener.TOPIC, UISettingsListener { cs.launch { rebuild(false) } })
 
     tree.setTransferHandler(object : TransferHandler() {
       override fun importData(support: TransferSupport): Boolean {
@@ -192,29 +200,25 @@ class FileStructurePopup(
     mySpeedSearch.setupListeners()
     mySpeedSearch.comparator = SpeedSearchComparator(false, true, " ()")
 
-    myTreeExpander = DefaultTreeExpander(this.tree)
-    myCopyPasteDelegator = CopyPasteDelegator(myProject, this.tree)
+    myTreeExpander = DefaultTreeExpander(tree)
+    myCopyPasteDelegator = CopyPasteDelegator(myProject, tree)
 
-    TreeUtil.installActions(this.tree)
+    TreeUtil.installActions(tree)
   }
 
   override fun show() {
-    showWithResult()
-  }
-
-  fun showWithResult(): Promise<TreePath?> {
     val panel = createCenterPanel()
     tree.addTreeSelectionListener {
       if (myPopup!!.isVisible()) {
         val updateProcessor = myPopup!!.getUserData(PopupUpdateProcessor::class.java)
         if (updateProcessor != null) {
-          val node = this.selectedNode
+          val node = selectedNode
           updateProcessor.updatePopup(node)
         }
       }
     }
 
-    myPopup = JBPopupFactory.getInstance().createComponentPopupBuilder(panel, this.tree)
+    myPopup = JBPopupFactory.getInstance().createComponentPopupBuilder(panel, tree)
       .setTitle(myTitle)
       .setResizable(true)
       .setModalContext(false)
@@ -236,54 +240,66 @@ class FileStructurePopup(
 
     Disposer.register(myPopup!!, this)
     tree.emptyText.text = CommonBundle.getLoadingTreeNodeText()
+
     myPopup!!.showCenteredInCurrentWindow(myProject)
+    IdeFocusManager.getInstance(myProject).requestFocus(tree, true)
 
-    IdeFocusManager.getInstance(myProject).requestFocus(this.tree, true)
-
-    return rebuildAndSelect(false, null, null).onProcessed {
-      UIUtil.invokeLaterIfNeeded {
-        TreeUtil.ensureSelection(this.tree)
-        myProject.service<FileStructurePopupLoadingStateUpdater>().installUpdater({ delayMillis -> this.installUpdater(delayMillis) }, myProject)
-        showTime = System.nanoTime()
-      }
+    showTime = System.nanoTime()
+    LOG.debug {
+      val time = (showTime - constructorCallTime).nanoseconds
+      "show time for the popup: $time ns, ${time.inWholeMilliseconds} ms"
     }
   }
-
 
   private fun installUpdater(delayMillis: Int) {
     if (ApplicationManager.getApplication().isUnitTestMode() || myPopup!!.isDisposed()) {
       return
     }
-    val alarm = Alarm(Alarm.ThreadToUse.SWING_THREAD, myPopup)
-    alarm.addRequest(object : Runnable {
-      var filter = ""
 
-      override fun run() {
-        alarm.cancelAllRequests()
-        var prefix = mySpeedSearch.enteredPrefix
-        tree.emptyText.text = if (StringUtil.isEmpty(prefix))
-          LangBundle.message("status.text.structure.empty")
-        else
-          ("'$prefix' ${LangBundle.message("status.text.structure.empty.not.found")}")
-        if (prefix == null) prefix = ""
+    cs.launch {
+      var previousFilter = ""
 
-        if (filter != prefix) {
-          val isBackspace = prefix.length < filter.length
-          filter = prefix
-          rebuild(true).onProcessed {
-            UIUtil.invokeLaterIfNeeded {
-              if (isDisposed) return@invokeLaterIfNeeded
+      flow {
+        while (!isDisposed && !myPopup!!.isDisposed()) {
+          val currentPrefix = mySpeedSearch.enteredPrefix ?: ""
+          emit(currentPrefix)
+          delay(delayMillis.toLong())
+        }
+      }
+        .distinctUntilChanged()
+        .collectLatest { prefix ->
+          withContext(Dispatchers.UI) {
+            if (isDisposed || myPopup!!.isDisposed()) {
+              return@withContext
+            }
+
+            tree.emptyText.text = if (StringUtil.isEmpty(prefix)) {
+              LangBundle.message("status.text.structure.empty")
+            }
+            else {
+              "'$prefix' ${LangBundle.message("status.text.structure.empty.not.found")}"
+            }
+
+            if (previousFilter != prefix) {
+              val isBackspace = prefix.length < previousFilter.length
+              previousFilter = prefix
+
+              withContext(Dispatchers.Default) {
+                rebuild(true)
+              }
+
+              if (isDisposed) return@withContext
               TreeUtil.promiseExpandAll(tree)
-              if (isBackspace && handleBackspace(filter)) {
-                return@invokeLaterIfNeeded
+              if (isBackspace && handleBackspace(prefix)) {
+                return@withContext
               }
               if (myFilteringStructure.rootElement.getChildren().size == 0) {
                 for (box in myCheckBoxes.values) {
                   if (!box.isSelected) {
                     myAutoClicked.add(box)
-                    myTriggeredCheckboxes.addFirst(filter to box)
+                    myTriggeredCheckboxes.addFirst(prefix to box)
                     box.doClick()
-                    filter = ""
+                    previousFilter = ""
                     break
                   }
                 }
@@ -291,11 +307,7 @@ class FileStructurePopup(
             }
           }
         }
-        if (!alarm.isDisposed) {
-          alarm.addRequest(this, delayMillis)
-        }
-      }
-    }, delayMillis)
+    }
   }
 
   private fun handleBackspace(filter: String): Boolean {
@@ -312,10 +324,9 @@ class FileStructurePopup(
     return clicked
   }
 
-  fun select(element: StructureUiTreeElement): Promise<TreePath?> {
-    //todo check no backend logic is lost
+  suspend fun select(element: StructureUiTreeElement): TreePath? {
     val visitor: TreeVisitor = object : TreeVisitor {
-      override fun visitThread() =  VisitThread.BGT
+      override fun visitThread() = VisitThread.BGT
 
       override fun visit(path: TreePath): TreeVisitor.Action {
         val last = path.lastPathComponent
@@ -333,10 +344,9 @@ class FileStructurePopup(
     return selectInner(visitor)
   }
 
-  fun select(element: StructureViewTreeElement): Promise<TreePath?> {
-    //todo check no backend logic is lost
+  suspend fun select(element: StructureViewTreeElement): TreePath? {
     val visitor: TreeVisitor = object : TreeVisitor {
-      override fun visitThread() =  VisitThread.BGT
+      override fun visitThread() = VisitThread.BGT
 
       override fun visit(path: TreePath): TreeVisitor.Action {
         val last = path.lastPathComponent
@@ -366,35 +376,21 @@ class FileStructurePopup(
     return selectInner(visitor)
   }
 
-  private fun selectInner(visitor: TreeVisitor): Promise<TreePath?> {
-    return myAsyncTreeModel
-      .accept(visitor)
-      .thenAsync<TreePath?> {
-        if (it == null) return@thenAsync rejectedPromise()
+  private suspend fun selectInner(visitor: TreeVisitor): TreePath? {
+    val result = myAsyncTreeModel.accept(visitor).asDeferred().await()
+    if (result == null) return null
 
-        tree.expandPath(it)
-        TreeUtil.selectPath(tree, it)
-        TreeUtil.ensureSelection(tree)
-        return@thenAsync resolvedPromise(it)
-      }
-  }
-
-  @TestOnly
-  fun rebuildAndUpdate(): AsyncPromise<Void?> {
-    val result = AsyncPromise<Void?>()
-    val visitor = TreeVisitor {
-      val node = TreeUtil.getLastUserObject(AbstractTreeNode::class.java, it)
-      node?.update()
-      TreeVisitor.Action.CONTINUE
-    }
-    rebuild(false).onProcessed {
-      myAsyncTreeModel.accept(visitor).onProcessed { result.setResult(null) }
+    withContext(Dispatchers.UI) {
+      tree.expandPath(result)
+      TreeUtil.selectPath(tree, result)
+      TreeUtil.ensureSelection(tree)
     }
     return result
   }
 
   override fun dispose() {
-    this.isDisposed = true
+    isDisposed = true
+    cs.cancel()
     if (showTime != 0L) {
       FileStructurePopupTimeTracker.logShowTime(System.nanoTime() - showTime)
     }
@@ -405,9 +401,9 @@ class FileStructurePopup(
     val panel = JPanel(BorderLayout())
     panel.preferredSize = JBUI.size(540, 500)
 
-    val F4 = ActionManager.getInstance().getAction(IdeActions.ACTION_EDIT_SOURCE).shortcutSet.getShortcuts()
-    val ENTER = CustomShortcutSet.fromString("ENTER").shortcuts
-    val shortcutSet = CustomShortcutSet(*(F4 + ENTER))
+    val f4 = ActionManager.getInstance().getAction(IdeActions.ACTION_EDIT_SOURCE).shortcutSet.getShortcuts()
+    val enter = CustomShortcutSet.fromString("ENTER").shortcuts
+    val shortcutSet = CustomShortcutSet(*(f4 + enter))
     NavigateSelectedElementAction(panel).registerCustomShortcutSet(shortcutSet, panel)
 
     DumbAwareAction.create {
@@ -417,7 +413,7 @@ class FileStructurePopup(
       else {
         myPopup!!.cancel()
       }
-    }.registerCustomShortcutSet(CustomShortcutSet.fromString("ESCAPE"), this.tree)
+    }.registerCustomShortcutSet(CustomShortcutSet.fromString("ESCAPE"), tree)
     object : ClickListener() {
       override fun onClick(e: MouseEvent, clickCount: Int): Boolean {
         val path = tree.getClosestPathForLocation(e.getX(), e.getY())
@@ -426,7 +422,7 @@ class FileStructurePopup(
         navigateSelectedElement()
         return true
       }
-    }.installOn(this.tree)
+    }.installOn(tree)
 
 
     val topPanel = JPanel(BorderLayout())
@@ -448,7 +444,7 @@ class FileStructurePopup(
     topPanel.setBorder(JBUI.Borders.emptyLeft(UIUtil.DEFAULT_HGAP))
 
     panel.add(topPanel, BorderLayout.NORTH)
-    val scrollPane = ScrollPaneFactory.createScrollPane(this.tree)
+    val scrollPane = ScrollPaneFactory.createScrollPane(tree)
     scrollPane.setBorder(IdeBorderFactory.createBorder(JBUI.CurrentTheme.Popup.toolbarBorderColor(), SideBorder.TOP or SideBorder.BOTTOM))
     panel.add(scrollPane, BorderLayout.CENTER)
     panel.addFocusListener(object : FocusAdapter() {
@@ -511,7 +507,7 @@ class FileStructurePopup(
     myCheckBoxesPanel.setContent(chkPanel)
   }
 
-  private class MyStructureTreeAction(action: StructureTreeAction, model: StructureUiModel) : StructureTreeActionWrapper(action, model) {
+  internal class MyStructureTreeAction(action: StructureTreeAction, model: StructureUiModel) : StructureTreeActionWrapper(action, model) {
     init {
       model.setActionEnabled(action, getDefaultValue(action))
     }
@@ -581,7 +577,7 @@ class FileStructurePopup(
     }
 
   private fun navigateSelectedElement(): Boolean {
-    val selectedNode = this.selectedNode
+    val selectedNode = selectedNode
     if (ApplicationManager.getApplication().isInternal()) {
       val enteredPrefix = mySpeedSearch.enteredPrefix
       val itemText: String? = if (selectedNode != null) getSpeedSearchText(selectedNode) else null
@@ -626,15 +622,18 @@ class FileStructurePopup(
     val isRevertedStructureFilter = action.isReverted
     myModel.setActionEnabled(action, isRevertedStructureFilter != selected)
     checkBox.addActionListener {
-      logFileStructureCheckboxClick(action)
       val state = checkBox.isSelected
       if (!myAutoClicked.contains(checkBox)) {
         saveState(action, state)
       }
       myModel.setActionEnabled(action, isRevertedStructureFilter != state)
-      rebuild(false).onProcessed {
-        if (mySpeedSearch.isPopupActive) {
-          mySpeedSearch.refreshSelection()
+      cs.launch {
+        logFileStructureCheckboxClick(action)
+        rebuild(false)
+        withContext(Dispatchers.EDT) {
+          if (mySpeedSearch.isPopupActive) {
+            mySpeedSearch.refreshSelection()
+          }
         }
       }
     }
@@ -644,7 +643,7 @@ class FileStructurePopup(
       text += " (" + KeymapUtil.getShortcutText(shortcuts[0]) + ")"
       DumbAwareAction.create {
         checkBox.doClick()
-      }.registerCustomShortcutSet(CustomShortcutSet(*shortcuts), this.tree)
+      }.registerCustomShortcutSet(CustomShortcutSet(*shortcuts), tree)
     }
     checkBox.setText(text)
     panel.add(checkBox)
@@ -664,64 +663,81 @@ class FileStructurePopup(
     }
   }
 
-  private fun rebuild(refilterOnly: Boolean): Promise<Void?> {
+  private suspend fun rebuild(refilterOnly: Boolean) {
     val selection = tree.getSelectionPaths()?.firstNotNullOf { unwrapTreeElement(it.lastPathComponent) } ?: myModel.editorSelection.value
-    return rebuildAndSelect(refilterOnly, selection, null).then<Void?>(Function { null })
+    rebuildAndSelect(refilterOnly, selection, null)
   }
 
-  private fun rebuildAndSelect(refilterOnly: Boolean, selection: Any?, rebuildStartTime: Long?): Promise<TreePath?> {
+  @RequiresBackgroundThread
+  private suspend fun rebuildAndSelect(refilterOnly: Boolean, selection: Any?, rebuildStartTime: Long?): TreePath? {
     var rebuildStartTime = rebuildStartTime
     if (rebuildStartTime == null) {
       rebuildStartTime = System.nanoTime()
     }
 
-    val result = AsyncPromise<TreePath?>()
     val finalLastRebuildStartTime = rebuildStartTime
-    myStructureTreeModel.invoker.invoke(Runnable {
-      if (refilterOnly) {
-        myFilteringStructure.rebuild()
-        myFilteringStructure.refilter()
-        myStructureTreeModel.invalidateAsync().thenRun {
-          val promise = when (selection) {
-            is StructureViewTreeElement -> select(selection)
-            is StructureUiTreeElement -> select(selection)
-            else -> myAsyncTreeModel.accept { TreeVisitor.Action.CONTINUE }
-          }
-          promise.onError {
-            result.setError("rejected")
-            mySpeedSearch.refreshSelection() // Selection failed, let the speed search reflect that by coloring itself red.
-          }.onSuccess {
-            EdtInvocationManager.invokeLaterIfNeeded {
-              //maybe readaction
-              WriteIntentReadAction.run {
-                TreeUtil.expand(this.tree, myModel.minimumAutoExpandDepth)
-                TreeUtil.ensureSelection(this.tree)
+
+    return suspendCancellableCoroutine { continuation ->
+      myStructureTreeModel.invoker.invoke {
+        if (refilterOnly) {
+          myFilteringStructure.rebuild()
+          myFilteringStructure.refilter()
+          myStructureTreeModel.invalidateAsync().thenRun {
+            cs.launch {
+              try {
+                val result = when (selection) {
+                  is StructureViewTreeElement -> select(selection)
+                  is StructureUiTreeElement -> select(selection)
+                  else -> {
+                    myAsyncTreeModel.accept { TreeVisitor.Action.CONTINUE }.asDeferred().await()
+                    null
+                  }
+                }
+                withContext(Dispatchers.UI) {
+                  TreeUtil.expand(this@FileStructurePopup.tree, myModel.minimumAutoExpandDepth)
+                  TreeUtil.ensureSelection(this@FileStructurePopup.tree)
+                  mySpeedSearch.refreshSelection()
+                  LOG.debug {
+                    val time = (System.nanoTime() - showTime).nanoseconds
+                    "rebuild time: $time ns, ${time.inWholeMilliseconds} ms"
+                  }
+                  FileStructurePopupTimeTracker.logRebuildTime(System.nanoTime() - finalLastRebuildStartTime)
+                }
+                continuation.resume(result)
+              }
+              catch (e: Exception) {
                 mySpeedSearch.refreshSelection()
-                result.setResult(it)
-                FileStructurePopupTimeTracker.logRebuildTime(System.nanoTime() - finalLastRebuildStartTime)
+                continuation.resumeWithException(e)
               }
             }
           }
         }
-      }
-      else {
-        myTreeStructure.rebuildTree()
-        myStructureTreeModel.invalidateAsync().thenRun {
-          rebuildAndSelect(true, selection ?: myModel.editorSelection.value, finalLastRebuildStartTime)
-            .processed(result)
+        else {
+          myTreeStructure.rebuildTree()
+          myStructureTreeModel.invalidateAsync().thenRun {
+            cs.launch {
+              try {
+                val result = rebuildAndSelect(true, selection ?: myModel.editorSelection.value, finalLastRebuildStartTime)
+                continuation.resume(result)
+              }
+              catch (e: Exception) {
+                continuation.resumeWithException(e)
+              }
+            }
+          }
         }
+      }.onError {
+        continuation.resumeWithException(RuntimeException(it))
       }
-    }).onError {
-      result.setError(it)
     }
-    return result
   }
 
   override fun setTitle(title: @NlsContexts.PopupTitle String) {
     myTitle = title
   }
 
-  @get:TestOnly val speedSearch: TreeSpeedSearch
+  @get:TestOnly
+  val speedSearch: TreeSpeedSearch
     get() = mySpeedSearch
 
   @TestOnly
@@ -780,7 +796,7 @@ class FileStructurePopup(
       return if (!StringUtil.isEmpty(mySpeedSearch.enteredPrefix)) mySpeedSearch.enteredPrefix else null
     }
 
-  private inner class MyTreeSpeedSearch : TreeSpeedSearch(this.tree, true, null, java.util.function.Function { path: TreePath? ->
+  private inner class MyTreeSpeedSearch : TreeSpeedSearch(tree, true, null, java.util.function.Function { path: TreePath? ->
     val element = unwrapTreeElement(path)
     if (element != null) getSpeedSearchText(element) else null
   }) {
@@ -870,7 +886,7 @@ class FileStructurePopup(
     return node as? StructureViewTreeElement
   }
 
-  private inner class ToggleNarrowDownAction : ToggleAction(IdeBundle.message("checkbox.narrow.down.on.typing")) {
+  private inner class ToggleNarrowDownAction : ToggleAction(@Suppress("DialogTitleCapitalization") IdeBundle.message("checkbox.narrow.down.on.typing")) {
     override fun isSelected(e: AnActionEvent): Boolean {
       return isShouldNarrowDown
     }
@@ -882,7 +898,9 @@ class FileStructurePopup(
     override fun setSelected(e: AnActionEvent, state: Boolean) {
       PropertiesComponent.getInstance().setValue(NARROW_DOWN_PROPERTY_KEY, state.toString())
       if (mySpeedSearch.isPopupActive && !StringUtil.isEmpty(mySpeedSearch.enteredPrefix)) {
-        rebuild(true)
+        cs.launch {
+          rebuild(true)
+        }
       }
     }
   }
@@ -897,7 +915,8 @@ class FileStructurePopup(
       get() = PropertiesComponent.getInstance().getBoolean(
         NARROW_DOWN_PROPERTY_KEY, true)
 
-    @get:NonNls private val dimensionServiceKey: @NonNls String
+    @get:NonNls
+    private val dimensionServiceKey: @NonNls String
       get() = "StructurePopup"
 
     fun extractShortcutFor(action: CheckboxTreeAction): Array<Shortcut> {
@@ -932,8 +951,8 @@ class FileStructurePopup(
     }
 
     private fun isElement(element: StructureUiTreeElement, path: TreePath?): Boolean {
-      val treeElement = TreeUtil.getLastUserObject(FilteringNode::class.java, path)!!.delegate as StructureViewTreeElement
-      return element == treeElement.getValue()
+      val treeElement = TreeUtil.getLastUserObject(FilteringNode::class.java, path)?.delegate as? StructureViewTreeElement
+      return element == treeElement?.getValue()
     }
 
     private fun isParent(parent: StructureUiTreeElement, path: TreePath?): Boolean {
