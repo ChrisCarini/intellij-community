@@ -96,7 +96,7 @@ a:com.intellij.ide.util.treeView.smartTree.CachingChildrenTreeNode
 - canNavigateToSource():Z
 - p:clearChildren():V
 - pa:copyFromNewInstance(com.intellij.ide.util.treeView.smartTree.CachingChildrenTreeNode):V
-- p:createChildNode(com.intellij.ide.util.treeView.smartTree.TreeElement):com.intellij.ide.util.treeView.smartTree.TreeElementWrapper
+- p:createChildNode(com.intellij.ide.util.treeView.smartTree.TreeElement,com.intellij.ide.util.treeView.smartTree.NodeProvider):com.intellij.ide.util.treeView.smartTree.TreeElementWrapper
 - p:createGroupWrapper(com.intellij.openapi.project.Project,com.intellij.ide.util.treeView.smartTree.Group,com.intellij.ide.util.treeView.smartTree.TreeModel):com.intellij.ide.util.treeView.smartTree.GroupWrapper
 - p:filterChildren(com.intellij.ide.util.treeView.smartTree.Filter[]):V
 - getChildren():java.util.Collection
@@ -132,7 +132,9 @@ c:com.intellij.ide.util.treeView.smartTree.SmartTreeStructure
 c:com.intellij.ide.util.treeView.smartTree.TreeElementWrapper
 - com.intellij.ide.util.treeView.smartTree.CachingChildrenTreeNode
 - <init>(com.intellij.openapi.project.Project,com.intellij.ide.util.treeView.smartTree.TreeElement,com.intellij.ide.util.treeView.smartTree.TreeModel):V
+- <init>(com.intellij.openapi.project.Project,com.intellij.ide.util.treeView.smartTree.TreeElement,com.intellij.ide.util.treeView.smartTree.TreeModel,com.intellij.ide.util.treeView.smartTree.NodeProvider):V
 - copyFromNewInstance(com.intellij.ide.util.treeView.smartTree.CachingChildrenTreeNode):V
+- getProvider():com.intellij.ide.util.treeView.smartTree.NodeProvider
 - initChildren():V
 - p:performTreeActions():V
 - update(com.intellij.ide.projectView.PresentationData):V

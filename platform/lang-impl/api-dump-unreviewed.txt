@@ -10288,7 +10288,6 @@ f:com.intellij.ide.util.FileStructurePopup
 - setActionActive(java.lang.String,Z):V
 - setSearchFilterForTests(java.lang.String):V
 - setTitle(java.lang.String):V
-- setTreeActionState(java.lang.Class,Z):V
 - show():V
 - showWithResult():org.jetbrains.concurrency.Promise
 c:com.intellij.ide.util.MemberChooser
