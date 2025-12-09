@@ -79,7 +79,7 @@ public final class ViewStructureAction extends DumbAwareAction {
   public static @Nullable StructurePopup createPopup(@NotNull Project project,
                                                          @NotNull FileEditor fileEditor,
                                                          @Nullable Consumer<AbstractTreeNode<?>> callbackAfterNavigation) {
-    return StructurePopupProvider.Companion.createPopup(project, fileEditor);
+    return StructurePopupProvider.Companion.createPopup(project, fileEditor, callbackAfterNavigation);
   }
 
   @Override

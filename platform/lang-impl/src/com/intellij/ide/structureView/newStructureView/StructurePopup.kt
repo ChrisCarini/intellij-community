@@ -1,11 +1,13 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.ide.structureView.newStructureView
 
+import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.NlsContexts
 import org.jetbrains.annotations.ApiStatus
+import java.util.function.Consumer
 
 @ApiStatus.Experimental
 interface StructurePopup: TreeActionsOwner {
@@ -17,9 +19,21 @@ interface StructurePopup: TreeActionsOwner {
 interface StructurePopupProvider {
   fun createPopup(project: Project, fileEditor: FileEditor): StructurePopup?
 
+  /**
+   * callbackAfterNavigation doesn't work in the new file structure popup
+   */
+  fun createPopup(project: Project, fileEditor: FileEditor, callbackAfterNavigation: Consumer<AbstractTreeNode<*>>?): StructurePopup?
+
   companion object {
     fun createPopup(project: Project, fileEditor: FileEditor): StructurePopup? {
       return EP.extensionList.firstNotNullOfOrNull { it.createPopup(project, fileEditor) }
+    }
+
+    /**
+     * callbackAfterNavigation doesn't work in the new file structure popup
+     */
+    fun createPopup(project: Project, fileEditor: FileEditor, callbackAfterNavigation: Consumer<AbstractTreeNode<*>>?): StructurePopup? {
+      return EP.extensionList.firstNotNullOfOrNull { it.createPopup(project, fileEditor, callbackAfterNavigation) }
     }
 
     val EP: ExtensionPointName<StructurePopupProvider> = ExtensionPointName.create("com.intellij.structurePopupProvider")

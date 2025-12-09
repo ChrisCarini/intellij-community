@@ -28,14 +28,14 @@ import static com.intellij.ide.actions.ViewStructureAction.createStructureViewMo
 class OldStructurePopupProviderImpl implements StructurePopupProvider {
   @Override
   public @Nullable StructurePopup createPopup(@NotNull Project project, @NotNull FileEditor fileEditor) {
-    if (Registry.is("frontend.structure.popup")) return null;
     return createPopup(project, fileEditor, null);
   }
 
-  @ApiStatus.Internal
-  public static @Nullable FileStructurePopup createPopup(@NotNull Project project,
-                                                         @NotNull FileEditor fileEditor,
-                                                         @Nullable Consumer<AbstractTreeNode<?>> callbackAfterNavigation) {
+  @Override
+  public @Nullable FileStructurePopup createPopup(@NotNull Project project,
+                                                  @NotNull FileEditor fileEditor,
+                                                  @Nullable Consumer<AbstractTreeNode<?>> callbackAfterNavigation) {
+    if (Registry.is("frontend.structure.popup")) return null;
     PsiDocumentManager.getInstance(project).commitAllDocuments();
     StructureViewBuilder builder = fileEditor.getStructureViewBuilder();
     if (builder == null) return null;
