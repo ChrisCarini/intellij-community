@@ -161,10 +161,16 @@ class FileStructurePopup(
     tree.model.addTreeModelListener(SWExpandListener(tree, myModel))
     PopupUtil.applyNewUIBackground(tree)
     tree.getAccessibleContext().setAccessibleName(LangBundle.message("file.structure.tree.accessible.name"))
+    Disposer.register(this, myModel)
 
     val updaterInstalled = AtomicBoolean(false)
     myModel.addListener(object : StructureUiModelListener {
       override fun onTreeChanged() {
+        if (myModel.dto == null) {
+          tree.emptyText.text = LangBundle.message("panel.empty.text.no.structure")
+          return
+        }
+
         cs.launch {
           rebuild(false)
 

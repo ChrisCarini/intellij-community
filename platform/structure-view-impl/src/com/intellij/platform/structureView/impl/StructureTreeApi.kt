@@ -6,21 +6,19 @@ import com.intellij.openapi.editor.impl.EditorId
 import com.intellij.platform.project.ProjectId
 import com.intellij.platform.rpc.RemoteApiProviderService
 import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
-import com.intellij.platform.structureView.impl.dto.StructureViewModelDtoId
 import fleet.rpc.RemoteApi
 import fleet.rpc.Rpc
 import fleet.rpc.remoteApiDescriptor
-import kotlinx.coroutines.flow.Flow
 import org.jetbrains.annotations.ApiStatus.Internal
 
 @Internal
 @Rpc
 interface StructureTreeApi : RemoteApi<Unit> {
-  suspend fun getStructureViewModelFlow(editorId: EditorId?, fileId: VirtualFileId, projectId: ProjectId, id: StructureViewModelDtoId): Flow<StructureViewModelDto?>
+  suspend fun getStructureViewModel(editorId: EditorId?, fileId: VirtualFileId, projectId: ProjectId, id: Int): StructureViewModelDto?
 
-  suspend fun structureViewModelDisposed(id: StructureViewModelDtoId)
+  suspend fun structureViewModelDisposed(id: Int)
 
-  suspend fun setTreeActionState(id: StructureViewModelDtoId, actionName: String, isEnabled: Boolean)
+  suspend fun setTreeActionState(id: Int, actionName: String, isEnabled: Boolean)
 
   companion object {
     suspend fun getInstance(): StructureTreeApi {

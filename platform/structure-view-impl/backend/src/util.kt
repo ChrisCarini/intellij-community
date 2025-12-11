@@ -22,11 +22,12 @@ import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionImpl
 import com.intellij.pom.Navigatable
 
-internal fun StructureViewTreeElement.toDto(id: Int, parentId: Int, autoExpand: Boolean?, alwaysShowsPlus: Boolean?, alwaysLeaf: Boolean?, filterResults: List<Boolean>): StructureViewTreeElementDto {
+internal fun StructureViewTreeElement.toDto(id: Int, parentId: Int, index: Int, autoExpand: Boolean?, alwaysShowsPlus: Boolean?, alwaysLeaf: Boolean?, filterResults: List<Boolean>): StructureViewTreeElementDto {
   val presentation = presentation
   return StructureViewTreeElementDto(
     id,
     parentId,
+    index,
     StructureViewUtil.getSpeedSearchText(this),
     this.value.hashCode(),
     presentation.toDto(),

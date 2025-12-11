@@ -1,0 +1,65 @@
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.platform.structureView.impl.uiModel
+
+import com.intellij.ide.rpc.navigatable
+import com.intellij.navigation.ItemPresentation
+import com.intellij.openapi.vcs.FileStatus
+import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
+import com.intellij.platform.structureView.impl.dto.toPresentation
+import com.intellij.pom.Navigatable
+
+open class StructureUiTreeElementImpl(val dto: StructureViewTreeElementDto) : StructureUiTreeElement {
+  override val id: Int
+    get() = dto.id
+
+  override var parent: StructureUiTreeElement? = null
+    internal set
+
+  override val indexInParent: Int = dto.index
+
+  override val presentation: ItemPresentation
+    get() = dto.presentation.toPresentation()
+
+  override val speedSearchText: String?
+    get() = dto.speedSearchText
+
+  override val alwaysShowPlus: Boolean
+    get() = dto.alwaysShowsPlus
+
+  override val alwaysLeaf: Boolean
+    get() = dto.alwaysLeaf
+
+  override val shouldAutoExpand: Boolean
+    get() = dto.autoExpand
+
+  override val navigatable: Navigatable?
+    get() = dto.navigatable?.navigatable()
+
+  override val fileStatus: FileStatus
+    get() = FileStatus.NOT_CHANGED
+
+  override val filterResults: List<Boolean>
+    get() = dto.filterResults
+
+  internal val myChildren = mutableListOf<StructureUiTreeElementImpl>()
+
+  override val children: List<StructureUiTreeElement> get() = myChildren
+
+  override fun equals(other: Any?): Boolean {
+    return other is StructureUiTreeElement && id == other.id
+  }
+
+  override fun hashCode(): Int {
+    return id
+  }
+
+  override fun toString(): String {
+    return "StructureUiTreeElementImpl(dto=$dto)"
+  }
+
+  companion object {
+    fun StructureViewTreeElementDto.toUiElement(parent: StructureUiTreeElement?): StructureUiTreeElementImpl {
+      return StructureUiTreeElementImpl(this).also { it.parent = parent }
+    }
+  }
+}

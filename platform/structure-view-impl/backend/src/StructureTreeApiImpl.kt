@@ -13,14 +13,14 @@ import com.intellij.ide.structureView.newStructureView.StructureViewComponent
 import com.intellij.ide.structureView.newStructureView.StructureViewSelectVisitorState
 import com.intellij.ide.structureView.newStructureView.TreeModelWrapper
 import com.intellij.ide.structureView.newStructureView.getElementInfoProvider
-import com.intellij.ide.util.ActionShortcutProvider
-import com.intellij.ide.util.FileStructureFilter
-import com.intellij.ide.util.FileStructureNodeProvider
-import com.intellij.ide.util.FileStructurePopup
+import com.intellij.ide.util.*
+import com.intellij.ide.util.FileStructurePopup.getDefaultValue
+import com.intellij.ide.util.FileStructurePopup.saveState
 import com.intellij.ide.util.treeView.smartTree.*
 import com.intellij.ide.vfs.VirtualFileId
 import com.intellij.ide.vfs.virtualFile
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.logger
@@ -51,10 +51,11 @@ import com.intellij.util.Function
 import com.intellij.util.ui.tree.TreeUtil
 import fleet.rpc.core.toRpc
 import fleet.rpc.remoteApiDescriptor
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.asDeferred
@@ -65,155 +66,163 @@ import javax.swing.tree.TreePath
 private class StructureTreeApiImpl : StructureTreeApi {
   private val structureViews = ConcurrentHashMap<UID, StructureViewEntry>()
 
-  override suspend fun getStructureViewModelFlow(editorId: EditorId?, fileId: VirtualFileId, projectId: ProjectId, id: StructureViewModelDtoId): Flow<StructureViewModelDto?> {
-    return flow {
-      val startTime = System.currentTimeMillis()
-      val disposable = Disposer.newCheckedDisposable("Disposable for structure model with id: ${id.id}")
-      val project = projectId.findProject()
-      val file = fileId.virtualFile()
-      if (file == null) {
-        emit(null)
-        return@flow
-      }
-      val editor = editorId?.findEditor()
-      val fileEditor = FileEditorManager.getInstance(project).getSelectedEditor(file)
+  override suspend fun getStructureViewModel(
+    editorId: EditorId?,
+    fileId: VirtualFileId,
+    projectId: ProjectId,
+    id: Int,
+  ): StructureViewModelDto? {
+    val startTime = System.currentTimeMillis()
 
-      val treeModel = readAction {
-        val structureViewBuilder = fileEditor?.structureViewBuilder
-        if (structureViewBuilder == null) {
-          return@readAction null
-        }
+    logger.debug { "Creating structure model for id: $id" }
 
-        if (structureViewBuilder is TreeBasedStructureViewBuilder) {
-          structureViewBuilder.createStructureViewModel(editor)
-        }
-        else {
-          val structureView = structureViewBuilder.createStructureView(fileEditor, project)
-          val physicalView = if (structureView is StructureViewComposite) {
-            structureView.structureViews.firstOrNull { it.title == StructureViewTab.PHYSICAL.title }?.structureView
-          }
-          else {
-            structureView
-          }
-          physicalView?.treeModel
-        }
+    val disposable = Disposer.newCheckedDisposable("Disposable for structure model with id: $id")
+    val project = projectId.findProject()
+    val file = fileId.virtualFile()
+    if (file == null) {
+      return null
+    }
+    val editor = editorId?.findEditor()
+    val fileEditor = FileEditorManager.getInstance(project).getSelectedEditor(file)
+
+    val treeModel = readAction {
+      val structureViewBuilder = fileEditor?.structureViewBuilder
+      if (structureViewBuilder == null) {
+        return@readAction null
       }
 
-      if (treeModel == null) {
-        emit(null)
-        return@flow
+      if (structureViewBuilder is TreeBasedStructureViewBuilder) {
+        structureViewBuilder.createStructureViewModel(editor)
       }
-
-      val wrapper = object: SmartTreeStructure(project, TreeModelWrapper(treeModel, BackendTreeActionOwner())) {
-        override fun rebuildTree() {
-          if (disposable.isDisposed()) return
-          super.rebuildTree()
-        }
-
-        override fun createTree(): TreeElementWrapper {
-          return StructureViewComponent.createWrapper(myProject, myModel.getRoot(), myModel)
-        }
-      }
-
-      val myStructureTreeModel = StructureTreeModel<SmartTreeStructure>(wrapper, disposable)
-      val myAsyncTreeModel = AsyncTreeModel(myStructureTreeModel, disposable)
-
-      val sorterDtos = treeModel.sorters.toDto()
-
-      val actionOwner = BackendTreeActionOwnerService.getInstance()
-      for (sorterDto in sorterDtos) {
-        actionOwner.setActionActive(sorterDto.name, sorterDto.isEnabledByDefault)
-      }
-
-      //todo for not a popup these don't have to implement FileStructureFilter
-      val filters = treeModel.filters.filterIsInstance<FileStructureFilter>()
-
-      val expandInfoProvider = treeModel as? ExpandInfoProvider
-      val elementInfoProvider = getElementInfoProvider(treeModel)
-
-      val root = readAction {
-        createRootModel(wrapper.rootElement as TreeElementWrapper, expandInfoProvider, elementInfoProvider)
-      }
-
-      if (root == null) {
-        emit(null)
-        return@flow
-      }
-
-      val nodesFlow = MutableStateFlow<TreeNodesDto?>(null)
-      val structureViewEntry = StructureViewEntry(wrapper, treeModel, nodesFlow, myAsyncTreeModel, fileEditor, disposable)
-      structureViews[id.id] = structureViewEntry
-
-      val filterDtos = filters.mapIndexed { index, filter ->
-        val (actionIdForShortcut, shortcut) = if (filter is ActionShortcutProvider) {
-          filter.actionIdForShortcut to emptyList()
+      else {
+        val structureView = structureViewBuilder.createStructureView(fileEditor, project)
+        val physicalView = if (structureView is StructureViewComposite) {
+          structureView.structureViews.firstOrNull { it.title == StructureViewTab.PHYSICAL.title }?.structureView
         }
         else {
-          null to filter.shortcut.map { it.rpcId() }
+          structureView
         }
+        physicalView?.treeModel
+      }
+    }
 
-        FilterTreeAction(
-          index,
-          StructureTreeAction.Type.FILTER,
-          filter.name,
-          filter.presentation.toDto(),
-          filter.isReverted,
-          (filter as? TreeActionWithDefaultState)?.isEnabledByDefault ?: false,
-          shortcut.toTypedArray(),
-          actionIdForShortcut,
-          filter.checkBoxText,
-          (filter as? PropertyOwner)?.propertyName ?: filter.name
-        )
+    if (treeModel == null) {
+      return null
+    }
+
+    val wrapper = object : SmartTreeStructure(project, TreeModelWrapper(treeModel, BackendTreeActionOwner())) {
+      override fun rebuildTree() {
+        if (disposable.isDisposed()) return
+        super.rebuildTree()
       }
 
-      StructureViewScopeHolder.getInstance().cs.launch {
-        if (disposable.isDisposed) return@launch
-        nodesFlow.value = try {
-          val nodes = computeNodes(structureViewEntry)
+      override fun createTree(): TreeElementWrapper {
+        return StructureViewComponent.createWrapper(myProject, myModel.getRoot(), myModel)
+      }
+    }
 
-          logger.debug {
-            val time = System.currentTimeMillis() - startTime
-            "Nodes for the structure model with id: ${id.id} were computed in $time ms"
-          }
-          nodes
-        } catch (e: Throwable) {
-          logger.error(e)
-          null
+    val myStructureTreeModel = StructureTreeModel<SmartTreeStructure>(wrapper, disposable)
+    val myAsyncTreeModel = AsyncTreeModel(myStructureTreeModel, disposable)
+
+    val sorterDtos = treeModel.sorters.toDto()
+
+    val actionOwner = BackendTreeActionOwnerService.getInstance()
+    for (sorter in treeModel.sorters) {
+      actionOwner.setActionActive(sorter.name, getDefaultValue(sorter))
+    }
+
+    //todo for not a popup these don't have to implement FileStructureFilter
+    val filters = treeModel.filters.filterIsInstance<FileStructureFilter>()
+
+    val expandInfoProvider = treeModel as? ExpandInfoProvider
+    val elementInfoProvider = getElementInfoProvider(treeModel)
+
+    val root = readAction {
+      createRootModel(wrapper.rootElement as TreeElementWrapper, expandInfoProvider, elementInfoProvider)
+    }
+
+    if (root == null) {
+      return null
+    }
+
+    val nodesFlow = MutableStateFlow<TreeNodesDto?>(null)
+    val structureViewEntry =
+      StructureViewEntry(wrapper, myStructureTreeModel, treeModel, nodesFlow, myAsyncTreeModel, fileEditor, disposable)
+    structureViews[id] = structureViewEntry
+
+    val filterDtos = filters.mapIndexed { index, filter ->
+      val (actionIdForShortcut, shortcut) = if (filter is ActionShortcutProvider) {
+        filter.actionIdForShortcut to emptyList()
+      }
+      else {
+        null to filter.shortcut.map { it.rpcId() }
+      }
+
+      FilterTreeAction(
+        index,
+        StructureTreeAction.Type.FILTER,
+        filter.name,
+        filter.presentation.toDto(),
+        filter.isReverted,
+        (filter as? TreeActionWithDefaultState)?.isEnabledByDefault ?: false,
+        shortcut.toTypedArray(),
+        actionIdForShortcut,
+        filter.checkBoxText,
+        (filter as? PropertyOwner)?.propertyName ?: filter.name
+      )
+    }
+
+    StructureViewScopeHolder.getInstance().cs.launch {
+      if (disposable.isDisposed) return@launch
+      nodesFlow.value = try {
+        val nodes = computeNodes(structureViewEntry)
+
+        logger.debug {
+          val time = System.currentTimeMillis() - startTime
+          "Nodes for the structure model with id: $id were computed in $time ms"
         }
+        nodes
       }
+      catch (e: Throwable) {
+        logger.error(e)
+        null
+      }
+    }
 
-      logger.debug {
-        val time = System.currentTimeMillis() - startTime
-        "Structure model with id: ${id.id} was created in $time ms"
-      }
-      emit(StructureViewModelDto(
-        root,
-        nodesFlow.toRpc(),
-        expandInfoProvider?.isSmartExpand ?: false,
-        expandInfoProvider?.minimumAutoExpandDepth ?: 2,
-        false, /*todo for tw*/
-        sorterDtos + filterDtos
-      ))
+    logger.debug {
+      val time = System.currentTimeMillis() - startTime
+      "Structure model with id: $id was created in $time ms"
+    }
+    return StructureViewModelDto(
+      root,
+      nodesFlow.toRpc(),
+      expandInfoProvider?.isSmartExpand ?: false,
+      expandInfoProvider?.minimumAutoExpandDepth ?: 2,
+      false, /*todo for tw*/
+      sorterDtos + filterDtos
+    )
+  }
+
+  override suspend fun structureViewModelDisposed(id: Int) {
+    withContext(Dispatchers.EDT) {
+      logger.debug { "Structure model with id: $id was disposed" }
+      val entry = structureViews.remove(id) ?: return@withContext
+      Disposer.dispose(entry.disposable)
+      entry.nodeToId.clear()
+      entry.nodesFlow.value = null
     }
   }
 
-  override suspend fun structureViewModelDisposed(id: StructureViewModelDtoId) {
-    val entry = structureViews.remove(id.id) ?: return
-    Disposer.dispose(entry.disposable)
-    entry.nodeToId.clear()
-    entry.nodesFlow.value = null
-  }
-
-  override suspend fun setTreeActionState(id: StructureViewModelDtoId, actionName: String, isEnabled: Boolean) {
+  override suspend fun setTreeActionState(id: Int, actionName: String, isEnabled: Boolean) {
     if (BackendTreeActionOwnerService.getInstance().isActionActive(actionName) == isEnabled) return
     val time = System.currentTimeMillis()
 
-    BackendTreeActionOwnerService.getInstance().setActionActive(actionName, isEnabled)
-
-    structureViews[id.id]?.let {
-      readAction {
-        it.wrapper.rebuildTree()
-      }
+    structureViews[id]?.let {
+      BackendTreeActionOwnerService.getInstance().setActionActive(actionName, isEnabled)
+      val action = it.treeModel.sorters.firstOrNull { it.name == actionName } ?: return@let
+      saveState(action, isEnabled)
+      it.wrapper.rebuildTree()
+      it.structureTreeModel.invalidateAsync().asDeferred().await()
       it.nodesFlow.value = computeNodes(it)
     }
     logger.debug {
@@ -222,7 +231,11 @@ private class StructureTreeApiImpl : StructureTreeApi {
     }
   }
 
-  private suspend fun getCorrectElementToSelect(asyncTreeModel: AsyncTreeModel, fileEditor: FileEditor?, treeModel: StructureViewModel): Any? {
+  private suspend fun getCorrectElementToSelect(
+    asyncTreeModel: AsyncTreeModel,
+    fileEditor: FileEditor?,
+    treeModel: StructureViewModel,
+  ): Any? {
     val (element, editorOffset) = readAction {
       treeModel.currentEditorElement to ((fileEditor as? TextEditor)?.getEditor()?.getCaretModel()?.offset ?: -1)
     }
@@ -249,7 +262,8 @@ private class StructureTreeApiImpl : StructureTreeApi {
           val value = if (path == null && adjusted != null && !state.isExactMatch && element is PsiElement) {
             val minChild = FileStructurePopup.findClosestPsiElement(element, adjusted, asyncTreeModel)
             StructureViewComponent.unwrapValue(minChild)
-          } else {
+          }
+          else {
             StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
           }
           return if (adjusted == null) resolvedPromise(null) else resolvedPromise(value)
@@ -263,62 +277,64 @@ private class StructureTreeApiImpl : StructureTreeApi {
   private suspend fun computeNodes(entry: StructureViewEntry): TreeNodesDto {
     val mainNodes = mutableListOf<StructureViewTreeElementDto>()
     //todo for not a popup these don't have to implement FileStructureNodeProvider
-    val nodeProvidersMap = (entry.treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<FileStructureNodeProvider<*>>()?.associate { it to mutableListOf<StructureViewTreeElementDto>() }
+    val nodeProvidersMap = (entry.treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<FileStructureNodeProvider<*>>()
+      ?.associate { it to mutableListOf<StructureViewTreeElementDto>() }
     val expandInfoProvider = entry.treeModel as? ExpandInfoProvider
     val elementInfoProvider = getElementInfoProvider(entry.treeModel)
 
     //todo for not a popup these don't have to implement FileStructureFilter
     val filters = entry.treeModel.filters.filterIsInstance<FileStructureFilter>()
 
-    // tree children will be initialized here through the visitor used inside
     val currentEditorElement = getCorrectElementToSelect(entry.asyncTreeModel, entry.fileEditor, entry.treeModel)
 
-    //todo for tw - proper selection logic, not just editor's element
-    //todo can i use visitor? they need to be added in the same order as they are in the parent
-    val editorSelection = readAction {
-      var editorElement: StructureViewTreeElementDto? = null
-      for (child in (entry.wrapper.rootElement as TreeElementWrapper).children.filterIsInstance<TreeElementWrapper>()) {
-        val value = processTreeElement(expandInfoProvider,
-                                       elementInfoProvider,
-                                       currentEditorElement,
-                                       child,
-                                       0,
-                                       mainNodes,
-                                       nodeProvidersMap,
-                                       filters,
-                                       entry)
-        if (value != null) {
-          editorElement = value
+    var editorSelection: StructureViewTreeElementDto? = null
+
+    val visitor = object : TreeVisitor {
+      override fun visitThread(): VisitThread = VisitThread.BGT
+
+      override fun visit(path: TreePath): TreeVisitor.Action {
+        val element = TreeUtil.getUserObject(path.lastPathComponent) as? TreeElementWrapper ?: return TreeVisitor.Action.CONTINUE
+        // don't visit root here, it's sent separately
+        if (element.parent == null) return TreeVisitor.Action.CONTINUE
+        val maybeEditorSelection = processTreeElement(expandInfoProvider, elementInfoProvider, currentEditorElement,
+                                                      element, mainNodes, nodeProvidersMap, filters, entry)
+        if (maybeEditorSelection != null) {
+          editorSelection = maybeEditorSelection
         }
+        return TreeVisitor.Action.CONTINUE
       }
-      editorElement
     }
 
-    return TreeNodesDto(
-      editorSelection,
-      mainNodes,
-      nodeProvidersMap?.entries?.map { (provider, nodes) ->
-        val (actionIdForShortcut, shortcut) = if (provider is ActionShortcutProvider) {
-          provider.actionIdForShortcut to emptyList()
-        }
-        else {
-          null to provider.shortcut.map { it.rpcId() }
-        }
+    val dto = entry.asyncTreeModel.accept(visitor).then {
+      TreeNodesDto(
+        editorSelection,
+        mainNodes,
+        nodeProvidersMap?.entries?.map { (provider, nodes) ->
+          val (actionIdForShortcut, shortcut) = if (provider is ActionShortcutProvider) {
+            provider.actionIdForShortcut to emptyList()
+          }
+          else {
+            null to provider.shortcut.map { it.rpcId() }
+          }
 
-        NodeProviderTreeAction(
-          StructureTreeAction.Type.FILTER,
-          provider.name,
-          provider.presentation.toDto(),
-          false,
-          (provider as? TreeActionWithDefaultState)?.isEnabledByDefault ?: false,
-          shortcut.toTypedArray(),
-          actionIdForShortcut,
-          provider.checkBoxText,
-          (provider as? PropertyOwner)?.propertyName ?: provider.name,
-          nodes,
-        )
-      } ?: emptyList(),
-    )
+          NodeProviderTreeAction(
+            StructureTreeAction.Type.FILTER,
+            provider.name,
+            provider.presentation.toDto(),
+            false,
+            (provider as? TreeActionWithDefaultState)?.isEnabledByDefault ?: false,
+            shortcut.toTypedArray(),
+            actionIdForShortcut,
+            provider.checkBoxText,
+            (provider as? PropertyOwner)?.propertyName ?: provider.name,
+            nodes,
+          )
+        } ?: emptyList(),
+      )
+    }.asDeferred().await()
+
+    //todo for tw - proper selection logic, not just editor's element
+    return dto
   }
 
   private fun createRootModel(
@@ -333,6 +349,7 @@ private class StructureTreeApiImpl : StructureTreeApi {
 
     return element.toDto(id,
                          -1,
+                         0,
                          expandInfoProvider?.isAutoExpand(element),
                          elementInfoProvider?.isAlwaysShowsPlus(element),
                          elementInfoProvider?.isAlwaysLeaf(element),
@@ -344,7 +361,6 @@ private class StructureTreeApiImpl : StructureTreeApi {
     elementInfoProvider: ElementInfoProvider?,
     currentEditorElement: Any?,
     wrapper: TreeElementWrapper,
-    parentId: Int,
     nodes: MutableList<StructureViewTreeElementDto>,
     nodeProvidersMap: Map<FileStructureNodeProvider<*>, MutableList<StructureViewTreeElementDto>>?,
     filters: List<FileStructureFilter>,
@@ -362,16 +378,17 @@ private class StructureTreeApiImpl : StructureTreeApi {
       }
     }
 
+    val parentId = (wrapper.parent?.value as? StructureViewTreeElement)?.let { structureViewEntry.nodeToId[it.value] } ?: 0
+
     val model = element.toDto(
       id,
       parentId,
+      wrapper.index,
       expandInfoProvider?.isAutoExpand(element),
       elementInfoProvider?.isAlwaysShowsPlus(element),
       elementInfoProvider?.isAlwaysLeaf(element),
       filters.map { it.isVisible(element) }
     )
-
-    var editorSelection = if (element.value == currentEditorElement) model else null
 
     if (wrapper.provider != null) {
       nodeProvidersMap?.get(wrapper.provider)?.add(model)
@@ -380,26 +397,12 @@ private class StructureTreeApiImpl : StructureTreeApi {
       nodes.add(model)
     }
 
-    wrapper.children.filterIsInstance<TreeElementWrapper>().forEach { child ->
-      val childEditorSelection = processTreeElement(expandInfoProvider,
-                                                    elementInfoProvider,
-                                                    currentEditorElement,
-                                                    child,
-                                                    model.id,
-                                                    nodes,
-                                                    nodeProvidersMap,
-                                                    filters,
-                                                    structureViewEntry)
-      if (childEditorSelection != null) {
-        editorSelection = childEditorSelection
-      }
-    }
-
-    return editorSelection
+    return if (element.value == currentEditorElement) model else null
   }
 
   private data class StructureViewEntry(
     val wrapper: SmartTreeStructure,
+    val structureTreeModel: StructureTreeModel<SmartTreeStructure>,
     val treeModel: StructureViewModel,
     val nodesFlow: MutableStateFlow<TreeNodesDto?>,
     val asyncTreeModel: AsyncTreeModel,

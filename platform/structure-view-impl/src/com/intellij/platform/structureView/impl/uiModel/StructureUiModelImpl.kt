@@ -12,10 +12,9 @@ import com.intellij.platform.project.projectId
 import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
 import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
-import com.intellij.platform.structureView.impl.dto.StructureViewModelDtoId
+import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElementImpl.Companion.toUiElement
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.util.containers.ContainerUtil
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
@@ -23,73 +22,111 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.ApiStatus
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 @ApiStatus.Internal
 class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?) : StructureUiModel {
-  internal var dto: StructureViewModelDto? = null
+  override var dto: StructureViewModelDto? = null
   internal val myUpdatePendingFlow: MutableStateFlow<Boolean> = MutableStateFlow(true)
 
   private val myModelListeners = ContainerUtil.createLockFreeCopyOnWriteList<StructureUiModelListener>()
 
-  internal val dtoId: StructureViewModelDtoId = StructureViewModelDtoId(nextId.getAndIncrement())
+  internal val dtoId = nextId.getAndIncrement()
 
-  override val rootElement: StructureUiTreeElement = StructureUiTreeElement(null, null)
+  override val rootElement: StructureUiTreeElementWrapper = StructureUiTreeElementWrapper()
 
   private val cs = StructureViewScopeHolder.getInstance().cs.childScope("scope for ${file.name} structure view with id: $dtoId")
 
-  private val myActions = hashSetOf<String>()
-  private val nodeMap = HashMap<Int, StructureUiTreeElement>()
+  private val myActions = CopyOnWriteArrayList<String>()
 
-  private val nodeProviders = mutableListOf<NodeProviderTreeAction>()
+  @Volatile
+  private var myNodesMap: Map<Int, StructureUiTreeElementImpl> = emptyMap()
+
+  @Volatile
+  private var myNodeProviders: List<NodeProviderTreeActionImpl> = emptyList()
 
   private val selection = MutableStateFlow<StructureUiTreeElement?>(null)
 
   init {
-    cs.launch(start = CoroutineStart.UNDISPATCHED) {
-      val modelFlow = StructureTreeApi.getInstance().getStructureViewModelFlow(editor?.editorId(), file.rpcId(), project.projectId(), dtoId)
-      modelFlow.collect { model ->
-        if (model == null) {
-          logger.warn("No structure view model for $file")
+    cs.launch {
+      val model = StructureTreeApi.getInstance().getStructureViewModel(editor?.editorId(), file.rpcId(), project.projectId(), dtoId)
+
+      if (model == null) {
+        logger.warn("No structure view model for $file")
+        launch(Dispatchers.UI) {
+          myModelListeners.forEach { it.onTreeChanged() }
+          myUpdatePendingFlow.value = false
+        }
+        return@launch
+      }
+      dto = model
+      val rootNode = StructureUiTreeElementImpl(model.rootNode)
+
+      launch(Dispatchers.UI) {
+        myModelListeners.forEach { it.onActionsChanged() }
+      }
+
+      model.nodes.toFlow().collect { nodesUpdate ->
+        val nodeMap = HashMap<Int, StructureUiTreeElementImpl>()
+        nodeMap[0] = rootNode
+        rootNode.myChildren.clear()
+
+        if (nodesUpdate == null) {
           return@collect
         }
-        dto = model
-        rootElement.dto = model.rootNode
-        rootElement.myChildren.clear()
+
+
+        val nodeProviders = nodesUpdate.nodeProviders.map {
+          val nodes = run {
+            val providerNodeMap = hashMapOf<Int, StructureUiTreeElementImpl>()
+            val nodes = mutableListOf<StructureUiTreeElementImpl>()
+            for (nodeDto in it.nodesDto) {
+              val parent = providerNodeMap[nodeDto.parentId]
+              val node = nodeDto.toUiElement(parent)
+              providerNodeMap[nodeDto.id] = node
+              if (parent == null) {
+                nodes.add(node)
+              }
+              else {
+                parent.myChildren.add(node)
+              }
+            }
+            nodes
+          }
+          NodeProviderTreeActionImpl(it.actionType,
+                                     it.name,
+                                     it.presentation,
+                                     it.isReverted,
+                                     it.isEnabledByDefault,
+                                     it.shortcutsIds,
+                                     it.actionIdForShortcut,
+                                     it.checkboxText,
+                                     it.propertyName,
+                                     nodes)
+        }
+
+        for (nodeDto in nodesUpdate.nodes) {
+          val node = StructureUiTreeElementImpl(nodeDto)
+          val parent = nodeMap[nodeDto.parentId] ?: run {
+            logger.error("No parent for ${node.id} or it's not a backend one")
+            continue
+          }
+          node.parent = parent
+          parent.myChildren.add(node)
+          nodeMap[nodeDto.id] = node
+        }
+
+        myNodesMap = nodeMap
+        myNodeProviders = nodeProviders
+        rootElement.setDelegate(rootNode)
+
+        selection.emit(nodesUpdate.editorSelection?.let { nodeMap[it.id] })
 
         launch(Dispatchers.UI) {
           myModelListeners.forEach { it.onActionsChanged() }
-        }
-
-        model.nodes.toFlow().collect { nodesUpdate ->
-          nodeMap.clear()
-          nodeMap[0] = rootElement
-          rootElement.myChildren.clear()
-
-          if (nodesUpdate == null) {
-            return@collect
-          }
-
-          nodeProviders.clear()
-          nodeProviders.addAll(nodesUpdate.nodeProviders)
-
-          for (nodeDto in nodesUpdate.nodes) {
-            val parent = nodeMap[nodeDto.parentId] ?: run {
-              logger.error("No parent for ${nodeDto.parentId} or it's not a backend one")
-              continue
-            }
-            val node = StructureUiTreeElement(nodeDto, parent)
-            nodeMap[nodeDto.id] = node
-            parent.myChildren.add(node)
-          }
-
-          selection.emit(nodesUpdate.editorSelection?.let { nodeMap[it.id] })
-
-          launch(Dispatchers.UI) {
-            myModelListeners.forEach { it.onActionsChanged() }
-            myModelListeners.forEach { it.onTreeChanged() }
-            myUpdatePendingFlow.value = false
-          }
+          myModelListeners.forEach { it.onTreeChanged() }
+          myUpdatePendingFlow.value = false
         }
       }
     }
@@ -113,7 +150,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
 
     if (isEnabled) myActions.add(action.name) else myActions.remove(action.name)
 
-    if (action is NodeProviderTreeAction || action is FilterTreeAction) return
+    if (action is NodeProviderTreeActionImpl || action is FilterTreeAction) return
 
     cs.launch {
       myUpdatePendingFlow.value = true
@@ -121,7 +158,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
     }
   }
 
-  override fun getActions(): Collection<StructureTreeAction> = (dto?.actions ?: emptyList()) + nodeProviders
+  override fun getActions(): Collection<StructureTreeAction> = (dto?.actions ?: emptyList()) + myNodeProviders
 
   override fun getUpdatePendingFlow(): Flow<Boolean> = myUpdatePendingFlow
 
@@ -131,7 +168,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
 
   override fun dispose() {
     cs.cancel()
-    nodeMap.clear()
+    myNodesMap = emptyMap()
     myModelListeners.clear()
     StructureViewScopeHolder.getInstance().cs.launch {
       StructureTreeApi.getInstance().structureViewModelDisposed(dtoId)
@@ -143,10 +180,10 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
   fun dumpNodes(): String {
     val stringBuilder = StringBuilder()
     stringBuilder.append("Main nodes:").append('\n')
-    stringBuilder.append(nodeMap.values.joinToString(", "))
-    for (provider in nodeProviders) {
+    stringBuilder.append(myNodesMap.values.joinToString("\n        "))
+    for (provider in myNodeProviders) {
       stringBuilder.append("  provider: ${provider.javaClass.simpleName}").append('\n')
-      stringBuilder.append("    nodes: ${provider.nodes.joinToString(", ")}").append('\n')
+      stringBuilder.append("    nodes: ${provider.nodes.joinToString("\n        ")}").append('\n')
     }
     return stringBuilder.toString()
   }

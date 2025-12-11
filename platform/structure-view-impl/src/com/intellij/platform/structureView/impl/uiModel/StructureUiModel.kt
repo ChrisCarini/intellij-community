@@ -2,10 +2,12 @@
 package com.intellij.platform.structureView.impl.uiModel
 
 import com.intellij.openapi.Disposable
+import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 interface StructureUiModel: Disposable {
+  val dto: StructureViewModelDto?
   val rootElement: StructureUiTreeElement
   val smartExpand: Boolean
   val minimumAutoExpandDepth: Int

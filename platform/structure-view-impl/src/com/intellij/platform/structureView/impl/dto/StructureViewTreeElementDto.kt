@@ -10,6 +10,7 @@ import org.jetbrains.annotations.ApiStatus.Internal
 data class StructureViewTreeElementDto(
   val id: Int,
   val parentId: Int,
+  val index: Int,
   val speedSearchText: String?,
   val valueHashCode: Int,
   val presentation: PresentationDataDto,

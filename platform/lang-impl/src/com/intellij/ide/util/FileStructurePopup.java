@@ -916,7 +916,8 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
            ((FileStructureFilter)action).getShortcut() : ((FileStructureNodeProvider<?>)action).getShortcut();
   }
 
-  private static boolean getDefaultValue(TreeAction action) {
+  @ApiStatus.Internal
+  public static boolean getDefaultValue(TreeAction action) {
     String propertyName = action instanceof PropertyOwner ? ((PropertyOwner)action).getPropertyName() : action.getName();
     final var defaultValue = Sorter.ALPHA_SORTER.equals(action) || hasEnabledStateByDefault(action);
     return PropertiesComponent.getInstance().getBoolean(TreeStructureUtil.getPropertyName(propertyName), defaultValue);
@@ -926,7 +927,8 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
     return action instanceof TreeActionWithDefaultState && ((TreeActionWithDefaultState)action).isEnabledByDefault();
   }
 
-  private static void saveState(TreeAction action, boolean state) {
+  @ApiStatus.Internal
+  public static void saveState(TreeAction action, boolean state) {
     String propertyName = action instanceof PropertyOwner ? ((PropertyOwner)action).getPropertyName() : action.getName();
     final var defaultValue = Sorter.ALPHA_SORTER.equals(action) || hasEnabledStateByDefault(action);
     PropertiesComponent.getInstance().setValue(TreeStructureUtil.getPropertyName(propertyName), state, defaultValue);

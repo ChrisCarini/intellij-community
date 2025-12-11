@@ -20,10 +20,6 @@ data class StructureViewModelDto(
 
 @ApiStatus.Internal
 @Serializable
-class StructureViewModelDtoId(val id: Int)
-
-@ApiStatus.Internal
-@Serializable
 data class TreeNodesDto(
   val editorSelection: StructureViewTreeElementDto?,
   val nodes: List<StructureViewTreeElementDto>,

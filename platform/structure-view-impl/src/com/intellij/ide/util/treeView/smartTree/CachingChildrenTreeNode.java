@@ -214,6 +214,9 @@ public abstract class CachingChildrenTreeNode <Value> extends AbstractTreeNode<V
 
     synchronizeChildren();
 
+    for (int i = 0; i < myChildren.size(); i++) {
+      myChildren.get(i).setIndex(i);
+    }
   }
 
   void synchronizeChildren() {

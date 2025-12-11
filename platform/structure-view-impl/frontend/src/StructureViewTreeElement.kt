@@ -29,6 +29,7 @@ class StructureViewTreeElement(project: Project, nodeModel: StructureUiTreeEleme
         myChildren = mutableListOf()
         initChildren()
         filterChildren()
+        myChildren!!.sortBy { it.value.indexInParent }
         synchronizeChildren()
       }
       catch (pce: IndexNotReadyException) {
@@ -69,7 +70,7 @@ class StructureViewTreeElement(project: Project, nodeModel: StructureUiTreeEleme
     }
 
     for (action in viewModel.getActions()) {
-      if (action !is NodeProviderTreeAction || !viewModel.isActionEnabled(action)) continue
+      if (action !is NodeProviderTreeActionImpl || !viewModel.isActionEnabled(action)) continue
 
       val nodes = action.getNodes(value)
       for (node in nodes) {
