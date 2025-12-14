@@ -1,9 +1,10 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.platform.structureView.impl.uiModel
+package com.intellij.platform.structureView.frontend.uiModel
 
 import com.intellij.ide.projectView.PresentationData
 import com.intellij.navigation.ItemPresentation
 import com.intellij.openapi.vcs.FileStatus
+import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.pom.Navigatable
 
 class StructureUiTreeElementWrapper : StructureUiTreeElement {

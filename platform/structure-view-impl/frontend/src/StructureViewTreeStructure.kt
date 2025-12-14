@@ -5,7 +5,7 @@ import com.intellij.ide.util.treeView.AbstractTreeStructure
 import com.intellij.ide.util.treeView.NodeDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.ActionCallback
-import com.intellij.platform.structureView.impl.uiModel.StructureUiModel
+import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
 import com.intellij.psi.PsiDocumentManager
 
 open class StructureViewTreeStructure(private val project: Project, private val model: StructureUiModel): AbstractTreeStructure() {

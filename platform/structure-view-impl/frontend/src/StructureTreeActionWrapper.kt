@@ -9,7 +9,7 @@ import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.impl.MenuItemPresentationFactory
 import com.intellij.openapi.project.DumbAware
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
-import com.intellij.platform.structureView.impl.uiModel.StructureUiModel
+import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
 import org.jetbrains.annotations.ApiStatus
 
 @ApiStatus.Internal

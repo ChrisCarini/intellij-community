@@ -1,8 +1,11 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.platform.structureView.impl.uiModel
+package com.intellij.platform.structureView.frontend.uiModel
 
 import com.intellij.ide.rpc.ShortcutId
 import com.intellij.ide.util.treeView.smartTree.ActionPresentation
+import com.intellij.platform.structureView.impl.uiModel.CheckboxTreeAction
+import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
+import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import org.jetbrains.annotations.Nls
 
 class NodeProviderTreeActionImpl(

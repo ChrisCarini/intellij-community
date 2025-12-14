@@ -8,7 +8,7 @@ import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.registry.Registry
-import com.intellij.platform.structureView.impl.uiModel.StructureUiModelImpl
+import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelImpl
 import java.util.function.Consumer
 
 class StructurePopupProviderImpl: StructurePopupProvider {

@@ -5,7 +5,7 @@ import com.intellij.ide.structureView.newStructureView.StructureViewComponent
 import com.intellij.ide.util.treeView.NodeDescriptor
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.registry.Registry
-import com.intellij.platform.structureView.impl.uiModel.StructureUiModel
+import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
 import com.intellij.ui.ClientProperty
 import com.intellij.ui.treeStructure.Tree
 import com.intellij.util.ui.tree.TreeModelAdapter

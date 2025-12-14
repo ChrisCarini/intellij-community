@@ -7,6 +7,8 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.FileStatus
+import com.intellij.platform.structureView.frontend.uiModel.NodeProviderTreeActionImpl
+import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
 import com.intellij.platform.structureView.impl.uiModel.*
 import org.jetbrains.annotations.Unmodifiable
 
