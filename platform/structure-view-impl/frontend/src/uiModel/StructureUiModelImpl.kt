@@ -124,7 +124,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
         myNodeProviders = nodeProviders
         rootElement.setDelegate(rootNode)
 
-        selection.emit(nodesUpdate.editorSelection?.let { nodeMap[it.id] })
+        selection.emit(nodesUpdate.editorSelection?.let { s -> nodeMap[s.id] ?: myNodeProviders.firstNotNullOf { it.nodes[s.id] } })
 
         launch(Dispatchers.UI) {
           myModelListeners.forEach { it.onActionsChanged() }
