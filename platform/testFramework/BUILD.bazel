@@ -95,6 +95,7 @@ jvm_library(
     "//platform/runtime/product",
     "//platform/pluginSystem/parser/impl",
     "//platform/execution",
+    "//platform/structure-view-impl/frontend",
     ":libraries_junit4_provided",
     ":libraries_junit5-launcher_provided",
   ],
@@ -256,6 +257,8 @@ jvm_library(
     "//platform/pluginSystem/parser/impl:impl_test_lib",
     "//platform/execution",
     "//platform/execution:execution_test_lib",
+    "//platform/structure-view-impl/frontend",
+    "//platform/structure-view-impl/frontend:frontend_test_lib",
   ],
   exports = [
     "@lib//:junit5-provided",

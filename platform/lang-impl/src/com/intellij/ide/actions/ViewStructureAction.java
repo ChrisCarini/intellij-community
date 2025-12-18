@@ -7,7 +7,7 @@ import com.intellij.ide.structureView.StructureViewModel;
 import com.intellij.ide.structureView.impl.StructureViewComposite;
 import com.intellij.ide.structureView.newStructureView.StructurePopup;
 import com.intellij.ide.structureView.newStructureView.StructurePopupProvider;
-import com.intellij.ide.util.FileStructurePopup;
+import com.intellij.ide.structureView.newStructureView.StructurePopupTestExt;
 import com.intellij.ide.util.StructureViewCompositeModel;
 import com.intellij.ide.util.treeView.AbstractTreeNode;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
@@ -29,6 +29,7 @@ import com.intellij.ui.EditorTextField;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.TestOnly;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -71,9 +72,8 @@ public final class ViewStructureAction extends DumbAwareAction {
     popup.show();
   }
 
-  public static @Nullable FileStructurePopup createPopup(@NotNull Project project, @NotNull FileEditor fileEditor) {
-    StructurePopup popup = createPopup(project, fileEditor, null);
-    return popup instanceof FileStructurePopup ? (FileStructurePopup)popup : null;
+  public static @Nullable StructurePopup createPopup(@NotNull Project project, @NotNull FileEditor fileEditor) {
+    return createPopup(project, fileEditor, null);
   }
 
   public static @Nullable StructurePopup createPopup(@NotNull Project project,
@@ -120,5 +120,12 @@ public final class ViewStructureAction extends DumbAwareAction {
       treeModel = structureView.getTreeModel();
     }
     return treeModel;
+  }
+
+  @ApiStatus.Internal
+  @TestOnly
+  public static @Nullable StructurePopupTestExt createPopupForTest(@NotNull Project project, @NotNull FileEditor fileEditor) {
+    StructurePopup popup = createPopup(project, fileEditor, null);
+    return popup instanceof StructurePopupTestExt ? (StructurePopupTestExt)popup : null;
   }
 }

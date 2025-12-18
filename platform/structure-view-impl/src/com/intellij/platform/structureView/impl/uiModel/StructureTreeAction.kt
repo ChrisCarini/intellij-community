@@ -19,7 +19,7 @@ import org.jetbrains.annotations.NonNls
 
 @ApiStatus.Internal
 @Serializable
-sealed interface StructureTreeAction: PropertyOwner {
+sealed interface StructureTreeAction : PropertyOwner {
   val actionType: Type
   val name: @NonNls String
   val isReverted: Boolean
@@ -53,12 +53,32 @@ interface CheckboxTreeAction : StructureTreeAction {
 }
 
 @Serializable
-open class StructureTreeActionImpl(override val actionType: StructureTreeAction.Type,
-                                   override val name: String,
-                                   override val isReverted: Boolean,
-                                   private val presentationDto: TreeActionPresentationDto,
-                                   private val myPropertyName: String,
-                                   override val isEnabledByDefault: Boolean) : StructureTreeAction {
+class StructureTreeActionImpl(
+  override val actionType: StructureTreeAction.Type,
+  override val name: String,
+  override val isReverted: Boolean,
+  private val presentationDto: TreeActionPresentationDto,
+  private val myPropertyName: String,
+  override val isEnabledByDefault: Boolean,
+) : StructureTreeAction {
+  @Transient
+  override val presentation: ActionPresentation = presentationDto.toPresentation()
+
+  override fun getPropertyName(): String = myPropertyName
+}
+
+@Serializable
+class CheckboxTreeActionImpl(
+  override val actionType: StructureTreeAction.Type = StructureTreeAction.Type.FILTER,
+  override val name: @NonNls String,
+  override val isReverted: Boolean,
+  private val presentationDto: TreeActionPresentationDto,
+  override val shortcutsIds: Array<ShortcutId>?,
+  override val actionIdForShortcut: String?,
+  override val checkboxText: @Nls String,
+  private val myPropertyName: String,
+  override val isEnabledByDefault: Boolean,
+): CheckboxTreeAction {
   @Transient
   override val presentation: ActionPresentation = presentationDto.toPresentation()
 

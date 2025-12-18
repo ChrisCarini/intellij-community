@@ -637,6 +637,7 @@ com.intellij.ide.actions.SearchEverywhereClassifier
 - a:isClass(java.lang.Object):Z
 - a:isSymbol(java.lang.Object):Z
 f:com.intellij.ide.actions.ViewStructureAction
+- s:createPopup(com.intellij.openapi.project.Project,com.intellij.openapi.fileEditor.FileEditor):com.intellij.ide.structureView.newStructureView.StructurePopup
 - s:createPopup(com.intellij.openapi.project.Project,com.intellij.openapi.fileEditor.FileEditor,java.util.function.Consumer):com.intellij.ide.structureView.newStructureView.StructurePopup
 com.intellij.ide.actions.runAnything.activity.RunAnythingProvider
 - sf:EP_NAME:com.intellij.openapi.extensions.ExtensionPointName
@@ -748,7 +749,9 @@ f:com.intellij.ide.util.EditorHelper
 - s:openInMaybeInjectedEditor(com.intellij.psi.PsiElement):com.intellij.openapi.editor.Editor
 f:com.intellij.ide.util.FileStructurePopup
 - com.intellij.ide.structureView.newStructureView.StructurePopup
-- setTreeActionState(com.intellij.ide.util.treeView.smartTree.TreeAction,Z):V
+- getCurrentElement():com.intellij.psi.PsiElement
+- initUi():V
+- setTreeActionState(java.lang.String,Z):V
 com.intellij.ide.util.PsiElementRenderingInfo
 - s:getComparator(com.intellij.ide.util.PsiElementRenderingInfo):java.util.Comparator
 - getContainerText(com.intellij.psi.PsiElement):java.lang.String

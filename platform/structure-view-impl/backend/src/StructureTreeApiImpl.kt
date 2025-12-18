@@ -9,11 +9,11 @@ import com.intellij.ide.structureView.StructureViewTreeElement
 import com.intellij.ide.structureView.TreeBasedStructureViewBuilder
 import com.intellij.ide.structureView.impl.StructureViewComposite
 import com.intellij.ide.structureView.logical.StructureViewTab
-import com.intellij.ide.structureView.newStructureView.StructureViewComponent
-import com.intellij.ide.structureView.newStructureView.StructureViewSelectVisitorState
-import com.intellij.ide.structureView.newStructureView.TreeModelWrapper
-import com.intellij.ide.structureView.newStructureView.getElementInfoProvider
-import com.intellij.ide.util.*
+import com.intellij.ide.structureView.newStructureView.*
+import com.intellij.ide.util.ActionShortcutProvider
+import com.intellij.ide.util.FileStructureFilter
+import com.intellij.ide.util.FileStructureNodeProvider
+import com.intellij.ide.util.FileStructurePopup
 import com.intellij.ide.util.FileStructurePopup.getDefaultValue
 import com.intellij.ide.util.FileStructurePopup.saveState
 import com.intellij.ide.util.treeView.smartTree.*
@@ -36,13 +36,19 @@ import com.intellij.platform.project.ProjectId
 import com.intellij.platform.project.findProject
 import com.intellij.platform.rpc.UID
 import com.intellij.platform.rpc.backend.RemoteApiProvider
+import com.intellij.platform.structureView.impl.DelegatingNodeProvider
 import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
-import com.intellij.platform.structureView.impl.dto.*
+import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
+import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
+import com.intellij.platform.structureView.impl.dto.TreeNodesDto
+import com.intellij.platform.structureView.impl.dto.toDto
+import com.intellij.platform.structureView.impl.uiModel.CheckboxTreeActionImpl
 import com.intellij.platform.structureView.impl.uiModel.FilterTreeAction
 import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
 import com.intellij.psi.PsiElement
+import com.intellij.ui.PlaceHolder
 import com.intellij.ui.tree.AsyncTreeModel
 import com.intellij.ui.tree.StructureTreeModel
 import com.intellij.ui.tree.TreeVisitor
@@ -52,7 +58,7 @@ import com.intellij.util.ui.tree.TreeUtil
 import fleet.rpc.core.toRpc
 import fleet.rpc.remoteApiDescriptor
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,7 +69,7 @@ import org.jetbrains.concurrency.resolvedPromise
 import java.util.concurrent.ConcurrentHashMap
 import javax.swing.tree.TreePath
 
-private class StructureTreeApiImpl : StructureTreeApi {
+internal class StructureTreeApiImpl : StructureTreeApi {
   private val structureViews = ConcurrentHashMap<UID, StructureViewEntry>()
 
   override suspend fun getStructureViewModel(
@@ -106,6 +112,11 @@ private class StructureTreeApiImpl : StructureTreeApi {
       }
     }
 
+    //todo flag for tw
+    if (treeModel is PlaceHolder) {
+      (treeModel as PlaceHolder).setPlace(TreeStructureUtil.PLACE)
+    }
+
     if (treeModel == null) {
       return null
     }
@@ -127,6 +138,31 @@ private class StructureTreeApiImpl : StructureTreeApi {
     val sorterDtos = treeModel.sorters.toDto()
 
     val actionOwner = BackendTreeActionOwnerService.getInstance()
+
+    val weirdNodeProviders = (treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<DelegatingNodeProvider<*>>()?.mapNotNull { provider ->
+      if (provider !is FileStructureNodeProvider<*>) return@mapNotNull null
+      val (actionIdForShortcut, shortcut) = if (provider is ActionShortcutProvider) {
+        provider.actionIdForShortcut to emptyList()
+      }
+      else {
+        null to provider.shortcut.map { it.rpcId() }
+      }
+
+      actionOwner.setActionActive(provider.name, getDefaultValue(provider))
+
+      CheckboxTreeActionImpl(
+        StructureTreeAction.Type.FILTER,
+        provider.name,
+        false,
+        provider.presentation.toDto(),
+        shortcut.toTypedArray(),
+        actionIdForShortcut,
+        provider.checkBoxText,
+        (provider as? PropertyOwner)?.propertyName ?: provider.name,
+        (provider as? TreeActionWithDefaultState)?.isEnabledByDefault ?: false
+      )
+    } ?: emptyList()
+
     for (sorter in treeModel.sorters) {
       actionOwner.setActionActive(sorter.name, getDefaultValue(sorter))
     }
@@ -145,7 +181,7 @@ private class StructureTreeApiImpl : StructureTreeApi {
       return null
     }
 
-    val nodesFlow = MutableStateFlow<TreeNodesDto?>(null)
+    val nodesFlow = MutableSharedFlow<TreeNodesDto?>()
     val structureViewEntry =
       StructureViewEntry(wrapper, myStructureTreeModel, treeModel, nodesFlow, myAsyncTreeModel, fileEditor, disposable)
     structureViews[id] = structureViewEntry
@@ -174,7 +210,7 @@ private class StructureTreeApiImpl : StructureTreeApi {
 
     StructureViewScopeHolder.getInstance().cs.launch {
       if (disposable.isDisposed) return@launch
-      nodesFlow.value = try {
+      val nodesDto = try {
         val nodes = computeNodes(structureViewEntry)
 
         logger.debug {
@@ -187,6 +223,8 @@ private class StructureTreeApiImpl : StructureTreeApi {
         logger.error(e)
         null
       }
+
+      nodesFlow.emit(nodesDto)
     }
 
     logger.debug {
@@ -199,7 +237,7 @@ private class StructureTreeApiImpl : StructureTreeApi {
       expandInfoProvider?.isSmartExpand ?: false,
       expandInfoProvider?.minimumAutoExpandDepth ?: 2,
       false, /*todo for tw*/
-      sorterDtos + filterDtos
+      sorterDtos + filterDtos + weirdNodeProviders
     )
   }
 
@@ -209,7 +247,7 @@ private class StructureTreeApiImpl : StructureTreeApi {
       val entry = structureViews.remove(id) ?: return@withContext
       Disposer.dispose(entry.disposable)
       entry.nodeToId.clear()
-      entry.nodesFlow.value = null
+      entry.nodesFlow.emit(null)
     }
   }
 
@@ -217,13 +255,19 @@ private class StructureTreeApiImpl : StructureTreeApi {
     if (BackendTreeActionOwnerService.getInstance().isActionActive(actionName) == isEnabled) return
     val time = System.currentTimeMillis()
 
-    structureViews[id]?.let {
+    structureViews[id]?.let { entry ->
       BackendTreeActionOwnerService.getInstance().setActionActive(actionName, isEnabled)
-      val action = it.treeModel.sorters.firstOrNull { it.name == actionName } ?: return@let
+      val nodeProviders = (entry.treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<DelegatingNodeProvider<*>>() ?: emptyList()
+      val actions = nodeProviders + entry.treeModel.sorters
+      val action = actions.firstOrNull { it.name == actionName } ?: run {
+        logger.error("Action $actionName not found in structure model with id: $id")
+        return@let
+      }
       saveState(action, isEnabled)
-      it.wrapper.rebuildTree()
-      it.structureTreeModel.invalidateAsync().asDeferred().await()
-      it.nodesFlow.value = computeNodes(it)
+      entry.wrapper.rebuildTree()
+      entry.structureTreeModel.invalidateAsync().asDeferred().await()
+      val nodes = computeNodes(entry)
+      entry.nodesFlow.emit(nodes)
     }
     logger.debug {
       val time = System.currentTimeMillis() - time
@@ -271,13 +315,16 @@ private class StructureTreeApiImpl : StructureTreeApi {
       }
     }
 
-    return asyncTreeModel.accept(visitor).thenAsync(fallback).asDeferred().await()
+    val accept = asyncTreeModel.accept(visitor)
+
+    return accept.thenAsync(fallback).asDeferred().await()
   }
 
   private suspend fun computeNodes(entry: StructureViewEntry): TreeNodesDto {
     val mainNodes = mutableListOf<StructureViewTreeElementDto>()
     //todo for not a popup these don't have to implement FileStructureNodeProvider
     val nodeProvidersMap = (entry.treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<FileStructureNodeProvider<*>>()
+      ?.filter { it !is DelegatingNodeProvider<*> }
       ?.associate { it to mutableListOf<StructureViewTreeElementDto>() }
     val expandInfoProvider = entry.treeModel as? ExpandInfoProvider
     val elementInfoProvider = getElementInfoProvider(entry.treeModel)
@@ -353,6 +400,7 @@ private class StructureTreeApiImpl : StructureTreeApi {
                          expandInfoProvider?.isAutoExpand(element),
                          elementInfoProvider?.isAlwaysShowsPlus(element),
                          elementInfoProvider?.isAlwaysLeaf(element),
+                         StructureViewUtil.getSpeedSearchText(wrapper),
                          emptyList())
   }
 
@@ -387,11 +435,12 @@ private class StructureTreeApiImpl : StructureTreeApi {
       expandInfoProvider?.isAutoExpand(element),
       elementInfoProvider?.isAlwaysShowsPlus(element),
       elementInfoProvider?.isAlwaysLeaf(element),
+      StructureViewUtil.getSpeedSearchText(wrapper),
       filters.map { it.isVisible(element) }
     )
 
     if (wrapper.provider != null) {
-      nodeProvidersMap?.get(wrapper.provider)?.add(model)
+      nodeProvidersMap?.get(wrapper.provider)?.add(model) ?: nodes.add(model)
     }
     else {
       nodes.add(model)
@@ -404,7 +453,7 @@ private class StructureTreeApiImpl : StructureTreeApi {
     val wrapper: SmartTreeStructure,
     val structureTreeModel: StructureTreeModel<SmartTreeStructure>,
     val treeModel: StructureViewModel,
-    val nodesFlow: MutableStateFlow<TreeNodesDto?>,
+    val nodesFlow: MutableSharedFlow<TreeNodesDto?>,
     val asyncTreeModel: AsyncTreeModel,
     val fileEditor: FileEditor?,
     val disposable: Disposable,

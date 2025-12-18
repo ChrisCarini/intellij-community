@@ -21,7 +21,7 @@ interface StructureUiModel: Disposable {
 
   fun getActions(): Collection<StructureTreeAction>
 
-  fun getUpdatePendingFlow(): Flow<Boolean>
+  fun getUpdatePendingFlow(): StateFlow<Boolean>
 
   fun addListener(listener: StructureUiModelListener)
 }

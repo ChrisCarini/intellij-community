@@ -8,6 +8,7 @@ import com.intellij.ide.util.treeView.smartTree.NodeProvider
 import com.intellij.ide.util.treeView.smartTree.TreeAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.platform.structureView.impl.DelegatingNodeProvider
 
 internal class BackendTreeActionOwner : TreeActionsOwner, TreeActionsOwnerEx {
   override fun setActionActive(name: String?, state: Boolean) {}
@@ -20,7 +21,7 @@ internal class BackendTreeActionOwner : TreeActionsOwner, TreeActionsOwnerEx {
     // always false for filters so that the elements are not filtered out
     if (action is Filter) return false
     // always true for node providers so that all possible elements are calculated
-    if (action is NodeProvider<*>) return true
+    if (action is NodeProvider<*> && action !is DelegatingNodeProvider<*>) return true
 
     return BackendTreeActionOwnerService.getInstance().isActionActive(action.name)
   }

@@ -11,9 +11,7 @@ import com.intellij.ide.IdeBundle;
 import com.intellij.ide.TreeExpander;
 import com.intellij.ide.dnd.aware.DnDAwareTree;
 import com.intellij.ide.structureView.ModelListener;
-import com.intellij.ide.structureView.SearchableTextProvider;
 import com.intellij.ide.structureView.StructureViewModel;
-import com.intellij.ide.structureView.impl.common.PsiTreeElementBase;
 import com.intellij.ide.structureView.newStructureView.StructureViewComponent;
 import com.intellij.ide.structureView.newStructureView.StructureViewSelectVisitorState;
 import com.intellij.ide.structureView.newStructureView.TreeActionWrapper;
@@ -37,7 +35,6 @@ import com.intellij.internal.statistic.collectors.fus.actions.persistence.Action
 import com.intellij.internal.statistic.eventLog.events.EventFields;
 import com.intellij.lang.LangBundle;
 import com.intellij.lang.Language;
-import com.intellij.navigation.LocationPresentation;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionPlaces;
@@ -56,7 +53,6 @@ import com.intellij.openapi.actionSystem.Shortcut;
 import com.intellij.openapi.actionSystem.ToggleAction;
 import com.intellij.openapi.actionSystem.UiDataProvider;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.application.WriteIntentReadAction;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.diagnostic.Logger;
@@ -168,7 +164,7 @@ import java.util.function.Consumer;
 /**
  * @author Konstantin Bulenkov
  */
-public final class FileStructurePopup implements Disposable, TreeActionsOwner, StructurePopup {
+public final class FileStructurePopup implements Disposable, TreeActionsOwner, StructurePopup, StructurePopupTestExt {
   private static final Logger LOG = Logger.getInstance(FileStructurePopup.class);
   private static final @NonNls String NARROW_DOWN_PROPERTY_KEY = "FileStructurePopup.narrowDown";
 
@@ -524,16 +520,12 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
     return "StructurePopup";
   }
 
-  public @Nullable PsiElement getCurrentElement(final @Nullable PsiFile psiFile) {
+  public @Nullable PsiElement getCurrentElement() {
     PsiDocumentManager.getInstance(myProject).commitAllDocuments();
 
     Object elementAtCursor = myTreeModelWrapper.getCurrentEditorElement();
     if (elementAtCursor instanceof PsiElement) {
       return (PsiElement)elementAtCursor;
-    }
-
-    if (psiFile != null && myFileEditor instanceof TextEditor te) {
-      return psiFile.getViewProvider().findElementAt(te.getEditor().getCaretModel().getOffset());
     }
 
     return null;
@@ -939,30 +931,6 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
     myTitle = title;
   }
 
-  public @NotNull Tree getTree() {
-    return myTree;
-  }
-
-  @TestOnly
-  public TreeSpeedSearch getSpeedSearch() {
-    return mySpeedSearch;
-  }
-
-  @TestOnly
-  public void setSearchFilterForTests(String filter) {
-    myTestSearchFilter = filter;
-  }
-
-  public void setTreeActionState(TreeAction action, boolean state) {
-    JBCheckBox checkBox = myCheckBoxes.get(action.getName());
-    if (checkBox != null) {
-      checkBox.setSelected(state);
-      for (ActionListener listener : checkBox.getActionListeners()) {
-        listener.actionPerformed(new ActionEvent(this, 1, ""));
-      }
-    }
-  }
-
   public static @Nullable String getSpeedSearchText(Object object) {
     return StructureViewUtil.getSpeedSearchText(object);
   }
@@ -1104,6 +1072,42 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
       path = path.getParentPath();
     }
     return false;
+  }
+
+  @Override
+  @TestOnly
+  public TreeSpeedSearch getSpeedSearch() {
+    return mySpeedSearch;
+  }
+
+  @Override
+  @TestOnly
+  public void setSearchFilterForTests(String filter) {
+    myTestSearchFilter = filter;
+  }
+
+  @Override
+  @TestOnly
+  public void setTreeActionState(@NotNull String actionName, boolean state) {
+    JBCheckBox checkBox = myCheckBoxes.get(actionName);
+    if (checkBox != null) {
+      checkBox.setSelected(state);
+      for (ActionListener listener : checkBox.getActionListeners()) {
+        listener.actionPerformed(new ActionEvent(this, 1, ""));
+      }
+    }
+  }
+
+  @Override
+  @TestOnly
+  public void initUi() {
+    createCenterPanel();
+  }
+
+  @Override
+  @TestOnly
+  public @NotNull Tree getTree() {
+    return myTree;
   }
 
   static final class MyTree extends DnDAwareTree implements PlaceProvider {

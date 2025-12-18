@@ -2,6 +2,7 @@
 package com.intellij.ide.structureView.newStructureView
 
 import com.intellij.ide.util.treeView.AbstractTreeNode
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.project.Project
@@ -10,7 +11,7 @@ import org.jetbrains.annotations.ApiStatus
 import java.util.function.Consumer
 
 @ApiStatus.Experimental
-interface StructurePopup: TreeActionsOwner {
+interface StructurePopup: TreeActionsOwner, Disposable {
   fun show()
   fun setTitle(title: @NlsContexts.PopupTitle String)
 }

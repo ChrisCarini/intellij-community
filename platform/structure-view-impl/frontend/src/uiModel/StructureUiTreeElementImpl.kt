@@ -3,13 +3,16 @@ package com.intellij.platform.structureView.frontend.uiModel
 
 import com.intellij.ide.rpc.navigatable
 import com.intellij.navigation.ItemPresentation
+import com.intellij.openapi.ui.Queryable
 import com.intellij.openapi.vcs.FileStatus
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.structureView.impl.dto.toPresentation
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.pom.Navigatable
+import com.intellij.ui.icons.RowIcon
+import javax.swing.Icon
 
-open class StructureUiTreeElementImpl(val dto: StructureViewTreeElementDto) : StructureUiTreeElement {
+open class StructureUiTreeElementImpl(val dto: StructureViewTreeElementDto) : StructureUiTreeElement, Queryable {
   override val id: Int
     get() = dto.id
 
@@ -56,6 +59,14 @@ open class StructureUiTreeElementImpl(val dto: StructureViewTreeElementDto) : St
 
   override fun toString(): String {
     return "StructureUiTreeElementImpl(dto=$dto)"
+  }
+
+  override fun putInfo(info: MutableMap<in String, in String?>) {
+    info["text"] = presentation.presentableText
+    info["location"] = presentation.locationString
+    info["icon"] = with(presentation.getIcon(false)) {
+      (this as? RowIcon)?.allIcons?.joinToString(transform = Icon::toString) ?: this?.toString()
+    }
   }
 
   companion object {

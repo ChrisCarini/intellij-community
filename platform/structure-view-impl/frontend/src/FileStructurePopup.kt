@@ -7,9 +7,14 @@ import com.intellij.icons.AllIcons
 import com.intellij.ide.*
 import com.intellij.ide.dnd.aware.DnDAwareTree
 import com.intellij.ide.structureView.newStructureView.StructurePopup
+import com.intellij.ide.structureView.newStructureView.StructurePopupTestExt
 import com.intellij.ide.structureView.newStructureView.TreeActionsOwner
 import com.intellij.ide.ui.UISettingsListener
-import com.intellij.ide.util.*
+import com.intellij.ide.util.FileStructurePopupListener
+import com.intellij.ide.util.FileStructurePopupLoadingStateUpdater
+import com.intellij.ide.util.FileStructurePopupTimeTracker
+import com.intellij.ide.util.PropertiesComponent
+import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.ide.util.treeView.NodeRenderer
 import com.intellij.ide.util.treeView.smartTree.TreeStructureUtil
 import com.intellij.internal.statistic.collectors.fus.actions.persistence.ActionsCollectorImpl
@@ -50,7 +55,9 @@ import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelListener
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
-import com.intellij.platform.structureView.impl.uiModel.*
+import com.intellij.platform.structureView.impl.uiModel.CheckboxTreeAction
+import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
+import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.pom.Navigatable
 import com.intellij.ui.*
@@ -72,17 +79,25 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.SpeedSearchAdvertiser
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeUtil
+import fleet.kernel.waitFor
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flow
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.TestOnly
+import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.asDeferred
+import org.jetbrains.concurrency.asPromise
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.datatransfer.DataFlavor
 import java.awt.event.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.*
 import javax.swing.tree.TreeModel
@@ -98,11 +113,11 @@ class FileStructurePopup(
   private val myProject: Project,
   private val myFileEditor: FileEditor,
   private val myModel: StructureUiModel,
-) : Disposable, TreeActionsOwner, StructurePopup {
+) : Disposable, TreeActionsOwner, StructurePopup, StructurePopupTestExt {
   private var myPopup: JBPopup? = null
   private var myTitle: @NlsContexts.PopupTitle String? = null
 
-  val tree: Tree
+  private val tree: Tree
   private val myTreeStructure: StructureViewTreeStructure
   private val myFilteringStructure: FilteringTreeStructure
 
@@ -180,6 +195,11 @@ class FileStructurePopup(
             myProject.service<FileStructurePopupLoadingStateUpdater>()
               .installUpdater({ delayMillis -> installUpdater(delayMillis) }, myProject)
             updaterInstalled.set(true)
+          }
+
+          @Suppress("TestOnlyProblems")
+          for (listener in myTestListeners) {
+            listener.rebuildAfterTreeChangeFinished()
           }
         }
       }
@@ -744,24 +764,88 @@ class FileStructurePopup(
     myTitle = title
   }
 
-  @get:TestOnly
-  val speedSearch: TreeSpeedSearch
-    get() = mySpeedSearch
+  @TestOnly
+  fun isUpdatePending(): Boolean {
+    return myModel.getUpdatePendingFlow().value
+  }
 
   @TestOnly
-  fun setSearchFilterForTests(filter: String?) {
+  override fun getSpeedSearch(): TreeSpeedSearch {
+    return mySpeedSearch
+  }
+
+  @TestOnly
+  override fun setSearchFilterForTests(filter: String?) {
     myTestSearchFilter = filter
   }
 
   @TestOnly
-  fun setTreeActionState(action: StructureTreeAction, state: Boolean) {
-    val checkBox = myCheckBoxes[action.name]
+  override fun setTreeActionState(actionName: String, state: Boolean) {
+    val checkBox = myCheckBoxes[actionName]
     if (checkBox != null) {
       checkBox.setSelected(state)
       for (listener in checkBox.actionListeners) {
         listener.actionPerformed(ActionEvent(this, 1, ""))
       }
     }
+  }
+
+  @TestOnly
+  override fun initUi() {
+    createCenterPanel()
+  }
+
+  @TestOnly
+  override fun getTree(): Tree {
+    return tree
+  }
+
+  @TestOnly
+  private val myTestListeners = CopyOnWriteArrayList<StructurePopupListener>()
+
+  @TestOnly
+  suspend fun waitUpdateFinished() {
+    val listener = object : StructurePopupListener {
+      var flow = MutableStateFlow(false)
+      override fun rebuildAfterTreeChangeFinished() {
+        flow.value = true
+      }
+    }
+    addTestListener(listener)
+
+    if (!isUpdatePending()) {
+      removeTestListener(listener)
+      return
+    }
+
+    listener.flow.firstOrNull { it }
+
+    removeTestListener(listener)
+  }
+
+  @TestOnly
+  fun addTestListener(listener: StructurePopupListener) {
+    myTestListeners.add(listener)
+  }
+
+  @TestOnly
+  fun removeTestListener(listener: StructurePopupListener) {
+    myTestListeners.remove(listener)
+  }
+
+  @TestOnly
+  suspend fun rebuildAndUpdate() {
+    rebuild(false)
+    val visitor = TreeVisitor {
+      TreeUtil.getLastUserObject(AbstractTreeNode::class.java, it)?.update()
+      TreeVisitor.Action.CONTINUE
+    }
+    myAsyncTreeModel.accept(visitor).asDeferred().await()
+  }
+
+  @TestOnly
+  suspend fun selectCurrent() {
+    select(myModel.editorSelection.value!!)
   }
 
   override fun setActionActive(name: String?, state: Boolean) {
@@ -804,8 +888,8 @@ class FileStructurePopup(
       return if (!StringUtil.isEmpty(mySpeedSearch.enteredPrefix)) mySpeedSearch.enteredPrefix else null
     }
 
-  private inner class MyTreeSpeedSearch : TreeSpeedSearch(tree, true, null, java.util.function.Function { path: TreePath? ->
-    val element = unwrapTreeElement(path)
+  private inner class MyTreeSpeedSearch : TreeSpeedSearch(tree, true, null, {
+    val element = unwrapTreeElement(it)
     if (element != null) getSpeedSearchText(element) else null
   }) {
     @Volatile
@@ -894,7 +978,8 @@ class FileStructurePopup(
     return node as? StructureViewTreeElement
   }
 
-  private inner class ToggleNarrowDownAction : ToggleAction(@Suppress("DialogTitleCapitalization") IdeBundle.message("checkbox.narrow.down.on.typing")) {
+  private inner class ToggleNarrowDownAction :
+    ToggleAction(@Suppress("DialogTitleCapitalization") IdeBundle.message("checkbox.narrow.down.on.typing")) {
     override fun isSelected(e: AnActionEvent): Boolean {
       return isShouldNarrowDown
     }
@@ -911,6 +996,11 @@ class FileStructurePopup(
         }
       }
     }
+  }
+
+  @TestOnly
+  interface StructurePopupListener {
+    fun rebuildAfterTreeChangeFinished()
   }
 
   companion object {

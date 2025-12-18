@@ -751,6 +751,7 @@ com.intellij.ide.projectView.impl.ProjectViewListener
 - a:getWorkspaceClass():java.lang.Class
 *:com.intellij.ide.structureView.newStructureView.StructurePopup
 - com.intellij.ide.structureView.newStructureView.TreeActionsOwner
+- com.intellij.openapi.Disposable
 - a:setTitle(java.lang.String):V
 - a:show():V
 *:com.intellij.ide.structureView.newStructureView.TreeActionsOwnerEx

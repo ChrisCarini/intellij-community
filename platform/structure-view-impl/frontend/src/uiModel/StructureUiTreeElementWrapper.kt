@@ -3,11 +3,14 @@ package com.intellij.platform.structureView.frontend.uiModel
 
 import com.intellij.ide.projectView.PresentationData
 import com.intellij.navigation.ItemPresentation
+import com.intellij.openapi.ui.Queryable
 import com.intellij.openapi.vcs.FileStatus
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.pom.Navigatable
+import com.intellij.ui.icons.RowIcon
+import javax.swing.Icon
 
-class StructureUiTreeElementWrapper : StructureUiTreeElement {
+class StructureUiTreeElementWrapper : StructureUiTreeElement, Queryable {
   
   @Volatile
   private var delegate: StructureUiTreeElement? = null
@@ -68,6 +71,14 @@ class StructureUiTreeElementWrapper : StructureUiTreeElement {
       "StructureUiTreeElementWrapper(delegate=$delegate)"
     } else {
       "StructureUiTreeElementWrapper(delegate=null)"
+    }
+  }
+
+  override fun putInfo(info: MutableMap<in String, in String?>) {
+    info["text"] = presentation.presentableText
+    info["location"] = presentation.locationString
+    info["icon"] = with(presentation.getIcon(false)) {
+      (this as? RowIcon)?.allIcons?.joinToString(transform = Icon::toString) ?: this?.toString()
     }
   }
 }

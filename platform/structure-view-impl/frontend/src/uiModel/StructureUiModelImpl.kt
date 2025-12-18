@@ -44,9 +44,6 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
   private val myActions = CopyOnWriteArrayList<String>()
 
   @Volatile
-  private var myNodesMap: Map<Int, StructureUiTreeElementImpl> = emptyMap()
-
-  @Volatile
   private var myNodeProviders: List<NodeProviderTreeActionImpl> = emptyList()
 
   private val selection = MutableStateFlow<StructureUiTreeElement?>(null)
@@ -66,13 +63,10 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
       dto = model
       val rootNode = StructureUiTreeElementImpl(model.rootNode)
 
-      launch(Dispatchers.UI) {
-        myModelListeners.forEach { it.onActionsChanged() }
-      }
-
       model.nodes.toFlow().collect { nodesUpdate ->
         val nodeMap = HashMap<Int, StructureUiTreeElementImpl>()
         nodeMap[0] = rootNode
+        var selectionElement: StructureUiTreeElement? = null
         rootNode.myChildren.clear()
 
         if (nodesUpdate == null) {
@@ -88,6 +82,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
               val parent = providerNodeMap[nodeDto.parentId]
               val node = nodeDto.toUiElement(parent)
               providerNodeMap[nodeDto.id] = node
+              if (nodeDto.id == nodesUpdate.editorSelection?.id) selectionElement = node
               if (parent == null) {
                 nodes.add(node)
               }
@@ -116,15 +111,15 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
             continue
           }
           node.parent = parent
+          if (nodeDto.id == nodesUpdate.editorSelection?.id) selectionElement = node
           parent.myChildren.add(node)
           nodeMap[nodeDto.id] = node
         }
 
-        myNodesMap = nodeMap
         myNodeProviders = nodeProviders
         rootElement.setDelegate(rootNode)
 
-        selection.emit(nodesUpdate.editorSelection?.let { s -> nodeMap[s.id] ?: myNodeProviders.firstNotNullOf { it.nodes[s.id] } })
+        selection.emit(selectionElement)
 
         launch(Dispatchers.UI) {
           myModelListeners.forEach { it.onActionsChanged() }
@@ -154,16 +149,16 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
     if (isEnabled) myActions.add(action.name) else myActions.remove(action.name)
 
     if (action is NodeProviderTreeActionImpl || action is FilterTreeAction) return
+    myUpdatePendingFlow.value = true
 
     cs.launch {
-      myUpdatePendingFlow.value = true
       StructureTreeApi.getInstance().setTreeActionState(dtoId, action.name, isEnabled)
     }
   }
 
   override fun getActions(): Collection<StructureTreeAction> = (dto?.actions ?: emptyList()) + myNodeProviders
 
-  override fun getUpdatePendingFlow(): Flow<Boolean> = myUpdatePendingFlow
+  override fun getUpdatePendingFlow(): StateFlow<Boolean> = myUpdatePendingFlow
 
   override fun addListener(listener: StructureUiModelListener) {
     myModelListeners.add(listener)
@@ -171,24 +166,10 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
 
   override fun dispose() {
     cs.cancel()
-    myNodesMap = emptyMap()
     myModelListeners.clear()
     StructureViewScopeHolder.getInstance().cs.launch {
       StructureTreeApi.getInstance().structureViewModelDisposed(dtoId)
     }
-  }
-
-  @ApiStatus.Internal
-  @Suppress("unused")
-  fun dumpNodes(): String {
-    val stringBuilder = StringBuilder()
-    stringBuilder.append("Main nodes:").append('\n')
-    stringBuilder.append(myNodesMap.values.joinToString("\n        "))
-    for (provider in myNodeProviders) {
-      stringBuilder.append("  provider: ${provider.javaClass.simpleName}").append('\n')
-      stringBuilder.append("    nodes: ${provider.nodes.joinToString("\n        ")}").append('\n')
-    }
-    return stringBuilder.toString()
   }
 
   companion object {
