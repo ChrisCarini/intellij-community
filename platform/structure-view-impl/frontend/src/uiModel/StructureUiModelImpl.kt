@@ -16,13 +16,14 @@ import com.intellij.platform.structureView.impl.uiModel.FilterTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiTreeElementImpl.Companion.toUiElement
+import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.util.containers.ContainerUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.ApiStatus
 import java.util.concurrent.CopyOnWriteArrayList
@@ -48,6 +49,9 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
 
   private val selection = MutableStateFlow<StructureUiTreeElement?>(null)
 
+  @Volatile
+  private var rebuildTreeOnDeferredNodes: Boolean = false
+
   init {
     cs.launch {
       val model = StructureTreeApi.getInstance().getStructureViewModel(editor?.editorId(), file.rpcId(), project.projectId(), dtoId)
@@ -63,6 +67,8 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
       dto = model
       val rootNode = StructureUiTreeElementImpl(model.rootNode)
 
+      myActions.addAll(model.actions.filter { it.isEnabledByDefault }.map { it.name })
+
       model.nodes.toFlow().collect { nodesUpdate ->
         val nodeMap = HashMap<Int, StructureUiTreeElementImpl>()
         nodeMap[0] = rootNode
@@ -75,23 +81,8 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
 
 
         val nodeProviders = nodesUpdate.nodeProviders.map {
-          val nodes = run {
-            val providerNodeMap = hashMapOf<Int, StructureUiTreeElementImpl>()
-            val nodes = mutableListOf<StructureUiTreeElementImpl>()
-            for (nodeDto in it.nodesDto) {
-              val parent = providerNodeMap[nodeDto.parentId]
-              val node = nodeDto.toUiElement(parent)
-              providerNodeMap[nodeDto.id] = node
-              if (nodeDto.id == nodesUpdate.editorSelection?.id) selectionElement = node
-              if (parent == null) {
-                nodes.add(node)
-              }
-              else {
-                parent.myChildren.add(node)
-              }
-            }
-            nodes
-          }
+          val (_, nodes) = convertNodesForProvider(nodesUpdate.editorSelectionId, it.nodesDto)
+
           NodeProviderTreeActionImpl(it.actionType,
                                      it.name,
                                      it.presentation,
@@ -100,8 +91,8 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
                                      it.shortcutsIds,
                                      it.actionIdForShortcut,
                                      it.checkboxText,
-                                     it.propertyName,
-                                     nodes)
+                                     nodes,
+                                     it.nodesLoaded)
         }
 
         for (nodeDto in nodesUpdate.nodes) {
@@ -111,12 +102,15 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
             continue
           }
           node.parent = parent
-          if (nodeDto.id == nodesUpdate.editorSelection?.id) selectionElement = node
+          if (nodeDto.id == nodesUpdate.editorSelectionId) selectionElement = node
           parent.myChildren.add(node)
           nodeMap[nodeDto.id] = node
         }
 
         myNodeProviders = nodeProviders
+
+        myActions.addAll(myNodeProviders.filter { it.isEnabledByDefault }.map { it.name })
+
         rootElement.setDelegate(rootNode)
 
         selection.emit(selectionElement)
@@ -125,6 +119,36 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
           myModelListeners.forEach { it.onActionsChanged() }
           myModelListeners.forEach { it.onTreeChanged() }
           myUpdatePendingFlow.value = false
+        }
+
+        // Subscribe to deferred provider nodes (one-time emission of all remaining provider nodes)
+        launch {
+          nodesUpdate.deferredProviderNodes.toFlow().collect { deferredProviderNodesList ->
+            if (deferredProviderNodesList == null) {
+              return@collect
+            }
+
+            for (providerNodesDto in deferredProviderNodesList) {
+              val provider = myNodeProviders.find { it.name == providerNodesDto.providerName }
+              if (provider == null) {
+                logger.warn("No provider found for name: ${providerNodesDto.providerName}")
+                continue
+              }
+
+              val (_, nodes) = convertNodesForProvider(null, providerNodesDto.nodes)
+
+              provider.setNodes(nodes)
+            }
+
+            // If an incomplete node provider was enabled while waiting for deferred nodes, rebuild tree now
+            if (rebuildTreeOnDeferredNodes) {
+              rebuildTreeOnDeferredNodes = false
+              launch(Dispatchers.UI) {
+                myModelListeners.forEach { it.onTreeChanged() }
+                myUpdatePendingFlow.value = false
+              }
+            }
+          }
         }
       }
     }
@@ -143,16 +167,29 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
     return action.name in myActions
   }
 
-  override fun setActionEnabled(action: StructureTreeAction, isEnabled: Boolean) {
+  override fun setActionEnabled(action: StructureTreeAction, isEnabled: Boolean, isAutoClicked: Boolean) {
     if (isEnabled == isActionEnabled(action)) return
 
-    if (isEnabled) myActions.add(action.name) else myActions.remove(action.name)
+    if (isEnabled) {
+      myActions.add(action.name)
+    }
+    else {
+      myActions.remove(action.name)
+    }
 
-    if (action is NodeProviderTreeActionImpl || action is FilterTreeAction) return
-    myUpdatePendingFlow.value = true
+    if (action is NodeProviderTreeActionImpl) {
+      // If enabling an incomplete node provider, mark as pending and request tree rebuild when nodes arrive
+      if (isEnabled && !action.nodesLoaded) {
+        myUpdatePendingFlow.value = true
+        rebuildTreeOnDeferredNodes = true
+      }
+    }
+    else if (action !is FilterTreeAction) {
+      myUpdatePendingFlow.value = true
+    }
 
     cs.launch {
-      StructureTreeApi.getInstance().setTreeActionState(dtoId, action.name, isEnabled)
+      StructureTreeApi.getInstance().setTreeActionState(dtoId, action.name, isEnabled, isAutoClicked)
     }
   }
 
@@ -170,6 +207,28 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
     StructureViewScopeHolder.getInstance().cs.launch {
       StructureTreeApi.getInstance().structureViewModelDisposed(dtoId)
     }
+  }
+
+  private fun convertNodesForProvider(
+    editorSelectionId: Int?,
+    nodesDto: List<StructureViewTreeElementDto>,
+  ): Pair<StructureUiTreeElementImpl?, List<StructureUiTreeElementImpl>> {
+    val providerNodeMap = hashMapOf<Int, StructureUiTreeElementImpl>()
+    val nodes = mutableListOf<StructureUiTreeElementImpl>()
+    var selectionElement: StructureUiTreeElementImpl? = null
+    for (nodeDto in nodesDto) {
+      val parent = providerNodeMap[nodeDto.parentId]
+      val node = nodeDto.toUiElement(parent)
+      providerNodeMap[nodeDto.id] = node
+      if (nodeDto.id == editorSelectionId) selectionElement = node
+      if (parent == null) {
+        nodes.add(node)
+      }
+      else {
+        parent.myChildren.add(node)
+      }
+    }
+    return selectionElement to nodes
   }
 
   companion object {

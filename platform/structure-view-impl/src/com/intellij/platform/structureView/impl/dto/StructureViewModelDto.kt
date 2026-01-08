@@ -21,7 +21,15 @@ data class StructureViewModelDto(
 @ApiStatus.Internal
 @Serializable
 data class TreeNodesDto(
-  val editorSelection: StructureViewTreeElementDto?,
+  val editorSelectionId: Int?,
   val nodes: List<StructureViewTreeElementDto>,
   val nodeProviders: List<NodeProviderTreeAction>,
+  val deferredProviderNodes: RpcFlow<List<NodeProviderNodesDto>?>,
+)
+
+@ApiStatus.Internal
+@Serializable
+data class NodeProviderNodesDto(
+  val providerName: String,
+  val nodes: List<StructureViewTreeElementDto>,
 )

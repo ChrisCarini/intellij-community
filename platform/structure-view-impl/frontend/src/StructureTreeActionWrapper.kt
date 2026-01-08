@@ -37,7 +37,7 @@ open class StructureTreeActionWrapper(protected val myAction: StructureTreeActio
   }
 
   override fun setSelected(e: AnActionEvent, state: Boolean) {
-    myModel.setActionEnabled(myAction, myAction.isReverted != state)
+    myModel.setActionEnabled(myAction, myAction.isReverted != state, false)
   }
 
   override fun getDelegate(): StructureTreeAction {

@@ -79,7 +79,6 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.SpeedSearchAdvertiser
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeUtil
-import fleet.kernel.waitFor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -88,9 +87,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.TestOnly
-import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.asDeferred
-import org.jetbrains.concurrency.asPromise
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import java.awt.Point
@@ -131,7 +128,6 @@ class FileStructurePopup(
   private var myTestSearchFilter: String? = null
   private val myTriggeredCheckboxes = mutableListOf<Pair<String, JBCheckBox>>()
   private val myTreeExpander: TreeExpander
-  private val myCopyPasteDelegator: CopyPasteDelegator
   private val mySorters = mutableListOf<AnAction>()
 
   private val cs = StructureViewScopeHolder.getInstance().cs.childScope("$this scope")
@@ -229,7 +225,6 @@ class FileStructurePopup(
     mySpeedSearch.comparator = SpeedSearchComparator(false, true, " ()")
 
     myTreeExpander = DefaultTreeExpander(tree)
-    myCopyPasteDelegator = CopyPasteDelegator(myProject, tree)
 
     TreeUtil.installActions(tree)
   }
@@ -535,16 +530,7 @@ class FileStructurePopup(
     myCheckBoxesPanel.setContent(chkPanel)
   }
 
-  internal class MyStructureTreeAction(action: StructureTreeAction, model: StructureUiModel) : StructureTreeActionWrapper(action, model) {
-    init {
-      model.setActionEnabled(action, getDefaultValue(action))
-    }
-
-    override fun setSelected(e: AnActionEvent, state: Boolean) {
-      super.setSelected(e, state)
-      saveState(myAction, state)
-    }
-  }
+  internal class MyStructureTreeAction(action: StructureTreeAction, model: StructureUiModel) : StructureTreeActionWrapper(action, model)
 
   private fun uiDataSnapshot(sink: DataSink) {
     sink.set<Project>(CommonDataKeys.PROJECT, myProject)
@@ -553,7 +539,6 @@ class FileStructurePopup(
       sink.set<Editor>(OpenFileDescriptor.NAVIGATE_IN_EDITOR, myFileEditor.getEditor())
     }
     sink.set<JBPopup>(LangDataKeys.POSITION_ADJUSTER_POPUP, myPopup)
-    sink.set<CopyProvider>(PlatformDataKeys.COPY_PROVIDER, myCopyPasteDelegator.copyProvider)
     sink.set<TreeExpander>(PlatformDataKeys.TREE_EXPANDER, myTreeExpander)
 
     val selection = tree.getSelectionPaths()
@@ -645,16 +630,12 @@ class FileStructurePopup(
     checkBox.setOpaque(false)
     UIUtil.applyStyle(UIUtil.ComponentStyle.SMALL, checkBox)
 
-    val selected = getDefaultValue(action)
+    val selected = action.isEnabledByDefault
     checkBox.setSelected(selected)
     val isRevertedStructureFilter = action.isReverted
-    myModel.setActionEnabled(action, isRevertedStructureFilter != selected)
     checkBox.addActionListener {
       val state = checkBox.isSelected
-      if (!myAutoClicked.contains(checkBox)) {
-        saveState(action, state)
-      }
-      myModel.setActionEnabled(action, isRevertedStructureFilter != state)
+      myModel.setActionEnabled(action, isRevertedStructureFilter != state, myAutoClicked.contains(checkBox))
       cs.launch {
         logFileStructureCheckboxClick(action)
         rebuild(false)
@@ -1022,18 +1003,6 @@ class FileStructurePopup(
         return KeymapUtil.getActiveKeymapShortcuts(action.actionIdForShortcut).getShortcuts()
       }
       return action.shortcuts ?: arrayOf()
-    }
-
-    private fun getDefaultValue(action: StructureTreeAction): Boolean {
-      val propertyName = action.getPropertyName()
-      val defaultValue = action.isEnabledByDefault
-      return PropertiesComponent.getInstance().getBoolean(TreeStructureUtil.getPropertyName(propertyName), defaultValue)
-    }
-
-    private fun saveState(action: StructureTreeAction, state: Boolean) {
-      val propertyName = action.getPropertyName()
-      val defaultValue = action.isEnabledByDefault
-      PropertiesComponent.getInstance().setValue(TreeStructureUtil.getPropertyName(propertyName), state, defaultValue)
     }
 
     fun getSpeedSearchText(element: StructureViewTreeElement): String? {

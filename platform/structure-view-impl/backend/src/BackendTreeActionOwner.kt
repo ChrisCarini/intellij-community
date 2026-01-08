@@ -10,7 +10,9 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.platform.structureView.impl.DelegatingNodeProvider
 
-internal class BackendTreeActionOwner : TreeActionsOwner, TreeActionsOwnerEx {
+internal class BackendTreeActionOwner(
+  var allNodeProvidersActive: Boolean = false,
+) : TreeActionsOwner, TreeActionsOwnerEx {
   override fun setActionActive(name: String?, state: Boolean) {}
 
   override fun isActionActive(name: String?): Boolean = false
@@ -20,8 +22,10 @@ internal class BackendTreeActionOwner : TreeActionsOwner, TreeActionsOwnerEx {
   override fun isActionActive(action: TreeAction): Boolean {
     // always false for filters so that the elements are not filtered out
     if (action is Filter) return false
-    // always true for node providers so that all possible elements are calculated
-    if (action is NodeProvider<*> && action !is DelegatingNodeProvider<*>) return true
+    // for node providers, check flag or service state
+    if (action is NodeProvider<*> && action !is DelegatingNodeProvider<*>) {
+      return allNodeProvidersActive || BackendTreeActionOwnerService.getInstance().isActionActive(action.name)
+    }
 
     return BackendTreeActionOwnerService.getInstance().isActionActive(action.name)
   }

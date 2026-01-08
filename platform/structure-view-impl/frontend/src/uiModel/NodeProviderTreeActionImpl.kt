@@ -17,9 +17,24 @@ class NodeProviderTreeActionImpl(
   override val shortcutsIds: Array<ShortcutId>?,
   override val actionIdForShortcut: String?,
   override val checkboxText: @Nls String,
-  private val myPropertyName: String,
-  val nodes: List<StructureUiTreeElement>,
+  nodes: List<StructureUiTreeElement>,
+  nodesLoaded: Boolean,
 ) : CheckboxTreeAction {
+
+  @Volatile
+  private var myNodes: List<StructureUiTreeElement> = nodes
+
+  @Volatile
+  var nodesLoaded: Boolean = nodesLoaded
+    private set
+
+  val nodes: List<StructureUiTreeElement>
+    get() = myNodes
+
+  fun setNodes(newNodes: List<StructureUiTreeElement>) {
+    myNodes = newNodes
+    nodesLoaded = true
+  }
 
   fun getNodes(parent: StructureUiTreeElement): List<StructureUiTreeElement> {
     return nodes.filter {
@@ -27,6 +42,4 @@ class NodeProviderTreeActionImpl(
       it.dto.parentId == parent.id
     }
   }
-
-  override fun getPropertyName(): String = myPropertyName
 }

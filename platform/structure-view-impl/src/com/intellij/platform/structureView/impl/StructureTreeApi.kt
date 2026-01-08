@@ -18,7 +18,7 @@ interface StructureTreeApi : RemoteApi<Unit> {
 
   suspend fun structureViewModelDisposed(id: Int)
 
-  suspend fun setTreeActionState(id: Int, actionName: String, isEnabled: Boolean)
+  suspend fun setTreeActionState(id: Int, actionName: String, isEnabled: Boolean, autoClicked: Boolean)
 
   companion object {
     suspend fun getInstance(): StructureTreeApi {

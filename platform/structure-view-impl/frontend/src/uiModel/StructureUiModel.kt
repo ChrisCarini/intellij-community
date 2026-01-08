@@ -17,7 +17,7 @@ interface StructureUiModel: Disposable {
 
   fun isActionEnabled(action: StructureTreeAction): Boolean
 
-  fun setActionEnabled(action: StructureTreeAction, isEnabled: Boolean)
+  fun setActionEnabled(action: StructureTreeAction, isEnabled: Boolean, isAutoClicked: Boolean)
 
   fun getActions(): Collection<StructureTreeAction>
 

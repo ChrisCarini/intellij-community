@@ -6,7 +6,6 @@ import com.intellij.ide.rpc.shortcut
 import com.intellij.ide.util.treeView.smartTree.ActionPresentation
 import com.intellij.ide.util.treeView.smartTree.Sorter
 import com.intellij.openapi.actionSystem.Shortcut
-import com.intellij.openapi.util.PropertyOwner
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.structureView.impl.dto.TreeActionPresentationDto
 import com.intellij.platform.structureView.impl.dto.toDto
@@ -19,7 +18,7 @@ import org.jetbrains.annotations.NonNls
 
 @ApiStatus.Internal
 @Serializable
-sealed interface StructureTreeAction : PropertyOwner {
+sealed interface StructureTreeAction {
   val actionType: Type
   val name: @NonNls String
   val isReverted: Boolean
@@ -31,7 +30,6 @@ sealed interface StructureTreeAction : PropertyOwner {
                                                                     Sorter.ALPHA_SORTER.name,
                                                                     false,
                                                                     Sorter.ALPHA_SORTER.presentation.toDto(),
-                                                                    Sorter.ALPHA_SORTER.name,
                                                                     true)
   }
 
@@ -58,13 +56,10 @@ class StructureTreeActionImpl(
   override val name: String,
   override val isReverted: Boolean,
   private val presentationDto: TreeActionPresentationDto,
-  private val myPropertyName: String,
   override val isEnabledByDefault: Boolean,
 ) : StructureTreeAction {
   @Transient
   override val presentation: ActionPresentation = presentationDto.toPresentation()
-
-  override fun getPropertyName(): String = myPropertyName
 }
 
 @Serializable
@@ -76,13 +71,10 @@ class CheckboxTreeActionImpl(
   override val shortcutsIds: Array<ShortcutId>?,
   override val actionIdForShortcut: String?,
   override val checkboxText: @Nls String,
-  private val myPropertyName: String,
   override val isEnabledByDefault: Boolean,
 ): CheckboxTreeAction {
   @Transient
   override val presentation: ActionPresentation = presentationDto.toPresentation()
-
-  override fun getPropertyName(): String = myPropertyName
 }
 
 @Serializable
@@ -95,14 +87,12 @@ class NodeProviderTreeAction(
   override val shortcutsIds: Array<ShortcutId>?,
   override val actionIdForShortcut: String?,
   override val checkboxText: @Nls String,
-  private val myPropertyName: String,
   val nodesDto: List<StructureViewTreeElementDto>,
+  val nodesLoaded: Boolean,
 ) : CheckboxTreeAction {
 
   @Transient
   override val presentation: ActionPresentation = presentationDto.toPresentation()
-
-  override fun getPropertyName(): String = myPropertyName
 
   override fun toString(): String {
     return "StructureTreeAction{dto=$presentationDto}"
@@ -120,12 +110,9 @@ class FilterTreeAction(
   override val shortcutsIds: Array<ShortcutId>?,
   override val actionIdForShortcut: String?,
   override val checkboxText: @Nls String,
-  private val myPropertyName: String,
 ) : CheckboxTreeAction {
   @Transient
   override val presentation: ActionPresentation = presentationDto.toPresentation()
-
-  override fun getPropertyName(): String = myPropertyName
 
   fun isVisible(element: StructureUiTreeElement): Boolean {
     return element.filterResults.getOrNull(order) ?: true

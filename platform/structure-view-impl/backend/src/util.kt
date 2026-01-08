@@ -8,6 +8,7 @@ import com.intellij.ide.structureView.newStructureView.StructureViewUtil
 import com.intellij.ide.ui.colors.SerializableSimpleTextAttributes
 import com.intellij.ide.ui.colors.rpcId
 import com.intellij.ide.ui.icons.rpcId
+import com.intellij.ide.util.FileStructurePopup.getDefaultValue
 import com.intellij.ide.util.treeView.smartTree.Sorter
 import com.intellij.ide.util.treeView.smartTree.TreeActionWithDefaultState
 import com.intellij.navigation.ColoredItemPresentation
@@ -77,8 +78,7 @@ internal fun Array<Sorter>.toDto(): List<StructureTreeAction> {
           sorter.name,
           false,
           sorter.presentation.toDto(),
-          (sorter as? PropertyOwner)?.propertyName ?: sorter.name,
-          (sorter as? TreeActionWithDefaultState)?.isEnabledByDefault ?: false
+          getDefaultValue(sorter),
         ))
       }
     }
