@@ -17,7 +17,10 @@ import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.ide.util.treeView.smartTree.*
 import com.intellij.ide.vfs.VirtualFileId
 import com.intellij.ide.vfs.virtualFile
+import com.intellij.internal.statistic.collectors.fus.actions.persistence.ActionsCollectorImpl
+import com.intellij.internal.statistic.collectors.fus.actions.persistence.ActionsEventLogGroup
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.diagnostic.debug
@@ -27,10 +30,11 @@ import com.intellij.openapi.editor.impl.findEditor
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.TextEditor
+import com.intellij.openapi.fileTypes.LanguageFileType
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.IntRef
-import com.intellij.openapi.util.PropertyOwner
 import com.intellij.platform.project.ProjectId
 import com.intellij.platform.project.findProject
 import com.intellij.platform.rpc.UID
@@ -38,11 +42,7 @@ import com.intellij.platform.rpc.backend.RemoteApiProvider
 import com.intellij.platform.structureView.impl.DelegatingNodeProvider
 import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
-import com.intellij.platform.structureView.impl.dto.NodeProviderNodesDto
-import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
-import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
-import com.intellij.platform.structureView.impl.dto.TreeNodesDto
-import com.intellij.platform.structureView.impl.dto.toDto
+import com.intellij.platform.structureView.impl.dto.*
 import com.intellij.platform.structureView.impl.uiModel.CheckboxTreeActionImpl
 import com.intellij.platform.structureView.impl.uiModel.FilterTreeAction
 import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeAction
@@ -88,10 +88,10 @@ internal class StructureTreeApiImpl : StructureTreeApi {
       return null
     }
     val editor = editorId?.findEditor()
-    val fileEditor = FileEditorManager.getInstance(project).getSelectedEditor(file)
+    val fileEditor = FileEditorManager.getInstance(project).getSelectedEditor(file) ?: return null
 
     val treeModel = readAction {
-      val structureViewBuilder = fileEditor?.structureViewBuilder
+      val structureViewBuilder = fileEditor.structureViewBuilder
       if (structureViewBuilder == null) {
         return@readAction null
       }
@@ -204,7 +204,8 @@ internal class StructureTreeApiImpl : StructureTreeApi {
                                                 backendActionOwner,
                                                 myAsyncTreeModel,
                                                 fileEditor,
-                                                disposable)
+                                                disposable,
+                                                project)
     structureViews[id] = structureViewEntry
 
     val filterDtos = filters.mapIndexed { index, filter ->
@@ -318,6 +319,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
         logger.error("Action $actionName not found in structure model with id: $id")
         return@let
       }
+      logFileStructureCheckboxClick(action, entry.fileEditor, entry.project)
       if (!autoClicked) {
         saveState(action, isEnabled)
       }
@@ -558,6 +560,19 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     return (treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<DelegatingNodeProvider<*>>()
   }
 
+  private fun logFileStructureCheckboxClick(action: TreeAction, fileEditor: FileEditor, project: Project) {
+    val fileType = fileEditor.getFile().fileType
+    val language = if (fileType is LanguageFileType) fileType.language else null
+
+    ActionsCollectorImpl.recordActionInvoked(project) {
+      add(com.intellij.internal.statistic.eventLog.events.EventFields.PluginInfoFromInstance.with(action))
+      add(com.intellij.internal.statistic.eventLog.events.EventFields.ActionPlace.with(ActionPlaces.FILE_STRUCTURE_POPUP))
+      add(com.intellij.internal.statistic.eventLog.events.EventFields.CurrentFile.with(language))
+      add(ActionsEventLogGroup.ACTION_CLASS.with(action.javaClass))
+      add(ActionsEventLogGroup.ACTION_ID.with(action.javaClass.getName()))
+    }
+  }
+
   private data class StructureViewEntry(
     val wrapper: SmartTreeStructure,
     val structureTreeModel: StructureTreeModel<SmartTreeStructure>,
@@ -566,8 +581,9 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     val deferredProviderNodesFlow: MutableStateFlow<List<NodeProviderNodesDto>?>,
     val backendActionOwner: BackendTreeActionOwner,
     val asyncTreeModel: AsyncTreeModel,
-    val fileEditor: FileEditor?,
+    val fileEditor: FileEditor,
     val disposable: Disposable,
+    val project: Project,
     val idRef: IntRef = IntRef(1),
     val nodeToId: MutableMap<Any, Int> = mutableMapOf(),
   )

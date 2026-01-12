@@ -30,6 +30,7 @@ jvm_library(
     "//platform/platform-impl/concurrency",
     "//platform/util/concurrency",
     "//platform/util",
+    "//platform/statistics",
   ]
 )
 ### auto-generated section `build intellij.platform.structureView.backend` end

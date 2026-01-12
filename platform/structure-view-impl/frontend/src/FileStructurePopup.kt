@@ -637,7 +637,6 @@ class FileStructurePopup(
       val state = checkBox.isSelected
       myModel.setActionEnabled(action, isRevertedStructureFilter != state, myAutoClicked.contains(checkBox))
       cs.launch {
-        logFileStructureCheckboxClick(action)
         rebuild(false)
         withContext(Dispatchers.EDT) {
           if (mySpeedSearch.isPopupActive) {
@@ -658,18 +657,6 @@ class FileStructurePopup(
     panel.add(checkBox)
 
     myCheckBoxes[action.name] = checkBox
-  }
-
-  private fun logFileStructureCheckboxClick(action: StructureTreeAction) {
-    val fileType = myFileEditor.getFile().fileType
-    val language = if (fileType is LanguageFileType) fileType.language else null
-
-    ActionsCollectorImpl.recordActionInvoked(myProject) {
-      add(EventFields.ActionPlace.with(ActionPlaces.FILE_STRUCTURE_POPUP))
-      add(EventFields.CurrentFile.with(language))
-      add(ActionsEventLogGroup.ACTION_CLASS.with(action.javaClass))
-      add(ActionsEventLogGroup.ACTION_ID.with(action.name))
-    }
   }
 
   private suspend fun rebuild(refilterOnly: Boolean) {
