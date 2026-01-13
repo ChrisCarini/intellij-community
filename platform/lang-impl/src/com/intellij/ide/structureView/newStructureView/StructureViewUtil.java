@@ -7,8 +7,10 @@ import com.intellij.ide.util.treeView.smartTree.TreeElement;
 import com.intellij.navigation.LocationPresentation;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.util.text.StringUtil;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
+@ApiStatus.Internal
 public final class StructureViewUtil {
   public static @Nullable String getSpeedSearchText(Object object) {
     String text = String.valueOf(object);

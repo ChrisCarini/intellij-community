@@ -6,7 +6,7 @@ import com.intellij.ide.structureView.StructureView;
 import com.intellij.ide.structureView.StructureViewModel;
 import com.intellij.ide.structureView.impl.StructureViewComposite;
 import com.intellij.ide.structureView.newStructureView.StructurePopup;
-import com.intellij.ide.structureView.newStructureView.StructurePopupProvider;
+import com.intellij.ide.structureView.newStructureView.StructurePopupKt;
 import com.intellij.ide.structureView.newStructureView.StructurePopupTestExt;
 import com.intellij.ide.util.StructureViewCompositeModel;
 import com.intellij.ide.util.treeView.AbstractTreeNode;
@@ -76,10 +76,18 @@ public final class ViewStructureAction extends DumbAwareAction {
     return createPopup(project, fileEditor, null);
   }
 
+  /**
+   * callbackAfterNavigation doesn't work in the new file structure popup
+   */
+  @ApiStatus.Internal
   public static @Nullable StructurePopup createPopup(@NotNull Project project,
-                                                         @NotNull FileEditor fileEditor,
-                                                         @Nullable Consumer<AbstractTreeNode<?>> callbackAfterNavigation) {
-    return StructurePopupProvider.Companion.createPopup(project, fileEditor, callbackAfterNavigation);
+                                                     @NotNull FileEditor fileEditor,
+                                                     @Nullable Consumer<AbstractTreeNode<?>> callbackAfterNavigation) {
+    return StructurePopupKt.EP.getExtensionList().stream()
+      .map(provider -> provider.createPopup(project, fileEditor, callbackAfterNavigation))
+      .filter(Objects::nonNull)
+      .findFirst()
+      .orElse(null);
   }
 
   @Override

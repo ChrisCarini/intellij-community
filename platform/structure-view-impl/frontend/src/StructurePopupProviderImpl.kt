@@ -15,8 +15,7 @@ class StructurePopupProviderImpl: StructurePopupProvider {
   override fun createPopup(project: Project, fileEditor: FileEditor): StructurePopup? {
     if (!Registry.`is`("frontend.structure.popup")) return null
     val file = fileEditor.file
-    val editor = (fileEditor as? TextEditor)?.editor
-    return FileStructurePopup(project, fileEditor, StructureUiModelImpl(file, project, editor))
+    return FileStructurePopup(project, fileEditor, StructureUiModelImpl(file, project))
   }
 
   @Deprecated("Use createPopup instead", replaceWith = ReplaceWith("createPopup(project, fileEditor)"))

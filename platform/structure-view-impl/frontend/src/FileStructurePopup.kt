@@ -16,10 +16,6 @@ import com.intellij.ide.util.FileStructurePopupTimeTracker
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.ide.util.treeView.NodeRenderer
-import com.intellij.ide.util.treeView.smartTree.TreeStructureUtil
-import com.intellij.internal.statistic.collectors.fus.actions.persistence.ActionsCollectorImpl
-import com.intellij.internal.statistic.collectors.fus.actions.persistence.ActionsEventLogGroup
-import com.intellij.internal.statistic.eventLog.events.EventFields
 import com.intellij.lang.LangBundle
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.*
@@ -27,6 +23,7 @@ import com.intellij.openapi.actionSystem.UiDataProvider.Companion.wrapComponent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.UI
+import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
@@ -36,7 +33,6 @@ import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.fileEditor.ex.IdeDocumentHistory
-import com.intellij.openapi.fileTypes.LanguageFileType
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.keymap.KeymapUtil
 import com.intellij.openapi.progress.ProgressManager
@@ -85,6 +81,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
+import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.concurrency.asDeferred
@@ -171,7 +168,7 @@ class FileStructurePopup(
     myStructureTreeModel = StructureTreeModel<FilteringTreeStructure>(myFilteringStructure, this)
     myAsyncTreeModel = AsyncTreeModel(myStructureTreeModel, this)
     tree = MyTree(myAsyncTreeModel)
-    tree.model.addTreeModelListener(SWExpandListener(tree, myModel))
+    tree.model.addTreeModelListener(StructureViewExpandListener(tree, myModel))
     PopupUtil.applyNewUIBackground(tree)
     tree.getAccessibleContext().setAccessibleName(LangBundle.message("file.structure.tree.accessible.name"))
     Disposer.register(this, myModel)
@@ -601,22 +598,24 @@ class FileStructurePopup(
 
     val succeeded = Ref<Boolean>()
     val commandProcessor = CommandProcessor.getInstance()
-    commandProcessor.executeCommand(myProject, Runnable {
-      if (selectedNode != null) {
-        if (selectedNode.canNavigateToSource()) {
-          selectedNode.navigate(true)
-          myPopup!!.cancel()
-          succeeded.set(true)
+    WriteIntentReadAction.run {
+      commandProcessor.executeCommand(myProject, Runnable {
+        if (selectedNode != null) {
+          if (selectedNode.canNavigateToSource()) {
+            selectedNode.navigate(true)
+            myPopup!!.cancel()
+            succeeded.set(true)
+          }
+          else {
+            succeeded.set(false)
+          }
         }
         else {
           succeeded.set(false)
         }
-      }
-      else {
-        succeeded.set(false)
-      }
-      IdeDocumentHistory.getInstance(myProject).includeCurrentCommandAsNavigation()
-    }, LangBundle.message("command.name.navigate"), null)
+        IdeDocumentHistory.getInstance(myProject).includeCurrentCommandAsNavigation()
+      }, LangBundle.message("command.name.navigate"), null)
+    }
     return succeeded.get()
   }
 
@@ -733,21 +732,25 @@ class FileStructurePopup(
   }
 
   @TestOnly
+  @ApiStatus.Internal
   fun isUpdatePending(): Boolean {
     return myModel.getUpdatePendingFlow().value
   }
 
   @TestOnly
+  @ApiStatus.Internal
   override fun getSpeedSearch(): TreeSpeedSearch {
     return mySpeedSearch
   }
 
   @TestOnly
+  @ApiStatus.Internal
   override fun setSearchFilterForTests(filter: String?) {
     myTestSearchFilter = filter
   }
 
   @TestOnly
+  @ApiStatus.Internal
   override fun setTreeActionState(actionName: String, state: Boolean) {
     val checkBox = myCheckBoxes[actionName]
     if (checkBox != null) {
@@ -759,11 +762,13 @@ class FileStructurePopup(
   }
 
   @TestOnly
+  @ApiStatus.Internal
   override fun initUi() {
     createCenterPanel()
   }
 
   @TestOnly
+  @ApiStatus.Internal
   override fun getTree(): Tree {
     return tree
   }
@@ -771,6 +776,7 @@ class FileStructurePopup(
   @TestOnly
   private val myTestListeners = CopyOnWriteArrayList<StructurePopupListener>()
 
+  @ApiStatus.Internal
   @TestOnly
   suspend fun waitUpdateFinished() {
     val listener = object : StructurePopupListener {
@@ -791,16 +797,19 @@ class FileStructurePopup(
     removeTestListener(listener)
   }
 
+  @ApiStatus.Internal
   @TestOnly
   fun addTestListener(listener: StructurePopupListener) {
     myTestListeners.add(listener)
   }
 
+  @ApiStatus.Internal
   @TestOnly
   fun removeTestListener(listener: StructurePopupListener) {
     myTestListeners.remove(listener)
   }
 
+  @ApiStatus.Internal
   @TestOnly
   suspend fun rebuildAndUpdate() {
     rebuild(false)
@@ -811,6 +820,7 @@ class FileStructurePopup(
     myAsyncTreeModel.accept(visitor).asDeferred().await()
   }
 
+  @ApiStatus.Internal
   @TestOnly
   suspend fun selectCurrent() {
     select(myModel.editorSelection.value!!)

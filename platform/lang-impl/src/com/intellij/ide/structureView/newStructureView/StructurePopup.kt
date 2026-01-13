@@ -25,18 +25,8 @@ interface StructurePopupProvider {
    */
   fun createPopup(project: Project, fileEditor: FileEditor, callbackAfterNavigation: Consumer<AbstractTreeNode<*>>?): StructurePopup?
 
-  companion object {
-    fun createPopup(project: Project, fileEditor: FileEditor): StructurePopup? {
-      return EP.extensionList.firstNotNullOfOrNull { it.createPopup(project, fileEditor) }
-    }
-
-    /**
-     * callbackAfterNavigation doesn't work in the new file structure popup
-     */
-    fun createPopup(project: Project, fileEditor: FileEditor, callbackAfterNavigation: Consumer<AbstractTreeNode<*>>?): StructurePopup? {
-      return EP.extensionList.firstNotNullOfOrNull { it.createPopup(project, fileEditor, callbackAfterNavigation) }
-    }
-
-    val EP: ExtensionPointName<StructurePopupProvider> = ExtensionPointName.create("com.intellij.structurePopupProvider")
-  }
 }
+
+@JvmField
+@ApiStatus.Internal
+val EP: ExtensionPointName<StructurePopupProvider> = ExtensionPointName.create("com.intellij.structurePopupProvider")

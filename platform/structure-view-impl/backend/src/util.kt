@@ -2,23 +2,30 @@
 package com.intellij.platform.structureView.backend
 
 import com.intellij.ide.projectView.PresentationData
+import com.intellij.ide.rpc.rpcId
 import com.intellij.ide.rpc.weakRpcId
+import com.intellij.ide.structureView.StructureViewModel
 import com.intellij.ide.structureView.StructureViewTreeElement
-import com.intellij.ide.structureView.newStructureView.StructureViewUtil
 import com.intellij.ide.ui.colors.SerializableSimpleTextAttributes
 import com.intellij.ide.ui.colors.rpcId
 import com.intellij.ide.ui.icons.rpcId
+import com.intellij.ide.util.ActionShortcutProvider
+import com.intellij.ide.util.FileStructureFilter
+import com.intellij.ide.util.FileStructureNodeProvider
 import com.intellij.ide.util.FileStructurePopup.getDefaultValue
+import com.intellij.ide.util.treeView.smartTree.ProvidingTreeModel
 import com.intellij.ide.util.treeView.smartTree.Sorter
-import com.intellij.ide.util.treeView.smartTree.TreeActionWithDefaultState
+import com.intellij.ide.util.treeView.smartTree.TreeModel
 import com.intellij.navigation.ColoredItemPresentation
 import com.intellij.navigation.ItemPresentation
 import com.intellij.navigation.LocationPresentation
-import com.intellij.openapi.util.PropertyOwner
+import com.intellij.platform.structureView.impl.DelegatingNodeProvider
 import com.intellij.platform.structureView.impl.dto.ColoredFragmentDto
 import com.intellij.platform.structureView.impl.dto.PresentationDataDto
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.structureView.impl.dto.toDto
+import com.intellij.platform.structureView.impl.uiModel.CheckboxTreeActionImpl
+import com.intellij.platform.structureView.impl.uiModel.FilterTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionImpl
 import com.intellij.pom.Navigatable
@@ -64,7 +71,77 @@ internal fun ItemPresentation.toDto(): PresentationDataDto {
   )
 }
 
-internal fun Array<Sorter>.toDto(): List<StructureTreeAction> {
+internal fun createAllActionsButNonDelegatedNodeProviderDtos(treeModel: StructureViewModel): List<StructureTreeAction> {
+  val sorterDtos = treeModel.sorters.toDto()
+
+  val weirdNodeProviders = getDelegatingNodeProviders(treeModel)?.mapNotNull { provider ->
+    if (provider !is FileStructureNodeProvider<*>) return@mapNotNull null
+    val (actionIdForShortcut, shortcut) = if (provider is ActionShortcutProvider) {
+      provider.actionIdForShortcut to emptyList()
+    }
+    else {
+      null to provider.shortcut.map { it.rpcId() }
+    }
+
+    CheckboxTreeActionImpl(
+      StructureTreeAction.Type.FILTER,
+      provider.name,
+      false,
+      provider.presentation.toDto(),
+      shortcut.toTypedArray(),
+      actionIdForShortcut,
+      provider.checkBoxText,
+      getDefaultValue(provider),
+    )
+  } ?: emptyList()
+
+  //todo for not a popup these don't have to implement FileStructureFilter
+  val filterDtos = treeModel.filters.filterIsInstance<FileStructureFilter>().mapIndexed { index, filter ->
+    val (actionIdForShortcut, shortcut) = if (filter is ActionShortcutProvider) {
+      filter.actionIdForShortcut to emptyList()
+    }
+    else {
+      null to filter.shortcut.map { it.rpcId() }
+    }
+
+    FilterTreeAction(
+      index,
+      StructureTreeAction.Type.FILTER,
+      filter.name,
+      filter.presentation.toDto(),
+      filter.isReverted,
+      getDefaultValue(filter),
+      shortcut.toTypedArray(),
+      actionIdForShortcut,
+      filter.checkBoxText,
+    )
+  }
+
+  return sorterDtos + weirdNodeProviders + filterDtos
+}
+
+internal fun getNodeProviders(treeModel: TreeModel): List<FileStructureNodeProvider<*>>? {
+  return (treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<FileStructureNodeProvider<*>>()
+    ?.filter { it !is DelegatingNodeProvider<*> }
+}
+
+
+internal fun initActionStates(treeModel: TreeModel) {
+  val actionOwner = BackendTreeActionOwnerService.getInstance()
+  (treeModel as? ProvidingTreeModel)?.nodeProviders?.forEach { provider ->
+    actionOwner.setActionActive(provider.name, getDefaultValue(provider))
+  }
+
+  treeModel.sorters.forEach { sorter ->
+    actionOwner.setActionActive(sorter.name, getDefaultValue(sorter))
+  }
+}
+
+private fun getDelegatingNodeProviders(treeModel: TreeModel): List<DelegatingNodeProvider<*>>? {
+  return (treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<DelegatingNodeProvider<*>>()
+}
+
+private fun Array<Sorter>.toDto(): List<StructureTreeAction> {
   val dto = mutableListOf<StructureTreeAction>()
   for (sorter in this) {
     if (!sorter.isVisible) continue

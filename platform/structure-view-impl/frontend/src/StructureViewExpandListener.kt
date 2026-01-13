@@ -15,7 +15,7 @@ import javax.swing.event.TreeModelEvent
 import javax.swing.tree.TreePath
 import kotlin.Any
 
-class SWExpandListener internal constructor(private val tree: JTree, private val model: StructureUiModel) : TreeModelAdapter() {
+class StructureViewExpandListener internal constructor(private val tree: JTree, private val model: StructureUiModel) : TreeModelAdapter() {
   override fun treeNodesInserted(e: TreeModelEvent) {
     val parentPath = e.treePath
     if (true == ClientProperty.get(tree, StructureViewComponent.STRUCTURE_VIEW_STATE_RESTORED_KEY)) return

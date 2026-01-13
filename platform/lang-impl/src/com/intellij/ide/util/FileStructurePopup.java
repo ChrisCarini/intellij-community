@@ -520,6 +520,7 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
     return "StructurePopup";
   }
 
+  @ApiStatus.Internal
   public @Nullable PsiElement getCurrentElement() {
     PsiDocumentManager.getInstance(myProject).commitAllDocuments();
 
@@ -1076,18 +1077,21 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
 
   @Override
   @TestOnly
+  @ApiStatus.Internal
   public TreeSpeedSearch getSpeedSearch() {
     return mySpeedSearch;
   }
 
   @Override
   @TestOnly
+  @ApiStatus.Internal
   public void setSearchFilterForTests(String filter) {
     myTestSearchFilter = filter;
   }
 
   @Override
   @TestOnly
+  @ApiStatus.Internal
   public void setTreeActionState(@NotNull String actionName, boolean state) {
     JBCheckBox checkBox = myCheckBoxes.get(actionName);
     if (checkBox != null) {
@@ -1100,12 +1104,14 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
 
   @Override
   @TestOnly
+  @ApiStatus.Internal
   public void initUi() {
     createCenterPanel();
   }
 
   @Override
   @TestOnly
+  @ApiStatus.Internal
   public @NotNull Tree getTree() {
     return myTree;
   }

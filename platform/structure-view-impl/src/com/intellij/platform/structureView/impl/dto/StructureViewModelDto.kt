@@ -24,7 +24,7 @@ data class TreeNodesDto(
   val editorSelectionId: Int?,
   val nodes: List<StructureViewTreeElementDto>,
   val nodeProviders: List<NodeProviderTreeAction>,
-  val deferredProviderNodes: RpcFlow<List<NodeProviderNodesDto>?>,
+  val deferredProviderNodes: RpcFlow<List<NodeProviderNodesDto>?>?,
 )
 
 @ApiStatus.Internal

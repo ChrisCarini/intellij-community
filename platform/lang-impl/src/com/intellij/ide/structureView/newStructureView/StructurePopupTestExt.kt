@@ -10,17 +10,22 @@ import org.jetbrains.annotations.TestOnly
 @ApiStatus.Internal
 interface StructurePopupTestExt: Disposable {
   @TestOnly
+  @ApiStatus.Internal
   fun getSpeedSearch(): TreeSpeedSearch?
 
   @TestOnly
+  @ApiStatus.Internal
   fun setSearchFilterForTests(filter: String?)
 
   @TestOnly
+  @ApiStatus.Internal
   fun setTreeActionState(actionName: String, state: Boolean)
 
   @TestOnly
+  @ApiStatus.Internal
   fun initUi()
 
   @TestOnly
+  @ApiStatus.Internal
   fun getTree(): Tree
 }

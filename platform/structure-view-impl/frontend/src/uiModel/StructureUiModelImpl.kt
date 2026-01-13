@@ -4,8 +4,6 @@ package com.intellij.platform.structureView.frontend.uiModel
 import com.intellij.ide.vfs.rpcId
 import com.intellij.openapi.application.UI
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.impl.editorId
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.project.projectId
@@ -19,18 +17,22 @@ import com.intellij.platform.structureView.frontend.uiModel.StructureUiTreeEleme
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.util.containers.ContainerUtil
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 @ApiStatus.Internal
-class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?) : StructureUiModel {
+class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiModel {
   override var dto: StructureViewModelDto? = null
   internal val myUpdatePendingFlow: MutableStateFlow<Boolean> = MutableStateFlow(true)
 
@@ -54,11 +56,11 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
 
   init {
     cs.launch {
-      val model = StructureTreeApi.getInstance().getStructureViewModel(editor?.editorId(), file.rpcId(), project.projectId(), dtoId)
+      val model = StructureTreeApi.getInstance().getStructureViewModel(file.rpcId(), project.projectId(), dtoId)
 
       if (model == null) {
         logger.warn("No structure view model for $file")
-        launch(Dispatchers.UI) {
+        withContext(Dispatchers.UI) {
           myModelListeners.forEach { it.onTreeChanged() }
           myUpdatePendingFlow.value = false
         }
@@ -115,18 +117,17 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
 
         selection.emit(selectionElement)
 
-        launch(Dispatchers.UI) {
+        withContext(Dispatchers.UI) {
           myModelListeners.forEach { it.onActionsChanged() }
           myModelListeners.forEach { it.onTreeChanged() }
           myUpdatePendingFlow.value = false
         }
 
         // Subscribe to deferred provider nodes (one-time emission of all remaining provider nodes)
-        launch {
-          nodesUpdate.deferredProviderNodes.toFlow().collect { deferredProviderNodesList ->
-            if (deferredProviderNodesList == null) {
-              return@collect
-            }
+        if (nodesUpdate.deferredProviderNodes != null) {
+          launch(CoroutineName("collect deferred nodes")) {
+            val deferredProviderNodesList = nodesUpdate.deferredProviderNodes!!.toFlow().drop(1).first()
+            if (deferredProviderNodesList == null) return@launch
 
             for (providerNodesDto in deferredProviderNodesList) {
               val provider = myNodeProviders.find { it.name == providerNodesDto.providerName }
@@ -143,7 +144,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project, editor: Editor?)
             // If an incomplete node provider was enabled while waiting for deferred nodes, rebuild tree now
             if (rebuildTreeOnDeferredNodes) {
               rebuildTreeOnDeferredNodes = false
-              launch(Dispatchers.UI) {
+              withContext(Dispatchers.UI) {
                 myModelListeners.forEach { it.onTreeChanged() }
                 myUpdatePendingFlow.value = false
               }
