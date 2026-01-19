@@ -109,7 +109,6 @@ import com.jetbrains.performancePlugin.commands.SetupInlineCompletionListenerCom
 import com.jetbrains.performancePlugin.commands.SetupProjectSdkCommand;
 import com.jetbrains.performancePlugin.commands.ShowAltEnter;
 import com.jetbrains.performancePlugin.commands.ShowEvaluateExpressionCommand;
-import com.jetbrains.performancePlugin.commands.ShowFileStructurePopupCommand;
 import com.jetbrains.performancePlugin.commands.SingleInspectionCommand;
 import com.jetbrains.performancePlugin.commands.SleepCommand;
 import com.jetbrains.performancePlugin.commands.StartInlineRenameCommand;

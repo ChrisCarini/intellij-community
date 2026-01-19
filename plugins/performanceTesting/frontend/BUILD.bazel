@@ -31,7 +31,6 @@ jvm_library(
     "//platform/structure-view-impl/frontend",
     "//platform/util/coroutines",
     "//platform/util/concurrency",
-    "//tools/intellij.tools.ide.starter:ide-starter",
   ]
 )
 
