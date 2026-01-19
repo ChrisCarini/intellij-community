@@ -3,7 +3,9 @@ package com.intellij.platform.structureView.impl.dto
 
 import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
+import fleet.rpc.core.DeferredSerializer
 import fleet.rpc.core.RpcFlow
+import kotlinx.coroutines.Deferred
 import kotlinx.serialization.Serializable
 import org.jetbrains.annotations.ApiStatus
 
@@ -24,7 +26,7 @@ data class TreeNodesDto(
   val editorSelectionId: Int?,
   val nodes: List<StructureViewTreeElementDto>,
   val nodeProviders: List<NodeProviderTreeAction>,
-  val deferredProviderNodes: RpcFlow<List<NodeProviderNodesDto>?>?,
+  @Serializable(with = DeferredSerializer::class) val deferredProviderNodes: Deferred<List<NodeProviderNodesDto>>,
 )
 
 @ApiStatus.Internal

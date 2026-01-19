@@ -51,16 +51,18 @@ import fleet.rpc.core.toRpc
 import fleet.rpc.remoteApiDescriptor
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.concurrency.asDeferred
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import javax.swing.tree.TreeNode
 import javax.swing.tree.TreePath
@@ -158,7 +160,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
             }
 
             val nodesDto = nodes?.let {
-              TreeNodesDto(it.editorSelectionId, it.nodes, it.nodeProviders, it.deferredProviderNodes?.toRpc())
+              TreeNodesDto(it.editorSelectionId, it.nodes, it.nodeProviders, it.deferredProviderNodes)
             }
             nodesFlow.emit(nodesDto)
           }
@@ -210,11 +212,9 @@ internal class StructureTreeApiImpl : StructureTreeApi {
   }
 
   override suspend fun setTreeActionState(id: Int, actionName: String, isEnabled: Boolean, autoClicked: Boolean) {
-    if (BackendTreeActionOwnerService.getInstance().isActionActive(actionName) == isEnabled) return
-    val time = System.currentTimeMillis()
-
     structureViews[id]?.let { entry ->
       entry.structureTreeModel.invoker.invoke {
+        if (BackendTreeActionOwnerService.getInstance().isActionActive(actionName) == isEnabled) return@invoke
         BackendTreeActionOwnerService.getInstance().setActionActive(actionName, isEnabled)
         val nodeProviders = (entry.treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<FileStructureNodeProvider<*>>() ?: emptyList()
         val actions = nodeProviders + entry.treeModel.sorters + entry.treeModel.filters
@@ -243,7 +243,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     val editorSelectionId: Int?,
     val nodes: List<StructureViewTreeElementDto>,
     val nodeProviders: List<NodeProviderTreeAction>,
-    val deferredProviderNodes: Flow<List<NodeProviderNodesDto>?>?,
+    val deferredProviderNodes: Deferred<List<NodeProviderNodesDto>>,
   )
 
   private fun computeNodes(entryId: Int): ComputeNodesResult? {
@@ -326,8 +326,9 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     val selection = entry.nodeToId[selectedValue]
 
-    val deferredNodeProvidersFlow = if (nodeProviders.any { !it.nodesLoaded }) {
-      val flow = MutableStateFlow<List<NodeProviderNodesDto>?>(null)
+    val deferredNodeProviders = CompletableFuture<List<NodeProviderNodesDto>>()
+
+    if (nodeProviders.any { !it.nodesLoaded }) {
       entry.structureTreeModel.invoker.invokeLater {
         val entry = structureViews[entryId] ?: return@invokeLater
         try {
@@ -354,11 +355,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
               logger.debug { "computeNodes: Tree traversal for deferred nodes started" }
               val allProviderNodes = computeAllProviderNodes(entry)
               logger.debug { "computeNodes: Tree traversal for deferred nodes completed" }
-              StructureViewScopeHolder.getInstance().cs.launch(CoroutineName("emit deferred nodes if structure view is valid")) {
-                if (!structureViews.containsKey(entryId)) return@launch
-                logger.debug { "computeNodes: emitting deferred nodes" }
-                flow.emit(allProviderNodes)
-              }
+              deferredNodeProviders.complete(allProviderNodes)
             }
           }
         }
@@ -366,10 +363,9 @@ internal class StructureTreeApiImpl : StructureTreeApi {
           logger.error("Error computing provider nodes", e)
         }
       }
-      flow
     }
     else {
-      null
+      deferredNodeProviders.complete(emptyList())
     }
 
     logger.debug {
@@ -388,7 +384,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
       selection,
       mainNodes,
       nodeProviders,
-      deferredNodeProvidersFlow
+      deferredNodeProviders.asDeferred()
     )
   }
 

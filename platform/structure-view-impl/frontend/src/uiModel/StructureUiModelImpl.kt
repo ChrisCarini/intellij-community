@@ -17,14 +17,10 @@ import com.intellij.platform.structureView.frontend.uiModel.StructureUiTreeEleme
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.util.containers.ContainerUtil
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
@@ -123,32 +119,29 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
           myUpdatePendingFlow.value = false
         }
 
-        // Subscribe to deferred provider nodes (one-time emission of all remaining provider nodes)
-        if (nodesUpdate.deferredProviderNodes != null) {
-          launch(CoroutineName("collect deferred nodes")) {
-            val deferredProviderNodesList = nodesUpdate.deferredProviderNodes!!.toFlow().drop(1).first()
-            if (deferredProviderNodesList == null) return@launch
+        val deferredProviderNodesList = nodesUpdate.deferredProviderNodes.await()
 
-            for (providerNodesDto in deferredProviderNodesList) {
-              val provider = myNodeProviders.find { it.name == providerNodesDto.providerName }
-              if (provider == null) {
-                logger.warn("No provider found for name: ${providerNodesDto.providerName}")
-                continue
-              }
+        for (providerNodesDto in deferredProviderNodesList) {
+          val provider = myNodeProviders.find { it.name == providerNodesDto.providerName }
+          if (provider == null) {
+            logger.warn("No provider found for name: ${providerNodesDto.providerName}")
+            continue
+          }
 
-              val (_, nodes) = convertNodesForProvider(null, providerNodesDto.nodes)
+          val (_, nodes) = convertNodesForProvider(null, providerNodesDto.nodes)
 
-              provider.setNodes(nodes)
-            }
+          provider.setNodes(nodes)
+        }
 
-            // If an incomplete node provider was enabled while waiting for deferred nodes, rebuild tree now
-            if (rebuildTreeOnDeferredNodes) {
-              rebuildTreeOnDeferredNodes = false
-              withContext(Dispatchers.UI) {
-                myModelListeners.forEach { it.onTreeChanged() }
-                myUpdatePendingFlow.value = false
-              }
-            }
+        // If an incomplete node provider was enabled while waiting for deferred nodes, rebuild tree now
+        if (rebuildTreeOnDeferredNodes) {
+          if (deferredProviderNodesList.isEmpty()) {
+            logger.error("Deferred provider nodes list is empty, but rebuildTreeOnDeferredNodes is true")
+          }
+          rebuildTreeOnDeferredNodes = false
+          withContext(Dispatchers.UI) {
+            myModelListeners.forEach { it.onTreeChanged() }
+            myUpdatePendingFlow.value = false
           }
         }
       }

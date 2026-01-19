@@ -6,7 +6,7 @@ import com.intellij.ide.structureView.StructureView;
 import com.intellij.ide.structureView.StructureViewModel;
 import com.intellij.ide.structureView.impl.StructureViewComposite;
 import com.intellij.ide.structureView.newStructureView.StructurePopup;
-import com.intellij.ide.structureView.newStructureView.StructurePopupKt;
+import com.intellij.ide.structureView.newStructureView.StructurePopupProvider;
 import com.intellij.ide.structureView.newStructureView.StructurePopupTestExt;
 import com.intellij.ide.util.StructureViewCompositeModel;
 import com.intellij.ide.util.treeView.AbstractTreeNode;
@@ -83,7 +83,7 @@ public final class ViewStructureAction extends DumbAwareAction {
   public static @Nullable StructurePopup createPopup(@NotNull Project project,
                                                      @NotNull FileEditor fileEditor,
                                                      @Nullable Consumer<AbstractTreeNode<?>> callbackAfterNavigation) {
-    return StructurePopupKt.EP.getExtensionList().stream()
+    return StructurePopupProvider.EP.getExtensionList().stream()
       .map(provider -> provider.createPopup(project, fileEditor, callbackAfterNavigation))
       .filter(Objects::nonNull)
       .findFirst()

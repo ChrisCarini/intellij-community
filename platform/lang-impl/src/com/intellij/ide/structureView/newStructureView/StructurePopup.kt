@@ -25,8 +25,9 @@ interface StructurePopupProvider {
    */
   fun createPopup(project: Project, fileEditor: FileEditor, callbackAfterNavigation: Consumer<AbstractTreeNode<*>>?): StructurePopup?
 
+  companion object {
+    @JvmField
+    @ApiStatus.Internal
+    val EP: ExtensionPointName<StructurePopupProvider> = ExtensionPointName.create("com.intellij.structurePopupProvider")
+  }
 }
-
-@JvmField
-@ApiStatus.Internal
-val EP: ExtensionPointName<StructurePopupProvider> = ExtensionPointName.create("com.intellij.structurePopupProvider")
