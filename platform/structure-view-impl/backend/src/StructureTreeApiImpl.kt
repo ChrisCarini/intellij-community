@@ -61,6 +61,7 @@ import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
+import org.jetbrains.annotations.TestOnly
 import org.jetbrains.concurrency.asDeferred
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -145,7 +146,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     structureViews[id] = entry
 
-    StructureViewScopeHolder.getInstance().cs.launch(CoroutineName("StructureView event processor for id: $id"), start = CoroutineStart.UNDISPATCHED) {
+    val job = StructureViewScopeHolder.getInstance().cs.launch(CoroutineName("StructureView event processor for id: $id"), start = CoroutineStart.UNDISPATCHED) {
       entry.requestFlow.collectLatest { event ->
         when (event) {
           is StructureViewEvent.ComputeNodes -> {
@@ -177,6 +178,8 @@ internal class StructureTreeApiImpl : StructureTreeApi {
         }
       }
     }
+
+    Disposer.register(disposable, Disposable { job.cancel() })
 
     val root = myStructureTreeModel.invoker.compute {
       initActionStates(treeModel)
@@ -239,11 +242,40 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     }
   }
 
+  @TestOnly
+  override suspend fun getNewSelection(id: Int): Int? {
+    val entry = structureViews[id] ?: return null
+
+    val selection = entry.structureTreeModel.invoker.compute {
+      val (currentEditorElement, editorOffset) = entry.treeModel.currentEditorElement to ((entry.fileEditor as? TextEditor)?.getEditor()
+                                                                                            ?.getCaretModel()?.offset ?: -1)
+      val state = StructureViewSelectVisitorState()
+      val root = entry.structureTreeModel.root ?: return@compute null
+      visit(root, entry.structureTreeModel, TreePath(root)) {
+        StructureViewComponent.visitPathForElementSelection(it, currentEditorElement, editorOffset, state)
+      }
+
+      val adjusted = state.bestMatch
+      val value = if (adjusted != null && !state.isExactMatch && currentEditorElement is PsiElement) {
+        val minChild = FileStructurePopup.findClosestPsiElement(currentEditorElement, adjusted, entry.structureTreeModel)
+        if (minChild != null) StructureViewComponent.unwrapValue(minChild) else StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
+      }
+      else {
+        StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
+      }
+      val selectedValue = if (adjusted == null) null else value
+      entry.nodeToId[selectedValue]
+    }.asDeferred().await()
+
+
+    return selection
+  }
+
   private data class ComputeNodesResult(
     val editorSelectionId: Int?,
     val nodes: List<StructureViewTreeElementDto>,
     val nodeProviders: List<NodeProviderTreeAction>,
-    val deferredProviderNodes: Deferred<List<NodeProviderNodesDto>>,
+    val deferredProviderNodes: Deferred<DeferredNodesDto>,
   )
 
   private fun computeNodes(entryId: Int): ComputeNodesResult? {
@@ -277,7 +309,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     logger.debug { "computeNodes: Starting tree traversal" }
     val visitorStartTime = System.currentTimeMillis()
 
-    val root = entry.structureTreeModel.root
+    val root = entry.structureTreeModel.root ?: return null
     visit(root, entry.structureTreeModel, TreePath(root)) {
       StructureViewComponent.visitPathForElementSelection(it, currentEditorElement, editorOffset, state)
 
@@ -291,7 +323,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     val adjusted = state.bestMatch
     val value = if (adjusted != null && !state.isExactMatch && currentEditorElement is PsiElement) {
       val minChild = FileStructurePopup.findClosestPsiElement(currentEditorElement, adjusted, entry.structureTreeModel)
-      StructureViewComponent.unwrapValue(minChild)
+      if (minChild != null) StructureViewComponent.unwrapValue(minChild) else StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
     }
     else {
       StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
@@ -326,7 +358,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     val selection = entry.nodeToId[selectedValue]
 
-    val deferredNodeProviders = CompletableFuture<List<NodeProviderNodesDto>>()
+    val deferredNodeProviders = CompletableFuture<DeferredNodesDto>()
 
     if (nodeProviders.any { !it.nodesLoaded }) {
       entry.structureTreeModel.invoker.invokeLater {
@@ -365,7 +397,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
       }
     }
     else {
-      deferredNodeProviders.complete(emptyList())
+      deferredNodeProviders.complete(null)
     }
 
     logger.debug {
@@ -388,33 +420,32 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     )
   }
 
-  private fun computeAllProviderNodes(entry: StructureViewEntry): List<NodeProviderNodesDto> {
+  private fun computeAllProviderNodes(entry: StructureViewEntry): DeferredNodesDto? {
     require(entry.structureTreeModel.invoker.isValidThread)
 
     //all node providers are enabled anyway
     val providerNodesMap =
-      getNodeProviders(entry.treeModel)?.nullize()?.associateWith { mutableListOf<StructureViewTreeElementDto>() } ?: return emptyList()
+      getNodeProviders(entry.treeModel)?.nullize()?.associateWith { mutableListOf<StructureViewTreeElementDto>() } ?: return null
     val expandInfoProvider = entry.treeModel as? ExpandInfoProvider
     val elementInfoProvider = getElementInfoProvider(entry.treeModel)
     val filters = entry.treeModel.filters.filterIsInstance<FileStructureFilter>()
     // Dummy list for non-provider elements (we only care about provider elements here)
-    val unusedNodes = mutableListOf<StructureViewTreeElementDto>()
+    val mainNodes = mutableListOf<StructureViewTreeElementDto>()
 
-    val root = entry.structureTreeModel.root
+    val root = entry.structureTreeModel.root ?: return null
 
     visit(root, entry.structureTreeModel, TreePath(root)) {
       val element = TreeUtil.getUserObject(it.lastPathComponent) as? TreeElementWrapper ?: return@visit
-      // only process elements from the requested providers
-      val provider = element.provider
-      if (provider == null || provider !in providerNodesMap) return@visit
-
-      processTreeElement(expandInfoProvider, elementInfoProvider, element, unusedNodes, providerNodesMap, filters, entry)
+      processTreeElement(expandInfoProvider, elementInfoProvider, element, mainNodes, providerNodesMap, filters, entry)
     }
 
-    return providerNodesMap.map { (provider, nodes) ->
-      logger.debug { "Computed ${nodes.size} nodes for provider: ${provider.name}" }
-      NodeProviderNodesDto(provider.name, nodes)
-    }
+    return DeferredNodesDto(
+      providerNodesMap.map { (provider, nodes) ->
+        logger.debug { "Computed ${nodes.size} nodes for provider: ${provider.name}" }
+        NodeProviderNodesDto(provider.name, nodes)
+      },
+      mainNodes
+    )
   }
 
   private fun createRootModel(

@@ -49,7 +49,9 @@ import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
+import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelImpl
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelListener
+import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
 import com.intellij.platform.structureView.impl.uiModel.CheckboxTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
@@ -361,7 +363,7 @@ class FileStructurePopup(
       }
     }
 
-    return selectInner(visitor)
+    return selectInner(visitor) ?: element.parent?.let { select(it) }
   }
 
   suspend fun select(element: StructureViewTreeElement): TreePath? {
@@ -823,7 +825,23 @@ class FileStructurePopup(
   @ApiStatus.Internal
   @TestOnly
   suspend fun selectCurrent() {
-    select(myModel.editorSelection.value!!)
+    val id = StructureTreeApi.getInstance().getNewSelection((myModel as StructureUiModelImpl).dtoId)
+    val visitor: TreeVisitor = object : TreeVisitor {
+      override fun visitThread() = VisitThread.BGT
+
+      override fun visit(path: TreePath): TreeVisitor.Action {
+        val last = path.lastPathComponent
+        val value = unwrapTreeElement(last)?.value
+
+        return if (value?.id == id) {
+          TreeVisitor.Action.INTERRUPT
+        }
+        else {
+          TreeVisitor.Action.CONTINUE
+        }
+      }
+    }
+    selectInner(visitor)
   }
 
   override fun setActionActive(name: String?, state: Boolean) {

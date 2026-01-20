@@ -13,7 +13,7 @@ import javax.swing.Icon
 class StructureUiTreeElementWrapper : StructureUiTreeElement, Queryable {
   
   @Volatile
-  private var delegate: StructureUiTreeElement? = null
+  internal var delegate: StructureUiTreeElement? = null
   
   /**
    * Set the actual delegate. After this is called, all operations will be delegated.

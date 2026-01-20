@@ -65,12 +65,16 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
       dto = model
       val rootNode = StructureUiTreeElementImpl(model.rootNode)
 
-      myActions.addAll(model.actions.filter { it.isEnabledByDefault }.map { it.name })
+      myActions.addAll(model.actions.filter {
+        if (it is FilterTreeAction) {
+          it.isReverted != it.isEnabledByDefault
+        }
+        else {
+          it.isEnabledByDefault
+        }
+      }.map { it.name })
 
       model.nodes.toFlow().collect { nodesUpdate ->
-        val nodeMap = HashMap<Int, StructureUiTreeElementImpl>()
-        nodeMap[0] = rootNode
-        var selectionElement: StructureUiTreeElement? = null
         rootNode.myChildren.clear()
 
         if (nodesUpdate == null) {
@@ -93,17 +97,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
                                      it.nodesLoaded)
         }
 
-        for (nodeDto in nodesUpdate.nodes) {
-          val node = StructureUiTreeElementImpl(nodeDto)
-          val parent = nodeMap[nodeDto.parentId] ?: run {
-            logger.error("No parent for ${node.id} or it's not a backend one")
-            continue
-          }
-          node.parent = parent
-          if (nodeDto.id == nodesUpdate.editorSelectionId) selectionElement = node
-          parent.myChildren.add(node)
-          nodeMap[nodeDto.id] = node
-        }
+        var selectionElement = setMainNodes(rootNode, nodesUpdate.nodes, nodesUpdate.editorSelectionId)
 
         myNodeProviders = nodeProviders
 
@@ -119,7 +113,10 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
           myUpdatePendingFlow.value = false
         }
 
-        val deferredProviderNodesList = nodesUpdate.deferredProviderNodes.await()
+        val deferredNodes = nodesUpdate.deferredProviderNodes.await()
+
+        val deferredProviderNodesList = deferredNodes?.nodeProviders ?: emptyList()
+        val mainNodes = deferredNodes?.nodes ?: emptyList()
 
         for (providerNodesDto in deferredProviderNodesList) {
           val provider = myNodeProviders.find { it.name == providerNodesDto.providerName }
@@ -132,6 +129,9 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
 
           provider.setNodes(nodes)
         }
+
+        selectionElement = setMainNodes(rootNode, mainNodes, nodesUpdate.editorSelectionId)
+        selection.emit(selectionElement)
 
         // If an incomplete node provider was enabled while waiting for deferred nodes, rebuild tree now
         if (rebuildTreeOnDeferredNodes) {
@@ -185,6 +185,25 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
     cs.launch {
       StructureTreeApi.getInstance().setTreeActionState(dtoId, action.name, isEnabled, isAutoClicked)
     }
+  }
+
+  private fun setMainNodes(rootNode: StructureUiTreeElementImpl, nodes: List<StructureViewTreeElementDto>, editorSelectionId: Int?): StructureUiTreeElement? {
+    val nodeMap = HashMap<Int, StructureUiTreeElementImpl>()
+    nodeMap[0] = rootNode
+    var selectionElement: StructureUiTreeElement? = null
+
+    for (nodeDto in nodes) {
+      val node = StructureUiTreeElementImpl(nodeDto)
+      val parent = nodeMap[nodeDto.parentId] ?: run {
+        logger.error("No parent for ${node.id} or it's not a backend one")
+        continue
+      }
+      node.parent = parent
+      if (nodeDto.id == editorSelectionId) selectionElement = node
+      parent.myChildren.add(node)
+      nodeMap[nodeDto.id] = node
+    }
+    return selectionElement
   }
 
   override fun getActions(): Collection<StructureTreeAction> = (dto?.actions ?: emptyList()) + myNodeProviders

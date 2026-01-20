@@ -10,6 +10,7 @@ import fleet.rpc.RemoteApi
 import fleet.rpc.Rpc
 import fleet.rpc.remoteApiDescriptor
 import org.jetbrains.annotations.ApiStatus.Internal
+import org.jetbrains.annotations.TestOnly
 
 @Internal
 @Rpc
@@ -19,6 +20,9 @@ interface StructureTreeApi : RemoteApi<Unit> {
   suspend fun structureViewModelDisposed(id: Int)
 
   suspend fun setTreeActionState(id: Int, actionName: String, isEnabled: Boolean, autoClicked: Boolean)
+
+  @TestOnly
+  suspend fun getNewSelection(id: Int): Int?
 
   companion object {
     suspend fun getInstance(): StructureTreeApi {
