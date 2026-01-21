@@ -83,7 +83,7 @@ class GHPRRepositoryDataServiceImpl internal constructor(parentCs: CoroutineScop
       .map { GHUser(it.nodeId, it.login, it.htmlUrl, it.avatarUrl ?: "", null) }
   }
 
-  override suspend fun loadIssuesAssignees(): List<GHUser> = assigneesRequest.awaitCompleted()
+  override suspend fun loadPotentialIssuesAssignees(): List<GHUser> = assigneesRequest.awaitCompleted()
 
   private val labelsRequest: MutableStateFlow<Deferred<List<GHLabel>>> by lazy {
     MutableStateFlow(doLoadLabelsAsync())

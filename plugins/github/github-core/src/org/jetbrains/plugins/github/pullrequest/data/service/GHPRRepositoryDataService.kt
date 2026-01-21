@@ -23,7 +23,7 @@ interface GHPRRepositoryDataService {
 
   suspend fun loadCollaborators(): List<GHUser>
 
-  suspend fun loadIssuesAssignees(): List<GHUser>
+  suspend fun loadPotentialIssuesAssignees(): List<GHUser>
 
   suspend fun loadLabels(): List<GHLabel>
 
