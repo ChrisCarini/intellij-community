@@ -5,7 +5,6 @@ package com.intellij.searchEverywhereMl.ranking.core
 
 import ai.grazie.emb.FloatTextEmbedding
 import com.intellij.concurrency.ConcurrentCollectionFactory
-import com.intellij.ide.actions.searcheverywhere.SearchEverywhereMixedListInfo
 import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.internal.statistic.eventLog.events.EventPair
@@ -29,7 +28,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 internal class SearchEverywhereMLSearchSession(
   private val project: Project?,
-  val mixedListInfo: SearchEverywhereMixedListInfo,
   private val sessionId: Int,
 ) {
   val itemIdProvider = SearchEverywhereMlOrderedItemIdProvider { MissingKeyProviderCollector.addMissingProviderForClass(it::class.java) }
@@ -51,7 +49,7 @@ internal class SearchEverywhereMLSearchSession(
 
   fun onSessionStarted(tabId: String) {
     val tab = SearchEverywhereTab.getById(tabId)
-    logger.onSessionStarted(project, sessionId, tab, sessionStartTime,cachedContextInfo.features, mixedListInfo)
+    logger.onSessionStarted(project, sessionId, tab, sessionStartTime,cachedContextInfo.features)
   }
 
   fun onSearchRestart(
@@ -80,12 +78,12 @@ internal class SearchEverywhereMLSearchSession(
 
       SearchEverywhereMlSearchState(
         project, nextSearchIndex, tab, searchScope, isSearchEverywhere, sessionStartTime, searchReason, keysTyped, backspacesTyped,
-        searchQuery, modelProviderWithCache, providersCache, mixedListInfo
+        searchQuery, modelProviderWithCache, providersCache
       )
     }
 
     if (prevState != null && prevState.tab.isLoggingEnabled()) {
-      logger.onSearchRestarted(project, sessionId, prevState, mixedListInfo, searchResults, prevTimeToResult)
+      logger.onSearchRestarted(project, sessionId, prevState, searchResults, prevTimeToResult)
     }
   }
 
@@ -118,7 +116,7 @@ internal class SearchEverywhereMLSearchSession(
 
     if (state.tab.isLoggingEnabled()) {
       // "flush" the previous search restarted event
-      logger.onSearchRestarted(project, sessionId, state, mixedListInfo, searchResults, performanceTracker.timeElapsed)
+      logger.onSearchRestarted(project, sessionId, state, searchResults, performanceTracker.timeElapsed)
     }
 
     logger.onSessionFinished(project, sessionId, state.tab, sessionDuration)

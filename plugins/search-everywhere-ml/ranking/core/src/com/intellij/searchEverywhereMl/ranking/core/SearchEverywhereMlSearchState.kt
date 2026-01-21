@@ -38,7 +38,6 @@ internal class SearchEverywhereMlSearchState(
   override val query: String,
   private val modelProvider: SearchEverywhereModelProvider,
   private val providersCache: FeaturesProviderCache?,
-  private val mixedListInfo: SearchEverywhereMixedListInfo,
 ) : SearchEverywhereState {
   override val stateStartTime: Long = System.currentTimeMillis()
 
@@ -135,6 +134,6 @@ internal class SearchEverywhereMlSearchState(
   }
 
   fun getContributorFeatures(contributor: SearchEverywhereContributor<*>): List<EventPair<*>> {
-    return SearchEverywhereContributorFeaturesProvider.getFeatures(contributor, mixedListInfo, sessionStartTime)
+    return SearchEverywhereContributorFeaturesProvider.getFeatures(contributor, sessionStartTime)
   }
 }

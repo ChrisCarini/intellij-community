@@ -48,10 +48,10 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     return null
   }
 
-  override fun onSessionStarted(project: Project?, tabId: String, mixedListInfo: SearchEverywhereMixedListInfo) {
+  override fun onSessionStarted(project: Project?, tabId: String) {
     if (isEnabled()) {
       activeSession.updateAndGet {
-        SearchEverywhereMLSearchSession(project, mixedListInfo, sessionIdCounter.incrementAndGet())
+        SearchEverywhereMLSearchSession(project, sessionIdCounter.incrementAndGet())
       }!!.onSessionStarted(tabId)
     }
   }
