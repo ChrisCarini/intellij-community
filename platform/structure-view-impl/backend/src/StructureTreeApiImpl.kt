@@ -127,9 +127,6 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     val myStructureTreeModel = StructureTreeModel<SmartTreeStructure>(wrapper, disposable)
 
-    val expandInfoProvider = treeModel as? ExpandInfoProvider
-    val elementInfoProvider = getElementInfoProvider(treeModel)
-
     val requestFlow = MutableSharedFlow<StructureViewEvent>(
       extraBufferCapacity = 1,
       onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -181,11 +178,13 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     Disposer.register(disposable, Disposable { job.cancel() })
 
-    val root = myStructureTreeModel.invoker.compute {
-      initActionStates(treeModel)
+    val (root, actions) = myStructureTreeModel.invoker.compute {
       entry.wrapper.rebuildTree()
 
-      createRootModel(wrapper.rootElement as TreeElementWrapper, expandInfoProvider, elementInfoProvider)
+      val rootModel = createRootModel(wrapper.rootElement as TreeElementWrapper, treeModel as? ExpandInfoProvider, getElementInfoProvider(treeModel))
+      val actions = createAllActionsButNonDelegatedNodeProviderDtos(treeModel)
+
+      rootModel to actions
     }.asDeferred().await()
 
     if (root == null) {
@@ -202,10 +201,10 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     return StructureViewModelDto(
       root,
       nodesFlow.toRpc(),
-      expandInfoProvider?.isSmartExpand ?: false,
-      expandInfoProvider?.minimumAutoExpandDepth ?: 2,
+      (treeModel as? ExpandInfoProvider)?.isSmartExpand ?: false,
+      (treeModel as? ExpandInfoProvider)?.minimumAutoExpandDepth ?: 2,
       false, /*todo for tw*/
-      createAllActionsButNonDelegatedNodeProviderDtos(treeModel)
+      actions
     )
   }
 
@@ -217,8 +216,6 @@ internal class StructureTreeApiImpl : StructureTreeApi {
   override suspend fun setTreeActionState(id: Int, actionName: String, isEnabled: Boolean, autoClicked: Boolean) {
     structureViews[id]?.let { entry ->
       entry.structureTreeModel.invoker.invoke {
-        if (BackendTreeActionOwnerService.getInstance().isActionActive(actionName) == isEnabled) return@invoke
-        BackendTreeActionOwnerService.getInstance().setActionActive(actionName, isEnabled)
         val nodeProviders = (entry.treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<FileStructureNodeProvider<*>>() ?: emptyList()
         val actions = nodeProviders + entry.treeModel.sorters + entry.treeModel.filters
         val action = actions.firstOrNull { it.name == actionName } ?: run {
@@ -227,7 +224,12 @@ internal class StructureTreeApiImpl : StructureTreeApi {
         }
 
         logFileStructureCheckboxClick(action, entry.fileEditor, entry.project)
-        if (!autoClicked) {
+
+        // Store autoclicked state in the action owner, persist user-initiated changes
+        if (autoClicked) {
+          entry.backendActionOwner.setAutoclickedActionState(actionName, isEnabled)
+        } else {
+          entry.backendActionOwner.clearAutoclickedActionState(actionName)
           saveState(action, isEnabled)
         }
 
@@ -255,20 +257,25 @@ internal class StructureTreeApiImpl : StructureTreeApi {
         StructureViewComponent.visitPathForElementSelection(it, currentEditorElement, editorOffset, state)
       }
 
-      val adjusted = state.bestMatch
-      val value = if (adjusted != null && !state.isExactMatch && currentEditorElement is PsiElement) {
-        val minChild = FileStructurePopup.findClosestPsiElement(currentEditorElement, adjusted, entry.structureTreeModel)
-        if (minChild != null) StructureViewComponent.unwrapValue(minChild) else StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
-      }
-      else {
-        StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
-      }
-      val selectedValue = if (adjusted == null) null else value
+
+      val selectedValue = processStateToGetSelectedValue(state, entry, currentEditorElement)
       entry.nodeToId[selectedValue]
     }.asDeferred().await()
 
 
     return selection
+  }
+
+  private fun processStateToGetSelectedValue(state: StructureViewSelectVisitorState, entry: StructureViewEntry, currentEditorElement: Any?): Any? {
+    val adjusted = state.bestMatch
+    val value = if (adjusted != null && !state.isExactMatch && currentEditorElement is PsiElement) {
+      val minChild = FileStructurePopup.findClosestPsiElement(currentEditorElement, adjusted, entry.structureTreeModel)
+      if (minChild != null) StructureViewComponent.unwrapValue(minChild) else StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
+    }
+    else {
+      StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
+    }
+    return if (adjusted == null) null else value
   }
 
   private data class ComputeNodesResult(
@@ -320,15 +327,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     logger.debug { "computeNodes: Tree traversal completed" }
 
-    val adjusted = state.bestMatch
-    val value = if (adjusted != null && !state.isExactMatch && currentEditorElement is PsiElement) {
-      val minChild = FileStructurePopup.findClosestPsiElement(currentEditorElement, adjusted, entry.structureTreeModel)
-      if (minChild != null) StructureViewComponent.unwrapValue(minChild) else StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
-    }
-    else {
-      StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
-    }
-    val selectedValue = if (adjusted == null) null else value
+     val selectedValue = processStateToGetSelectedValue(state, entry, currentEditorElement)
 
     val nodeProviders = nodeProvidersMap?.entries?.map { (provider, nodes) ->
       val (actionIdForShortcut, shortcut) = if (provider is ActionShortcutProvider) {

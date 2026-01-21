@@ -55,7 +55,7 @@ f:com.intellij.ide.rpc.DocumentIdKt
 - f:serialize(kotlinx.serialization.encoding.Encoder,com.intellij.ide.rpc.ShortcutId):V
 *f:com.intellij.ide.rpc.ShortcutId$Companion
 - f:serializer():kotlinx.serialization.KSerializer
-f:com.intellij.ide.rpc.ShortcutIdKt
+*f:com.intellij.ide.rpc.ShortcutIdKt
 - *sf:rpcId(com.intellij.openapi.actionSystem.Shortcut):com.intellij.ide.rpc.ShortcutId
 - *sf:shortcut(com.intellij.ide.rpc.ShortcutId):com.intellij.openapi.actionSystem.Shortcut
 *f:com.intellij.ide.ui.SerializableTextChunk
@@ -103,19 +103,6 @@ f:com.intellij.ide.ui.colors.ColorIdKt
 - *sf:rpcId(java.awt.Color):com.intellij.ide.ui.colors.ColorId
 *f:com.intellij.ide.ui.colors.SerializableSimpleTextAttributes
 - *sf:Companion:com.intellij.ide.ui.colors.SerializableSimpleTextAttributes$Companion
-- <init>(com.intellij.ide.ui.colors.ColorId,com.intellij.ide.ui.colors.ColorId,com.intellij.ide.ui.colors.ColorId,I):V
-- f:component1():com.intellij.ide.ui.colors.ColorId
-- f:component2():com.intellij.ide.ui.colors.ColorId
-- f:component3():com.intellij.ide.ui.colors.ColorId
-- f:component4():I
-- f:copy(com.intellij.ide.ui.colors.ColorId,com.intellij.ide.ui.colors.ColorId,com.intellij.ide.ui.colors.ColorId,I):com.intellij.ide.ui.colors.SerializableSimpleTextAttributes
-- bs:copy$default(com.intellij.ide.ui.colors.SerializableSimpleTextAttributes,com.intellij.ide.ui.colors.ColorId,com.intellij.ide.ui.colors.ColorId,com.intellij.ide.ui.colors.ColorId,I,I,java.lang.Object):com.intellij.ide.ui.colors.SerializableSimpleTextAttributes
-- equals(java.lang.Object):Z
-- f:getBgColor():com.intellij.ide.ui.colors.ColorId
-- f:getFgColor():com.intellij.ide.ui.colors.ColorId
-- f:getStyle():I
-- f:getWaveColor():com.intellij.ide.ui.colors.ColorId
-- hashCode():I
 *bf:com.intellij.ide.ui.colors.SerializableSimpleTextAttributes$$serializer
 - kotlinx.serialization.internal.GeneratedSerializer
 - sf:INSTANCE:com.intellij.ide.ui.colors.SerializableSimpleTextAttributes$$serializer
@@ -125,6 +112,9 @@ f:com.intellij.ide.ui.colors.ColorIdKt
 - f:serialize(kotlinx.serialization.encoding.Encoder,com.intellij.ide.ui.colors.SerializableSimpleTextAttributes):V
 *f:com.intellij.ide.ui.colors.SerializableSimpleTextAttributes$Companion
 - f:serializer():kotlinx.serialization.KSerializer
+*f:com.intellij.ide.ui.colors.SerializableSimpleTextAttributesKt
+- *sf:attributes(com.intellij.ide.ui.colors.SerializableSimpleTextAttributes):com.intellij.ui.SimpleTextAttributes
+- *sf:rpcId(com.intellij.ui.SimpleTextAttributes):com.intellij.ide.ui.colors.SerializableSimpleTextAttributes
 *f:com.intellij.ide.ui.colors.TextAttributeKeyId
 - *sf:Companion:com.intellij.ide.ui.colors.TextAttributeKeyId$Companion
 - <init>():V
@@ -137,7 +127,7 @@ f:com.intellij.ide.ui.colors.ColorIdKt
 - f:serialize(kotlinx.serialization.encoding.Encoder,com.intellij.ide.ui.colors.TextAttributeKeyId):V
 *f:com.intellij.ide.ui.colors.TextAttributeKeyId$Companion
 - f:serializer():kotlinx.serialization.KSerializer
-f:com.intellij.ide.ui.colors.TextAttributeKeyIdKt
+*f:com.intellij.ide.ui.colors.TextAttributeKeyIdKt
 - *sf:key(com.intellij.ide.ui.colors.TextAttributeKeyId):com.intellij.openapi.editor.colors.TextAttributesKey
 - *sf:rpcId(com.intellij.openapi.editor.colors.TextAttributesKey):com.intellij.ide.ui.colors.TextAttributeKeyId
 *f:com.intellij.ide.ui.icons.IconId

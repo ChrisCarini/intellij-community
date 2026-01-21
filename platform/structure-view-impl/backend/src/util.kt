@@ -6,7 +6,6 @@ import com.intellij.ide.rpc.rpcId
 import com.intellij.ide.rpc.weakRpcId
 import com.intellij.ide.structureView.StructureViewModel
 import com.intellij.ide.structureView.StructureViewTreeElement
-import com.intellij.ide.ui.colors.SerializableSimpleTextAttributes
 import com.intellij.ide.ui.colors.rpcId
 import com.intellij.ide.ui.icons.rpcId
 import com.intellij.ide.util.ActionShortcutProvider
@@ -63,10 +62,7 @@ internal fun ItemPresentation.toDto(): PresentationDataDto {
     (this as? LocationPresentation)?.locationPrefix,
     (this as? LocationPresentation)?.locationSuffix,
     (this as? PresentationData)?.coloredText?.map {
-      ColoredFragmentDto(it.text, it.toolTip, SerializableSimpleTextAttributes(it.attributes.bgColor?.rpcId(),
-                                                                               it.attributes.bgColor?.rpcId(),
-                                                                               it.attributes.bgColor?.rpcId(),
-                                                                               it.attributes.style))
+      ColoredFragmentDto(it.text, it.toolTip, it.attributes.rpcId())
     } ?: emptyList()
   )
 }
@@ -125,17 +121,6 @@ internal fun getNodeProviders(treeModel: TreeModel): List<FileStructureNodeProvi
     ?.filter { it !is DelegatingNodeProvider<*> }
 }
 
-
-internal fun initActionStates(treeModel: TreeModel) {
-  val actionOwner = BackendTreeActionOwnerService.getInstance()
-  (treeModel as? ProvidingTreeModel)?.nodeProviders?.forEach { provider ->
-    actionOwner.setActionActive(provider.name, getDefaultValue(provider))
-  }
-
-  treeModel.sorters.forEach { sorter ->
-    actionOwner.setActionActive(sorter.name, getDefaultValue(sorter))
-  }
-}
 
 private fun getDelegatingNodeProviders(treeModel: TreeModel): List<DelegatingNodeProvider<*>>? {
   return (treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<DelegatingNodeProvider<*>>()

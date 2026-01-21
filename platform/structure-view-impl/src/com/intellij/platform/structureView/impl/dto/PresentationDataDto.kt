@@ -4,12 +4,11 @@ package com.intellij.platform.structureView.impl.dto
 import com.intellij.ide.projectView.PresentationData
 import com.intellij.ide.ui.colors.SerializableSimpleTextAttributes
 import com.intellij.ide.ui.colors.TextAttributeKeyId
-import com.intellij.ide.ui.colors.color
+import com.intellij.ide.ui.colors.attributes
 import com.intellij.ide.ui.colors.key
 import com.intellij.ide.ui.icons.IconId
 import com.intellij.ide.ui.icons.icon
 import com.intellij.ide.util.treeView.PresentableNodeDescriptor
-import com.intellij.ui.SimpleTextAttributes
 import kotlinx.serialization.Serializable
 import org.jetbrains.annotations.ApiStatus.Internal
 import org.jetbrains.annotations.Nls
@@ -40,14 +39,11 @@ fun PresentationDataDto.toPresentation(): PresentationData {
     locationString,
     icon?.icon(),
     textAttributesKey?.key()
-  ).also {
-    it.coloredText.addAll(coloredText.map {
-      PresentableNodeDescriptor.ColoredFragment(it.text, it.tooltip, SimpleTextAttributes(it.attributes.bgColor?.color(),
-                                                                                          it.attributes.fgColor?.color(),
-                                                                                          it.attributes.waveColor?.color(),
-                                                                                          it.attributes.style))
+  ).also { data ->
+    data.coloredText.addAll(coloredText.map {
+      PresentableNodeDescriptor.ColoredFragment(it.text, it.tooltip, it.attributes.attributes())
     })
-    it.setLocationSuffix(locationSuffix)
-    it.setLocationPrefix(locationPrefix)
+    data.setLocationSuffix(locationSuffix)
+    data.setLocationPrefix(locationPrefix)
   }
 }
