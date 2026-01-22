@@ -23,10 +23,10 @@ import com.intellij.platform.structureView.impl.dto.ColoredFragmentDto
 import com.intellij.platform.structureView.impl.dto.PresentationDataDto
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.structureView.impl.dto.toDto
-import com.intellij.platform.structureView.impl.uiModel.CheckboxTreeActionImpl
-import com.intellij.platform.structureView.impl.uiModel.FilterTreeAction
-import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
-import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionImpl
+import com.intellij.platform.structureView.impl.uiModel.DelegatingProviderTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.FilterTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.SorterTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionDto
 import com.intellij.pom.Navigatable
 
 internal fun StructureViewTreeElement.toDto(id: Int,
@@ -67,7 +67,7 @@ internal fun ItemPresentation.toDto(): PresentationDataDto {
   )
 }
 
-internal fun createAllActionsButNonDelegatedNodeProviderDtos(treeModel: StructureViewModel): List<StructureTreeAction> {
+internal fun createAllActionsButNonDelegatedNodeProviderDtos(treeModel: StructureViewModel): List<StructureTreeActionDto> {
   val sorterDtos = treeModel.sorters.toDto()
 
   val weirdNodeProviders = getDelegatingNodeProviders(treeModel)?.mapNotNull { provider ->
@@ -79,8 +79,8 @@ internal fun createAllActionsButNonDelegatedNodeProviderDtos(treeModel: Structur
       null to provider.shortcut.map { it.rpcId() }
     }
 
-    CheckboxTreeActionImpl(
-      StructureTreeAction.Type.FILTER,
+    DelegatingProviderTreeActionDto(
+      StructureTreeActionDto.Type.FILTER,
       provider.name,
       false,
       provider.presentation.toDto(),
@@ -100,9 +100,9 @@ internal fun createAllActionsButNonDelegatedNodeProviderDtos(treeModel: Structur
       null to filter.shortcut.map { it.rpcId() }
     }
 
-    FilterTreeAction(
+    FilterTreeActionDto(
       index,
-      StructureTreeAction.Type.FILTER,
+      StructureTreeActionDto.Type.FILTER,
       filter.name,
       filter.presentation.toDto(),
       filter.isReverted,
@@ -126,24 +126,17 @@ private fun getDelegatingNodeProviders(treeModel: TreeModel): List<DelegatingNod
   return (treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<DelegatingNodeProvider<*>>()
 }
 
-private fun Array<Sorter>.toDto(): List<StructureTreeAction> {
-  val dto = mutableListOf<StructureTreeAction>()
+private fun Array<Sorter>.toDto(): List<StructureTreeActionDto> {
+  val dto = mutableListOf<StructureTreeActionDto>()
   for (sorter in this) {
     if (!sorter.isVisible) continue
-    when (sorter) {
-      Sorter.ALPHA_SORTER -> {
-        dto.add(StructureTreeAction.ALPHA_SORTER)
-      }
-      else -> {
-        dto.add(StructureTreeActionImpl(
-          StructureTreeAction.Type.SORTER,
-          sorter.name,
-          false,
-          sorter.presentation.toDto(),
-          getDefaultValue(sorter),
-        ))
-      }
-    }
+    dto.add(SorterTreeActionDto(
+      StructureTreeActionDto.Type.SORTER,
+      sorter.name,
+      false,
+      sorter.presentation.toDto(),
+      getDefaultValue(sorter),
+    ))
   }
   return dto
 }

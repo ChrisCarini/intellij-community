@@ -7,7 +7,8 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.FileStatus
-import com.intellij.platform.structureView.frontend.uiModel.NodeProviderTreeActionImpl
+import com.intellij.platform.structureView.frontend.uiModel.FilterTreeAction
+import com.intellij.platform.structureView.frontend.uiModel.NodeProviderTreeAction
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
 import com.intellij.platform.structureView.impl.uiModel.*
 import org.jetbrains.annotations.Unmodifiable
@@ -72,7 +73,7 @@ class StructureViewTreeElement(project: Project, nodeModel: StructureUiTreeEleme
     }
 
     for (action in viewModel.getActions()) {
-      if (action !is NodeProviderTreeActionImpl || !viewModel.isActionEnabled(action)) continue
+      if (action !is NodeProviderTreeAction || !viewModel.isActionEnabled(action)) continue
 
       val nodes = action.getNodes(value)
       for (node in nodes) {

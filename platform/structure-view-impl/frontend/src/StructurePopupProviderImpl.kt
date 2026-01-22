@@ -5,7 +5,6 @@ import com.intellij.ide.structureView.newStructureView.StructurePopup
 import com.intellij.ide.structureView.newStructureView.StructurePopupProvider
 import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.openapi.fileEditor.FileEditor
-import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelImpl
@@ -15,7 +14,7 @@ class StructurePopupProviderImpl: StructurePopupProvider {
   override fun createPopup(project: Project, fileEditor: FileEditor): StructurePopup? {
     if (!Registry.`is`("frontend.structure.popup")) return null
     val file = fileEditor.file
-    return FileStructurePopup(project, fileEditor, StructureUiModelImpl(file, project))
+    return FileStructurePopup(project, fileEditor, StructureUiModelImpl(fileEditor, file, project))
   }
 
   @Deprecated("Use createPopup instead", replaceWith = ReplaceWith("createPopup(project, fileEditor)"))

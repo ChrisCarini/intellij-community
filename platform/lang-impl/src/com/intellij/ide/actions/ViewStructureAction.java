@@ -21,6 +21,7 @@ import com.intellij.openapi.fileEditor.TextEditor;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
@@ -104,7 +105,7 @@ public final class ViewStructureAction extends DumbAwareAction {
 
     boolean enabled = fileEditor != null &&
                       (!Boolean.TRUE.equals(EditorTextField.SUPPLEMENTARY_KEY.get(editor))) &&
-                      fileEditor.getStructureViewBuilder() != null;
+                      (Registry.is("frontend.structure.popup") || fileEditor.getStructureViewBuilder() != null);
     e.getPresentation().setEnabled(enabled);
   }
 

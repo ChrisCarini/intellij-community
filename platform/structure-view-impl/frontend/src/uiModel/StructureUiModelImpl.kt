@@ -4,17 +4,19 @@ package com.intellij.platform.structureView.frontend.uiModel
 import com.intellij.ide.vfs.rpcId
 import com.intellij.openapi.application.UI
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.project.projectId
+import com.intellij.platform.structureView.frontend.uiModel.StructureTreeAction.Companion.fromDto
 import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
 import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
-import com.intellij.platform.structureView.impl.uiModel.FilterTreeAction
-import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiTreeElementImpl.Companion.toUiElement
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
+import com.intellij.platform.structureView.impl.dto.toPresentation
+import com.intellij.ide.rpc.rpcId
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.util.containers.ContainerUtil
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 @ApiStatus.Internal
-class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiModel {
+class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: Project) : StructureUiModel {
   override var dto: StructureViewModelDto? = null
   internal val myUpdatePendingFlow: MutableStateFlow<Boolean> = MutableStateFlow(true)
 
@@ -40,10 +42,13 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
 
   private val cs = StructureViewScopeHolder.getInstance().cs.childScope("scope for ${file.name} structure view with id: $dtoId")
 
-  private val myActions = CopyOnWriteArrayList<String>()
+  private val myEnabledActionNames = CopyOnWriteArrayList<String>()
 
   @Volatile
-  private var myNodeProviders: List<NodeProviderTreeActionImpl> = emptyList()
+  private var myActions: List<StructureTreeAction> = emptyList()
+
+  @Volatile
+  private var myNodeProviders: List<NodeProviderTreeAction> = emptyList()
 
   private val selection = MutableStateFlow<StructureUiTreeElement?>(null)
 
@@ -52,7 +57,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
 
   init {
     cs.launch {
-      val model = StructureTreeApi.getInstance().getStructureViewModel(file.rpcId(), project.projectId(), dtoId)
+      val model = StructureTreeApi.getInstance().getStructureViewModel(fileEditor.rpcId(), file.rpcId(), project.projectId(), dtoId)
 
       if (model == null) {
         logger.warn("No structure view model for $file")
@@ -65,7 +70,10 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
       dto = model
       val rootNode = StructureUiTreeElementImpl(model.rootNode)
 
-      myActions.addAll(model.actions.filter {
+      // Convert DTOs to impl classes
+      myActions = model.actions.map { it.toImpl() }
+
+      myEnabledActionNames.addAll(myActions.filter {
         if (it is FilterTreeAction) {
           it.isReverted != it.isEnabledByDefault
         }
@@ -85,23 +93,23 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
         val nodeProviders = nodesUpdate.nodeProviders.map {
           val (_, nodes) = convertNodesForProvider(nodesUpdate.editorSelectionId, it.nodesDto)
 
-          NodeProviderTreeActionImpl(it.actionType,
-                                     it.name,
-                                     it.presentation,
-                                     it.isReverted,
-                                     it.isEnabledByDefault,
-                                     it.shortcutsIds,
-                                     it.actionIdForShortcut,
-                                     it.checkboxText,
-                                     nodes,
-                                     it.nodesLoaded)
+          NodeProviderTreeAction(it.actionType.fromDto(),
+                                 it.name,
+                                 it.presentationDto.toPresentation(),
+                                 it.isReverted,
+                                 it.isEnabledByDefault,
+                                 it.shortcutsIds,
+                                 it.actionIdForShortcut,
+                                 it.checkboxText,
+                                 nodes,
+                                 it.nodesLoaded)
         }
 
         var selectionElement = setMainNodes(rootNode, nodesUpdate.nodes, nodesUpdate.editorSelectionId)
 
         myNodeProviders = nodeProviders
 
-        myActions.addAll(myNodeProviders.filter { it.isEnabledByDefault }.map { it.name })
+        myEnabledActionNames.addAll(myNodeProviders.filter { it.isEnabledByDefault }.map { it.name })
 
         rootElement.setDelegate(rootNode)
 
@@ -158,20 +166,20 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
     get() = selection
 
   override fun isActionEnabled(action: StructureTreeAction): Boolean {
-    return action.name in myActions
+    return action.name in myEnabledActionNames
   }
 
   override fun setActionEnabled(action: StructureTreeAction, isEnabled: Boolean, isAutoClicked: Boolean) {
     if (isEnabled == isActionEnabled(action)) return
 
     if (isEnabled) {
-      myActions.add(action.name)
+      myEnabledActionNames.add(action.name)
     }
     else {
-      myActions.remove(action.name)
+      myEnabledActionNames.remove(action.name)
     }
 
-    if (action is NodeProviderTreeActionImpl) {
+    if (action is NodeProviderTreeAction) {
       // If enabling an incomplete node provider, mark as pending and request tree rebuild when nodes arrive
       if (isEnabled && !action.nodesLoaded) {
         myUpdatePendingFlow.value = true
@@ -206,7 +214,7 @@ class StructureUiModelImpl(file: VirtualFile, project: Project) : StructureUiMod
     return selectionElement
   }
 
-  override fun getActions(): Collection<StructureTreeAction> = (dto?.actions ?: emptyList()) + myNodeProviders
+  override fun getActions(): Collection<StructureTreeAction> = myActions + myNodeProviders
 
   override fun getUpdatePendingFlow(): StateFlow<Boolean> = myUpdatePendingFlow
 

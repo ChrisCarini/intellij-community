@@ -37,11 +37,13 @@ import com.intellij.platform.project.ProjectId
 import com.intellij.platform.project.findProject
 import com.intellij.platform.rpc.backend.RemoteApiProvider
 import com.intellij.platform.structureView.impl.DelegatingNodeProvider
+import com.intellij.ide.rpc.FileEditorId
 import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
 import com.intellij.platform.structureView.impl.dto.*
-import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeAction
-import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
+import com.intellij.ide.rpc.fileEditor
+import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionDto
 import com.intellij.psi.PsiElement
 import com.intellij.ui.PlaceHolder
 import com.intellij.ui.tree.StructureTreeModel
@@ -72,6 +74,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
   private val structureViews = ConcurrentHashMap<Int, StructureViewEntry>()
 
   override suspend fun getStructureViewModel(
+    fileEditorId: FileEditorId,
     fileId: VirtualFileId,
     projectId: ProjectId,
     id: Int,
@@ -86,7 +89,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     if (file == null) {
       return null
     }
-    val fileEditor = FileEditorManager.getInstance(project).getSelectedEditor(file) ?: return null
+    val fileEditor = fileEditorId.fileEditor() ?: FileEditorManager.getInstance(project).getSelectedEditor(file) ?: return null
 
     val (structureView, treeModel) = withContext(Dispatchers.EDT) {
       writeIntentReadAction {
@@ -188,7 +191,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     }.asDeferred().await()
 
     if (root == null) {
-      logger.error("Root model for structure model with id: $id (file $file) is null")
+      logger.error("Root model for structure model with id: $id (file $fileEditor) is null")
       return null
     }
 
@@ -281,7 +284,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
   private data class ComputeNodesResult(
     val editorSelectionId: Int?,
     val nodes: List<StructureViewTreeElementDto>,
-    val nodeProviders: List<NodeProviderTreeAction>,
+    val nodeProviders: List<NodeProviderTreeActionDto>,
     val deferredProviderNodes: Deferred<DeferredNodesDto>,
   )
 
@@ -341,8 +344,8 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
       logger.info("Node provider ${provider.name} has nodes loaded: $nodesLoaded")
 
-      NodeProviderTreeAction(
-        StructureTreeAction.Type.FILTER,
+      NodeProviderTreeActionDto(
+        StructureTreeActionDto.Type.FILTER,
         provider.name,
         provider.presentation.toDto(),
         false,

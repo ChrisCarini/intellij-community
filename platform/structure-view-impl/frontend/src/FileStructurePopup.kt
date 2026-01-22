@@ -48,13 +48,13 @@ import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.wm.IdeFocusManager
+import com.intellij.platform.structureView.frontend.uiModel.CheckboxTreeAction
+import com.intellij.platform.structureView.frontend.uiModel.StructureTreeAction
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelImpl
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelListener
 import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
-import com.intellij.platform.structureView.impl.uiModel.CheckboxTreeAction
-import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.pom.Navigatable

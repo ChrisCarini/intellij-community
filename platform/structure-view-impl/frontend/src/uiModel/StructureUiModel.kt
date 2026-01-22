@@ -3,9 +3,7 @@ package com.intellij.platform.structureView.frontend.uiModel
 
 import com.intellij.openapi.Disposable
 import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
-import com.intellij.platform.structureView.impl.uiModel.StructureTreeAction
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 interface StructureUiModel: Disposable {

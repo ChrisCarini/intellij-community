@@ -1,8 +1,8 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.structureView.impl
 
+import com.intellij.ide.rpc.FileEditorId
 import com.intellij.ide.vfs.VirtualFileId
-import com.intellij.openapi.editor.impl.EditorId
 import com.intellij.platform.project.ProjectId
 import com.intellij.platform.rpc.RemoteApiProviderService
 import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
@@ -15,7 +15,7 @@ import org.jetbrains.annotations.TestOnly
 @Internal
 @Rpc
 interface StructureTreeApi : RemoteApi<Unit> {
-  suspend fun getStructureViewModel(fileId: VirtualFileId, projectId: ProjectId, id: Int): StructureViewModelDto?
+  suspend fun getStructureViewModel(fileEditorId: FileEditorId, fileId: VirtualFileId, projectId: ProjectId, id: Int): StructureViewModelDto?
 
   suspend fun structureViewModelDisposed(id: Int)
 
