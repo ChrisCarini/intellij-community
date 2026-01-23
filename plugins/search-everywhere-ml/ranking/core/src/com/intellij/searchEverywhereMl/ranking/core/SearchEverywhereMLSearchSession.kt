@@ -46,7 +46,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
   // search state is updated on each typing, tab or setting change
   // element features & ML score are also re-calculated on each typing because some of them might change, e.g. matching degree
-  private val currentSearchState: AtomicReference<SearchState?> = AtomicReference<SearchState?>()
+  private val currentSearchState: AtomicReference<SearchState> = AtomicReference<SearchState>()
 
   private val performanceTracker = PerformanceTracker()
 
@@ -126,7 +126,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     performanceTracker.stop()
   }
 
-  fun getCurrentSearchState() = currentSearchState.get()
+  fun getCurrentSearchState(): SearchState? = currentSearchState.get()
 
   fun getSearchQueryEmbedding(searchQuery: String, split: Boolean): FloatTextEmbedding? {
     return embeddingCache[searchQuery]
