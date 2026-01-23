@@ -56,7 +56,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
   }
 
   fun onSearchRestart(
-    reason: SearchRestartReason,
+    reason: SearchStateChangeReason,
     tabId: String,
     searchQuery: String,
     searchResults: List<SearchEverywhereFoundElementInfoWithMl>,
@@ -73,11 +73,11 @@ internal class SearchEverywhereMLSearchSession private constructor(
     val prevTimeToResult = performanceTracker.timeElapsed
 
     val prevState = currentSearchState.getAndUpdate { prevState ->
-      val searchReason = if (prevState == null) SearchRestartReason.SEARCH_STARTED else reason
+      val stateChangeReason = if (prevState == null) SearchStateChangeReason.SEARCH_START else reason
       val nextSearchIndex = (prevState?.index ?: 0) + 1
       performanceTracker.start()
 
-      SearchState(nextSearchIndex, tab, searchScope, isSearchEverywhere, searchReason, searchQuery)
+      SearchState(nextSearchIndex, tab, searchScope, isSearchEverywhere, stateChangeReason, searchQuery)
     }
 
     if (prevState != null && prevState.tab.isLoggingEnabled()) {
@@ -139,7 +139,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     val tab: SearchEverywhereTab,
     val searchScope: ScopeDescriptor?,
     val isSearchEverywhere: Boolean,
-    val searchRestartReason: SearchRestartReason,
+    val searchStateChangeReason: SearchStateChangeReason,
     val query: String,
   ) {
     val project: Project?

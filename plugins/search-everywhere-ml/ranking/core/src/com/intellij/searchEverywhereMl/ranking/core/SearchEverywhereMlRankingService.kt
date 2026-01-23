@@ -116,7 +116,7 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     if (!isEnabled()) return
 
     getCurrentSession()?.onSearchRestart(
-      reason, tabId, searchQuery, searchResults.toInternalType(),
+      SearchStateChangeReason.fromSearchRestartReason(reason), tabId, searchQuery, searchResults.toInternalType(),
       searchScope, isSearchEverywhere
     )
   }

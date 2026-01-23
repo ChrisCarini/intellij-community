@@ -2,7 +2,6 @@
 package com.intellij.searchEverywhereMl.ranking.core
 
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereEssentialContributorMarker
-import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
 import com.intellij.ide.actions.searcheverywhere.statistics.SearchEverywhereUsageTriggerCollector.ALLOWED_CONTRIBUTOR_ID_LIST
 import com.intellij.ide.util.gotoByName.GotoActionModel
 import com.intellij.internal.statistic.collectors.fus.actions.persistence.ActionsEventLogGroup
@@ -102,7 +101,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
       add(TOTAL_NUMBER_OF_ITEMS_DATA_KEY.with(searchResults.size))
       add(SE_TAB_ID_KEY.with(searchState.tab.tabId))
       add(TIME_TO_FIRST_RESULT_DATA_KEY.with(timeToFirstResult))
-      add(REBUILD_REASON_KEY.with(searchState.searchRestartReason))
+      add(REBUILD_REASON_KEY.with(searchState.searchStateChangeReason))
       add(SEARCH_STATE_FEATURES_DATA_KEY.with(ObjectEventData(searchState.searchStateFeatures)))
       add(COLLECTED_RESULTS_DATA_KEY.with(collectedResults))
       add(CONTRIBUTOR_FEATURES_LIST.with(contributorFeatures))
@@ -165,7 +164,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
     }
   }
 
-  internal val GROUP = EventLogGroup("mlse.log", 130, MLSE_RECORDER_ID,
+  internal val GROUP = EventLogGroup("mlse.log", 131, MLSE_RECORDER_ID,
                                      "ML in Search Everywhere Log Group")
 
   internal val IS_INTERNAL = EventFields.Boolean("is_internal")
@@ -183,7 +182,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   private val IS_PROJECT_DISPOSED_KEY = EventFields.Boolean("project_disposed")
   internal val SE_TAB_ID_KEY = EventFields.String("se_tab_id", ALLOWED_CONTRIBUTOR_ID_LIST)
   internal val SEARCH_START_TIME_KEY = EventFields.Long("start_time")
-  internal val REBUILD_REASON_KEY = EventFields.Enum<SearchRestartReason>("rebuild_reason")
+  internal val REBUILD_REASON_KEY = EventFields.Enum<SearchStateChangeReason>("rebuild_reason")
   internal val SESSION_ID = EventFields.Int("session_id")
   internal val SEARCH_INDEX_DATA_KEY = EventFields.Int("search_index")
 
