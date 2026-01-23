@@ -21,8 +21,9 @@ import org.jetbrains.annotations.ApiStatus
 import kotlin.math.round
 
 @ApiStatus.Internal
-abstract class SearchEverywhereElementFeaturesProvider(private val supportedContributorIds: List<String>) {
-  constructor(vararg supportedTabs: Class<out SearchEverywhereContributor<*>>) : this(supportedTabs.map { it.simpleName })
+abstract class SearchEverywhereElementFeaturesProvider(private val supportedProviderIds: Set<String>) {
+  @Deprecated("Specify providerIds as a set of string instead")
+  constructor(vararg supportedTabs: Class<out SearchEverywhereContributor<*>>) : this(supportedTabs.map { it.simpleName }.toSet())
 
   companion object {
     val EP_NAME: ExtensionPointName<SearchEverywhereElementFeaturesProvider> = ExtensionPointName.create("com.intellij.searcheverywhere.ml.searchEverywhereElementFeaturesProvider")
@@ -31,9 +32,9 @@ abstract class SearchEverywhereElementFeaturesProvider(private val supportedCont
       return EP_NAME.extensionList.filter { getPluginInfo(it.javaClass).isDevelopedByJetBrains() }
     }
 
-    fun getFeatureProvidersForContributor(contributorId: String): List<SearchEverywhereElementFeaturesProvider> {
+    fun getFeatureProvidersForContributor(providerId: String): List<SearchEverywhereElementFeaturesProvider> {
       return EP_NAME.extensionList.filter {
-        getPluginInfo(it.javaClass).isDevelopedByJetBrains() && it.isContributorSupported(contributorId)
+        getPluginInfo(it.javaClass).isDevelopedByJetBrains() && it.isSearchResultsProviderSupported(providerId)
       }
     }
 
@@ -90,8 +91,8 @@ abstract class SearchEverywhereElementFeaturesProvider(private val supportedCont
    *
    * By default, every feature provider has a list of supported contributors, but it's possible to override this logic.
    */
-  open fun isContributorSupported(contributorId: String): Boolean {
-    return supportedContributorIds.contains(contributorId)
+  open fun isSearchResultsProviderSupported(providerId: String): Boolean {
+    return supportedProviderIds.contains(providerId)
   }
 
   abstract fun getFeaturesDeclarations(): List<EventField<*>>
