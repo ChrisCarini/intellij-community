@@ -47,13 +47,12 @@ internal class SearchEverywhereMLSearchSession private constructor(
   // search state is updated on each typing, tab or setting change
   // element features & ML score are also re-calculated on each typing because some of them might change, e.g. matching degree
   private val currentSearchState: AtomicReference<SearchState?> = AtomicReference<SearchState?>()
-  private val logger: SearchEverywhereMLStatisticsCollector = SearchEverywhereMLStatisticsCollector
 
   private val performanceTracker = PerformanceTracker()
 
   fun onSessionStarted(tabId: String) {
     val tab = SearchEverywhereTab.getById(tabId)
-    logger.onSessionStarted(project, sessionId, tab, sessionStartTime,cachedContextInfo.features)
+    SearchEverywhereMLStatisticsCollector.onSessionStarted(project, sessionId, tab, sessionStartTime, cachedContextInfo.features)
   }
 
   fun onSearchRestart(
@@ -82,7 +81,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     }
 
     if (prevState != null && prevState.tab.isLoggingEnabled()) {
-      logger.onSearchRestarted(project, this, prevState, searchResults, prevTimeToResult)
+      SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, prevState, searchResults, prevTimeToResult)
     }
   }
 
@@ -103,7 +102,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     }
 
     indexes.forEach { selectedIndex ->
-      logger.onItemSelected(project, sessionId, state.index, selectedIndex)
+      SearchEverywhereMLStatisticsCollector.onItemSelected(project, sessionId, state.index, selectedIndex)
     }
   }
 
@@ -115,10 +114,10 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
     if (state.tab.isLoggingEnabled()) {
       // "flush" the previous search restarted event
-      logger.onSearchRestarted(project, this, state, searchResults, performanceTracker.timeElapsed)
+      SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, state, searchResults, performanceTracker.timeElapsed)
     }
 
-    logger.onSessionFinished(project, sessionId, state.tab, sessionDuration)
+    SearchEverywhereMLStatisticsCollector.onSessionFinished(project, sessionId, state.tab, sessionDuration)
 
     MissingKeyProviderCollector.report(sessionId)
   }
