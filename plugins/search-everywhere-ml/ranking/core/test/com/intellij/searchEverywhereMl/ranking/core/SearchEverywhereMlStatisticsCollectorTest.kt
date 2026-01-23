@@ -12,7 +12,6 @@ import com.intellij.internal.statistic.eventLog.events.ObjectEventField
 import com.intellij.internal.statistic.eventLog.events.ObjectListEventField
 import com.intellij.internal.statistic.eventLog.events.PrimitiveEventField
 import com.intellij.openapi.util.IntellijInternalApi
-import com.intellij.searchEverywhereMl.features.SearchEverywhereStateFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.COLLECTED_RESULTS_DATA_KEY
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.CONTRIBUTOR_FEATURES_LIST
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.ELEMENT_CONTRIBUTOR
@@ -25,6 +24,7 @@ import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatistics
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.SESSION_ID
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.SESSION_STARTED
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.STATE_CHANGED
+import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereStateFeaturesProvider
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -152,7 +152,7 @@ class SearchEverywhereMlStatisticsCollectorTest : SearchEverywhereLoggingTestCas
     val sessionStartedEvent = immediatelyCancelledSessionEvents.first { it.event.id == SESSION_STARTED.eventId }
     val data = sessionStartedEvent.event.data
 
-    val requiredEvents = SESSION_STARTED.getFields() - SearchEverywhereStateFeaturesProvider.getFields().toSet()
+    val requiredEvents = SESSION_STARTED.getFields() - SearchEverywhereStateFeaturesProvider.allFields.toSet()
 
     requiredEvents.forEach { field ->
       assertTrue("${SESSION_STARTED.eventId} event should contain ${field.name}", field.name in data)
@@ -204,7 +204,7 @@ class SearchEverywhereMlStatisticsCollectorTest : SearchEverywhereLoggingTestCas
 
   @Test
   fun `no duplicate field names under different object-fields`() {
-    // This test is here to ensure that no field names are duplicated across different object fields
+    // This test is here to ensure that no field names are duplicated across different object allFields
     // Otherwise, this will lead to processing issues on the pipeline side
     val errors = mutableListOf<String>()
 

@@ -26,10 +26,10 @@ import com.intellij.openapi.util.registry.Registry
 import com.intellij.searchEverywhereMl.MLSE_RECORDER_ID
 import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
-import com.intellij.searchEverywhereMl.features.SearchEverywhereStateFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContextFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContributorFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereElementFeaturesProvider
+import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereStateFeaturesProvider
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.VisibleForTesting
 
@@ -178,7 +178,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   internal val SESSION_DURATION = EventFields.Int("session_duration", "Duration of the Search Everywhere session in ms")
   private val TIME_TO_FIRST_RESULT_DATA_KEY = EventFields.Int("time_to_first_result")
 
-  // context fields
+  // context allFields
   private val IS_PROJECT_OPEN = EventFields.Boolean("is_project_open")
   private val IS_PROJECT_DISPOSED_KEY = EventFields.Boolean("project_disposed")
   internal val SE_TAB_ID_KEY = EventFields.String("se_tab_id", ALLOWED_CONTRIBUTOR_ID_LIST)
@@ -194,9 +194,9 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   @VisibleForTesting
   val SELECTED_ELEMENTS_DATA_KEY: IntListEventField = EventFields.IntList("selected_ids")
 
-  // item fields
+  // item allFields
   private val SEARCH_STATE_FEATURES_DATA_KEY =
-    ObjectEventField("search_state_features", *SearchEverywhereStateFeaturesProvider.getFields().toTypedArray())
+    ObjectEventField("search_state_features", *SearchEverywhereStateFeaturesProvider.allFields.toTypedArray())
 
   @VisibleForTesting
   val ID_KEY: IntEventField = EventFields.Int("id")
