@@ -5,7 +5,7 @@ package com.intellij.searchEverywhereMl.ranking.core
 
 import ai.grazie.emb.FloatTextEmbedding
 import com.intellij.concurrency.ConcurrentCollectionFactory
-import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
+import com.intellij.ide.actions.searcheverywhere.*
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.internal.statistic.eventLog.events.EventPair
 import com.intellij.openapi.components.service
@@ -14,22 +14,25 @@ import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.TextEmbeddingProvider
 import com.intellij.searchEverywhereMl.isLoggingEnabled
-import com.intellij.searchEverywhereMl.ranking.core.features.FeaturesProviderCacheDataProvider
-import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContextFeaturesProvider
+import com.intellij.searchEverywhereMl.isTabWithMlRanking
+import com.intellij.searchEverywhereMl.ranking.core.features.*
+import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereElementFeaturesProvider.Companion.ML_SCORE_KEY
 import com.intellij.searchEverywhereMl.ranking.core.features.statistician.SearchEverywhereStatisticianService
 import com.intellij.searchEverywhereMl.ranking.core.features.statistician.increaseContributorUseCount
 import com.intellij.searchEverywhereMl.ranking.core.id.MissingKeyProviderCollector
 import com.intellij.searchEverywhereMl.ranking.core.id.SearchEverywhereMlOrderedItemIdProvider
 import com.intellij.searchEverywhereMl.ranking.core.model.SearchEverywhereModelProvider
+import com.intellij.searchEverywhereMl.ranking.core.model.SearchEverywhereRankingModel
 import com.intellij.searchEverywhereMl.ranking.core.performance.PerformanceTracker
 import com.intellij.searchEverywhereMl.ranking.core.utils.convertNameToNaturalLanguage
+import com.intellij.util.applyIf
 import com.intellij.util.concurrency.NonUrgentExecutor
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 internal class SearchEverywhereMLSearchSession private constructor(
-  private val project: Project?,
-  private val sessionId: Int,
+  val project: Project?,
+  val sessionId: Int,
 ) {
   val itemIdProvider = SearchEverywhereMlOrderedItemIdProvider { MissingKeyProviderCollector.addMissingProviderForClass(it::class.java) }
 
@@ -43,7 +46,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
   // search state is updated on each typing, tab or setting change
   // element features & ML score are also re-calculated on each typing because some of them might change, e.g. matching degree
-  private val currentSearchState: AtomicReference<SearchEverywhereMlSearchState?> = AtomicReference<SearchEverywhereMlSearchState?>()
+  private val currentSearchState: AtomicReference<SearchState?> = AtomicReference<SearchState?>()
   private val logger: SearchEverywhereMLStatisticsCollector = SearchEverywhereMLStatisticsCollector
 
   private val performanceTracker = PerformanceTracker()
@@ -77,14 +80,11 @@ internal class SearchEverywhereMLSearchSession private constructor(
       val nextSearchIndex = (prevState?.index ?: 0) + 1
       performanceTracker.start()
 
-      SearchEverywhereMlSearchState(
-        project, nextSearchIndex, tab, searchScope, isSearchEverywhere, sessionStartTime, searchReason,
-        searchQuery, modelProviderWithCache, providersCache
-      )
+      SearchState(nextSearchIndex, tab, searchScope, isSearchEverywhere, searchReason, searchQuery)
     }
 
     if (prevState != null && prevState.tab.isLoggingEnabled()) {
-      logger.onSearchRestarted(project, sessionId, prevState, searchResults, prevTimeToResult)
+      logger.onSearchRestarted(project, this, prevState, searchResults, prevTimeToResult)
     }
   }
 
@@ -117,7 +117,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
     if (state.tab.isLoggingEnabled()) {
       // "flush" the previous search restarted event
-      logger.onSearchRestarted(project, sessionId, state, searchResults, performanceTracker.timeElapsed)
+      logger.onSearchRestarted(project, this, state, searchResults, performanceTracker.timeElapsed)
     }
 
     logger.onSessionFinished(project, sessionId, state.tab, sessionDuration)
@@ -135,6 +135,112 @@ internal class SearchEverywhereMLSearchSession private constructor(
     return embeddingCache[searchQuery]
            ?: TextEmbeddingProvider.getProvider()?.embed(if (split) convertNameToNaturalLanguage(searchQuery) else searchQuery)
              ?.also { embeddingCache[searchQuery] = it }
+  }
+
+  inner class SearchState(
+    val index: Int,
+    val tab: SearchEverywhereTab,
+    val searchScope: ScopeDescriptor?,
+    val isSearchEverywhere: Boolean,
+    val searchRestartReason: SearchRestartReason,
+    val query: String,
+  ) {
+    val project: Project?
+      get() = this@SearchEverywhereMLSearchSession.project
+
+    val searchStateFeatures = SearchEverywhereStateFeaturesProvider.getFeatures(this)
+
+    val orderByMl: Boolean
+      get() {
+        if (!tab.isTabWithMlRanking()) {
+          return false
+        }
+
+        if (tab == SearchEverywhereTab.All && query.isEmpty()) {
+          return false
+        }
+
+        return tab.isMlRankingEnabled
+      }
+
+    private val model: SearchEverywhereRankingModel by lazy { modelProviderWithCache.getModel(tab as SearchEverywhereTab.TabWithMlRanking) }
+
+    fun getElementFeatures(element: Any,
+                           contributor: SearchEverywhereContributor<*>,
+                           contributorFeatures: List<EventPair<*>>,
+                           priority: Int,
+                           context: SearchEverywhereMLContextInfo,
+                           correction: SearchEverywhereSpellCheckResult): List<EventPair<*>> {
+      return SearchEverywhereElementFeaturesProvider.getFeatureProvidersForContributor(contributor.searchProviderId)
+        .flatMap { featuresProvider ->
+          featuresProvider.getElementFeatures(element, sessionStartTime, query, priority, providersCache, correction)
+        }
+        .applyIf(tab == SearchEverywhereTab.All) {
+          val mlScore = getElementMLScoreForAllTab(contributor.searchProviderId, context.features, this, contributorFeatures)
+          if (mlScore == null) {
+            return@applyIf this
+          } else {
+            return@applyIf this + listOf(ML_SCORE_KEY.with(mlScore))
+          }
+        }
+    }
+
+    /**
+     * Computes the ML score for an element based on its features and the contributor's model in All tab
+     * where elements from different contributors are included in the search results.
+     * This function should only be called for All tab, and it will throw an exception if called with a different tabId.
+     * If there is no ML model for the given element, the function will return null.
+     * @param contributorId The ID of the contributor that provided the element.
+     * @param contextFeatures The list of context-related features.
+     * @param elementFeatures The list of element-related features.
+     * @param contributorFeatures The list of contributor-related features.
+     */
+    private fun getElementMLScoreForAllTab(contributorId: String,
+                                           contextFeatures: List<EventPair<*>>,
+                                           elementFeatures: List<EventPair<*>>,
+                                           contributorFeatures: List<EventPair<*>>): Double? {
+      check(tab == SearchEverywhereTab.All) { "This function should only be called in the All tab" }
+
+      return try {
+        val features = getAllFeatures(contextFeatures, elementFeatures, contributorFeatures)
+        val model = getForContributor(contributorId)
+        model.predict(features)
+      }
+      catch (e: IllegalArgumentException) {
+        null
+      }
+    }
+
+    private fun getAllFeatures(
+      contextFeatures: List<EventPair<*>>,
+      elementFeatures: List<EventPair<*>>,
+      contributorFeatures: List<EventPair<*>>,
+    ): Map<String, Any?> {
+      return (contextFeatures + elementFeatures + searchStateFeatures + contributorFeatures)
+        .associate { it.field.name to it.data }
+    }
+
+    private fun getForContributor(contributorId: String): SearchEverywhereRankingModel {
+      val tab = when (contributorId) {
+        ActionSearchEverywhereContributor::class.java.simpleName -> SearchEverywhereTab.Actions
+        FileSearchEverywhereContributor::class.java.simpleName, RecentFilesSEContributor::class.java.simpleName -> SearchEverywhereTab.Files
+        ClassSearchEverywhereContributor::class.java.simpleName -> SearchEverywhereTab.Classes
+        else -> throw IllegalArgumentException("Unsupported contributorId: $contributorId")
+      }
+
+      return modelProviderWithCache.getModel(tab)
+    }
+
+    fun getMLWeight(context: SearchEverywhereMLContextInfo,
+                    elementFeatures: List<EventPair<*>>,
+                    contributorFeatures: List<EventPair<*>>): Double {
+      val features = getAllFeatures(context.features, elementFeatures, contributorFeatures)
+      return model.predict(features)
+    }
+
+    fun getContributorFeatures(contributor: SearchEverywhereContributor<*>): List<EventPair<*>> {
+      return SearchEverywhereContributorFeaturesProvider.getFeatures(contributor, sessionStartTime)
+    }
   }
 
   companion object {

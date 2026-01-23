@@ -34,11 +34,11 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
    * Realistically - we are only interested in the last session, thus we are going to use a weak map,
    * so that past sessions and their related predicted probabilities can be garbage-collected.
 
-   * The key is a `SearchEverywhereMlSearchState` object that represents the state of a search session.
+   * The key is a `SearchState` object that represents the state of a search session.
    * The value is a map associating individual contributors (`SearchEverywhereContributor`) with
    * their predicted probabilities (`Float`) for being considered essential in the current search state.
    */
-  private val contributorPredictionCache = WeakHashMap<SearchEverywhereMlSearchState, MutableMap<SearchEverywhereContributor<*>, Float>>()
+  private val contributorPredictionCache = WeakHashMap<SearchEverywhereMLSearchSession.SearchState, MutableMap<SearchEverywhereContributor<*>, Float>>()
 
   override fun isAvailable(): Boolean {
     return isActiveExperiment() && isSearchStateActive()
@@ -73,7 +73,7 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
   }
 
   internal fun getContributorEssentialPrediction(contributor: SearchEverywhereContributor<*>,
-                                                 searchState: SearchEverywhereMlSearchState = getSearchState()): Float {
+                                                 searchState: SearchEverywhereMLSearchSession.SearchState = getSearchState()): Float {
     val cache = contributorPredictionCache.getOrPut(searchState) { hashMapOf() }
     return cache.getOrPut(contributor) {
       computeProbability(contributor).also { probability ->
@@ -82,7 +82,7 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
     }
   }
 
-  fun getCachedPredictionsForState(searchState: SearchEverywhereMlSearchState): Map<SearchEverywhereContributor<*>, Float> {
+  fun getCachedPredictionsForState(searchState: SearchEverywhereMLSearchSession.SearchState): Map<SearchEverywhereContributor<*>, Float> {
     return contributorPredictionCache[searchState]?.toMap() ?: emptyMap()
   }
 
@@ -102,7 +102,7 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
     return checkNotNull(rankingService.getCurrentSession())
   }
 
-  private fun getSearchState(): SearchEverywhereMlSearchState {
+  private fun getSearchState(): SearchEverywhereMLSearchSession.SearchState {
     val searchSession = getSearchSession()
     return checkNotNull(searchSession.getCurrentSearchState())
   }

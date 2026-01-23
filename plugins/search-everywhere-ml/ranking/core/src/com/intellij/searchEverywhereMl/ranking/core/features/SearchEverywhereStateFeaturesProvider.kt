@@ -11,7 +11,7 @@ import com.intellij.internal.statistic.eventLog.events.EventPair
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
-import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMlSearchState
+import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLSearchSession
 import com.intellij.usages.impl.ScopeRuleValidator
 
 internal object SearchEverywhereStateFeaturesProvider {
@@ -40,7 +40,7 @@ internal object SearchEverywhereStateFeaturesProvider {
     IS_CASE_SENSITIVE, IS_WHOLE_WORDS_ONLY, IS_REGULAR_EXPRESSIONS,
   )
 
-  fun getFeatures(searchState: SearchEverywhereMlSearchState): List<EventPair<*>> {
+  fun getFeatures(searchState: SearchEverywhereMLSearchSession.SearchState): List<EventPair<*>> {
     return getFeatures(searchState.project, searchState.tab, searchState.query,
                        searchState.searchScope, searchState.isSearchEverywhere)
   }

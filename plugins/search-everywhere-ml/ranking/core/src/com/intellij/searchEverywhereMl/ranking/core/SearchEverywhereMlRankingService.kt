@@ -86,7 +86,7 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
   }
 
   private fun shouldCalculateMlWeight(contributor: SearchEverywhereContributor<*>,
-                                      searchState: SearchEverywhereMlSearchState,
+                                      searchState: SearchEverywhereMLSearchSession.SearchState,
                                       element: Any): Boolean {
     // If we're showing recently used actions (empty query) then we don't want to apply ML sorting either
     if (searchState.tab == SearchEverywhereTab.Actions && searchState.query.isEmpty()) return false

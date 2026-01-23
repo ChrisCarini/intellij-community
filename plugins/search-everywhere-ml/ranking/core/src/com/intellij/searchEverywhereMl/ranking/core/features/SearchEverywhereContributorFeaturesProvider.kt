@@ -9,7 +9,7 @@ import com.intellij.internal.statistic.eventLog.events.EventFields
 import com.intellij.internal.statistic.eventLog.events.EventPair
 import com.intellij.internal.statistic.local.ContributorsGlobalSummaryManager
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereEssentialContributorMlMarker
-import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMlSearchState
+import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLSearchSession
 import com.intellij.searchEverywhereMl.ranking.core.features.statistician.ContributorsLocalStatisticsFields
 import com.intellij.searchEverywhereMl.ranking.core.features.statistician.getContributorStatistics
 
@@ -60,7 +60,7 @@ internal object SearchEverywhereContributorFeaturesProvider {
    *
    * EC features are the predictions of the EC model, which itself needs contributor features to make predictions.
    */
-  fun getEssentialContributorFeatures(searchState: SearchEverywhereMlSearchState,
+  fun getEssentialContributorFeatures(searchState: SearchEverywhereMLSearchSession.SearchState,
                                       contributor: SearchEverywhereContributor<*>): List<EventPair<*>> {
     val marker = SearchEverywhereEssentialContributorMarker.getInstanceOrNull()
     if (marker == null) {

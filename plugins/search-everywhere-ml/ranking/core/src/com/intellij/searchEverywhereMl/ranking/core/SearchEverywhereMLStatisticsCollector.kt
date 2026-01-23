@@ -65,8 +65,8 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
 
   internal fun onSearchRestarted(
     project: Project?,
-    sessionId: Int,
-    searchState: SearchEverywhereMlSearchState,
+    searchSession: SearchEverywhereMLSearchSession,
+    searchState: SearchEverywhereMLSearchSession.SearchState,
     searchResults: List<SearchEverywhereFoundElementInfoWithMl>,
     timeToFirstResult: Int,
   ) {
@@ -84,7 +84,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
 
     val contributorFeatures = contributors
       .map { contributor ->
-        val contributorFeatures = SearchEverywhereContributorFeaturesProvider.getFeatures(contributor, searchState.sessionStartTime)
+        val contributorFeatures = SearchEverywhereContributorFeaturesProvider.getFeatures(contributor, searchSession.sessionStartTime)
         val essentialnessFeatures = SearchEverywhereContributorFeaturesProvider.getEssentialContributorFeatures(searchState, contributor)
 
         val allFeatures = contributorFeatures + essentialnessFeatures
@@ -96,7 +96,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
       .map { result -> result.toObjectEventData() }
 
     STATE_CHANGED.log(project) {
-      add(SESSION_ID.with(sessionId))
+      add(SESSION_ID.with(searchSession.sessionId))
       add(SEARCH_INDEX_DATA_KEY.with(searchState.index))
       add(ORDER_BY_ML_GROUP.with(searchState.orderByMl))
       add(TOTAL_NUMBER_OF_ITEMS_DATA_KEY.with(searchResults.size))
