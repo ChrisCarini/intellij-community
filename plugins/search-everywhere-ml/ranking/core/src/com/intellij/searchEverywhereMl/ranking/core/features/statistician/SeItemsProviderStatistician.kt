@@ -10,11 +10,11 @@ private const val CONTEXT = "searchEverywhere#contributors#all"
 private const val KEY_NAME = "searchEverywhereContributor"
 private val KEY = Key.create<SearchEverywhereStatistician<in Any>>(KEY_NAME)
 
-internal fun increaseContributorUseCount(contributorId: String) {
-  StatisticsManager.getInstance().incUseCount(KEY, contributorId, CONTEXT)
+internal fun increaseProvidersUseCount(providerId: String) {
+  StatisticsManager.getInstance().incUseCount(KEY, providerId, CONTEXT)
 }
 
-internal fun getContributorStatistics(): ContributorStatistics {
+internal fun getProviderStatistics(): SeItemsProviderStatistics {
   val statsManager = StatisticsManager.getInstance()
   val stats = statsManager.getAllValues(CONTEXT)
     .asSequence()
@@ -24,14 +24,14 @@ internal fun getContributorStatistics(): ContributorStatistics {
     .map { it.toPair() }
     .sortedByDescending { it.second }
 
-  return ContributorStatistics(stats)
+  return SeItemsProviderStatistics(stats)
 }
 
 /**
  * Usage of contributors, sorted by the descending usage count
  */
-internal data class ContributorStatistics(val contributorUsage: List<Pair<String, Int>>)
+internal data class SeItemsProviderStatistics(val contributorUsage: List<Pair<String, Int>>)
 
-internal class SearchEverywhereContributorStatistician : Statistician<String, String>() {
-  override fun serialize(contributorId: String, location: String) = StatisticsInfo(location, contributorId)
+internal class SeItemsProviderStatistician : Statistician<String, String>() {
+  override fun serialize(providerId: String, location: String) = StatisticsInfo(location, providerId)
 }

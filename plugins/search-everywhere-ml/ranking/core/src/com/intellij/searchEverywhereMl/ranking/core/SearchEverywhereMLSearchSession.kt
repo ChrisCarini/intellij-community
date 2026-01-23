@@ -18,7 +18,7 @@ import com.intellij.searchEverywhereMl.isTabWithMlRanking
 import com.intellij.searchEverywhereMl.ranking.core.features.*
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereElementFeaturesProvider.Companion.ML_SCORE_KEY
 import com.intellij.searchEverywhereMl.ranking.core.features.statistician.SearchEverywhereStatisticianService
-import com.intellij.searchEverywhereMl.ranking.core.features.statistician.increaseContributorUseCount
+import com.intellij.searchEverywhereMl.ranking.core.features.statistician.increaseProvidersUseCount
 import com.intellij.searchEverywhereMl.ranking.core.id.MissingKeyProviderCollector
 import com.intellij.searchEverywhereMl.ranking.core.id.SearchEverywhereMlOrderedItemIdProvider
 import com.intellij.searchEverywhereMl.ranking.core.model.SearchEverywhereModelProvider
@@ -98,7 +98,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     if (state.tab == SearchEverywhereTab.All) {
       searchResults
         .slice(indexes.asIterable())
-        .forEach { increaseContributorUseCount(it.contributor.searchProviderId) }
+        .forEach { increaseProvidersUseCount(it.contributor.searchProviderId) }
     }
 
     indexes.forEach { selectedIndex ->

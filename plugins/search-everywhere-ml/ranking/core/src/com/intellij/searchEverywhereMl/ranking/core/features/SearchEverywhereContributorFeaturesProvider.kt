@@ -11,7 +11,7 @@ import com.intellij.internal.statistic.local.ContributorsGlobalSummaryManager
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereEssentialContributorMlMarker
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLSearchSession
 import com.intellij.searchEverywhereMl.ranking.core.features.statistician.ContributorsLocalStatisticsFields
-import com.intellij.searchEverywhereMl.ranking.core.features.statistician.getContributorStatistics
+import com.intellij.searchEverywhereMl.ranking.core.features.statistician.getProviderStatistics
 
 internal object SearchEverywhereContributorFeaturesProvider {
   val CONTRIBUTOR_INFO_ID = EventFields.String("contributor_id", ALLOWED_CONTRIBUTOR_ID_LIST)
@@ -86,7 +86,7 @@ internal object SearchEverywhereContributorFeaturesProvider {
 
   private fun getStatisticianFeatures(contributor: SearchEverywhereContributor<*>): List<EventPair<*>> {
     val contributorId = contributor.searchProviderId
-    val statistics = getContributorStatistics()
+    val statistics = getProviderStatistics()
 
     val isMostPopular = statistics.contributorUsage.firstOrNull()?.first?.equals(contributorId) ?: return emptyList()
     val popularityIndex = statistics.contributorUsage.indexOfFirst { it.first == contributorId }.takeIf { it >= 0 } ?: return emptyList()
