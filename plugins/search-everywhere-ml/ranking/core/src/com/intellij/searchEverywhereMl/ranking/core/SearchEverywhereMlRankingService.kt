@@ -23,7 +23,6 @@ import com.intellij.searchEverywhereMl.isTabWithMlRanking
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereElementFeaturesProvider.Companion.BUFFERED_TIMESTAMP
 import com.intellij.ui.components.JBList
 import org.jetbrains.annotations.ApiStatus
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import javax.swing.ListCellRenderer
 
@@ -32,7 +31,6 @@ internal val searchEverywhereMlRankingService: SearchEverywhereMlRankingService?
 
 @ApiStatus.Internal
 class SearchEverywhereMlRankingService : SearchEverywhereMlService {
-  private val sessionIdCounter = AtomicInteger()
   private var activeSession: AtomicReference<SearchEverywhereMLSearchSession?> = AtomicReference()
 
   override fun isEnabled(): Boolean {
@@ -51,7 +49,7 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
   override fun onSessionStarted(project: Project?, tabId: String) {
     if (isEnabled()) {
       activeSession.updateAndGet {
-        SearchEverywhereMLSearchSession(project, sessionIdCounter.incrementAndGet())
+        SearchEverywhereMLSearchSession.createNext(project)
       }!!.onSessionStarted(tabId)
     }
   }

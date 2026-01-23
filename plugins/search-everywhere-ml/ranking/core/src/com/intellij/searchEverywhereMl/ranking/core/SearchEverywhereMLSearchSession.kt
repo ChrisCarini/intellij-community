@@ -24,9 +24,10 @@ import com.intellij.searchEverywhereMl.ranking.core.model.SearchEverywhereModelP
 import com.intellij.searchEverywhereMl.ranking.core.performance.PerformanceTracker
 import com.intellij.searchEverywhereMl.ranking.core.utils.convertNameToNaturalLanguage
 import com.intellij.util.concurrency.NonUrgentExecutor
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-internal class SearchEverywhereMLSearchSession(
+internal class SearchEverywhereMLSearchSession private constructor(
   private val project: Project?,
   private val sessionId: Int,
 ) {
@@ -134,6 +135,14 @@ internal class SearchEverywhereMLSearchSession(
     return embeddingCache[searchQuery]
            ?: TextEmbeddingProvider.getProvider()?.embed(if (split) convertNameToNaturalLanguage(searchQuery) else searchQuery)
              ?.also { embeddingCache[searchQuery] = it }
+  }
+
+  companion object {
+    private val sessionIdCounter: AtomicInteger = AtomicInteger(0)
+
+    fun createNext(project: Project?): SearchEverywhereMLSearchSession {
+      return SearchEverywhereMLSearchSession(project, sessionIdCounter.incrementAndGet())
+    }
   }
 }
 
