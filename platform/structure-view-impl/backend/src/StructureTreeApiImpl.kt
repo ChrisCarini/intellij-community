@@ -166,13 +166,17 @@ internal class StructureTreeApiImpl : StructureTreeApi {
             nodesFlow.emit(nodesDto)
           }
           is StructureViewEvent.Dispose -> {
-            entry.structureTreeModel.invoker.compute {
-              entry.nodeToId.clear()
-            }.asDeferred().await()
-            nodesFlow.emit(null)
-            withContext(Dispatchers.EDT) {
-              Disposer.dispose(entry.disposable)
-              logger.debug { "Structure model with id: $id was disposed" }
+            try {
+              entry.structureTreeModel.invoker.compute {
+                entry.nodeToId.clear()
+              }.asDeferred().await()
+            }
+            finally {
+              nodesFlow.emit(null)
+              withContext(Dispatchers.EDT) {
+                Disposer.dispose(entry.disposable)
+                logger.debug { "Structure model with id: $id was disposed" }
+              }
             }
           }
         }
@@ -181,14 +185,20 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     Disposer.register(disposable, Disposable { job.cancel() })
 
-    val (root, actions) = myStructureTreeModel.invoker.compute {
-      entry.wrapper.rebuildTree()
+    val (root, actions) = try {
+      myStructureTreeModel.invoker.compute {
+        entry.wrapper.rebuildTree()
 
-      val rootModel = createRootModel(wrapper.rootElement as TreeElementWrapper, treeModel as? ExpandInfoProvider, getElementInfoProvider(treeModel))
-      val actions = createAllActionsButNonDelegatedNodeProviderDtos(treeModel)
+        val rootModel = createRootModel(wrapper.rootElement as TreeElementWrapper, treeModel as? ExpandInfoProvider, getElementInfoProvider(treeModel))
+        val actions = createAllActionsButNonDelegatedNodeProviderDtos(treeModel)
 
-      rootModel to actions
-    }.asDeferred().await()
+        rootModel to actions
+      }.asDeferred().await()
+    }
+    catch (e: Throwable) {
+      logger.error("Error creating structure model for file: $file", e)
+      return null
+    }
 
     if (root == null) {
       logger.error("Root model for structure model with id: $id (file $fileEditor) is null")
@@ -231,7 +241,8 @@ internal class StructureTreeApiImpl : StructureTreeApi {
         // Store autoclicked state in the action owner, persist user-initiated changes
         if (autoClicked) {
           entry.backendActionOwner.setAutoclickedActionState(actionName, isEnabled)
-        } else {
+        }
+        else {
           entry.backendActionOwner.clearAutoclickedActionState(actionName)
           saveState(action, isEnabled)
         }
@@ -330,7 +341,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     logger.debug { "computeNodes: Tree traversal completed" }
 
-     val selectedValue = processStateToGetSelectedValue(state, entry, currentEditorElement)
+    val selectedValue = processStateToGetSelectedValue(state, entry, currentEditorElement)
 
     val nodeProviders = nodeProvidersMap?.entries?.map { (provider, nodes) ->
       val (actionIdForShortcut, shortcut) = if (provider is ActionShortcutProvider) {
@@ -365,37 +376,40 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     if (nodeProviders.any { !it.nodesLoaded }) {
       entry.structureTreeModel.invoker.invokeLater {
         val entry = structureViews[entryId] ?: return@invokeLater
-        try {
-          // Check if any providers don't have their nodes loaded yet
+        // Check if any providers don't have their nodes loaded yet
 
-          logger.debug { "Some providers don't have nodes loaded yet, rebuilding tree with all providers active" }
+        logger.debug { "Some providers don't have nodes loaded yet, rebuilding tree with all providers active" }
 
-          // Enable all node providers
-          entry.backendActionOwner.allNodeProvidersActive = true
+        // Enable all node providers
+        entry.backendActionOwner.allNodeProvidersActive = true
 
-          // Rebuild tree with all providers active
+        // Rebuild tree with all providers active
+        entry.wrapper.rebuildTree()
 
-          entry.wrapper.rebuildTree()
-
-          entry.structureTreeModel.invalidateAsync().thenRun {
-            // Compute nodes for ALL providers (not just inactive ones)
-            // because previously active providers may have new nodes now
-            if (entry.structureTreeModel.isDisposed) {
-              logger.debug { "computeNodes: Skipping tree traversal for deferred nodes because tree is disposed" }
-              return@thenRun
-            }
-            entry.structureTreeModel.invoker.invoke {
-              if (entry.structureTreeModel.isDisposed) return@invoke
-              logger.debug { "computeNodes: Tree traversal for deferred nodes started" }
-              val allProviderNodes = computeAllProviderNodes(entry)
-              logger.debug { "computeNodes: Tree traversal for deferred nodes completed" }
-              deferredNodeProviders.complete(allProviderNodes)
-            }
+        entry.structureTreeModel.invalidateAsync().handle { _, throwable ->
+          if (throwable != null) {
+            deferredNodeProviders.completeExceptionally(throwable)
+          }
+          // Compute nodes for ALL providers (not just inactive ones)
+          // because previously active providers may have new nodes now
+          if (entry.structureTreeModel.isDisposed) {
+            logger.debug { "computeNodes: Skipping tree traversal for deferred nodes because tree is disposed" }
+            return@handle
+          }
+          entry.structureTreeModel.invoker.invoke {
+            if (entry.structureTreeModel.isDisposed) return@invoke
+            logger.debug { "computeNodes: Tree traversal for deferred nodes started" }
+            val allProviderNodes = computeAllProviderNodes(entry)
+            logger.debug { "computeNodes: Tree traversal for deferred nodes completed" }
+            deferredNodeProviders.complete(allProviderNodes)
+          }.onError {
+            logger.error("Error computing provider nodes", it)
+            deferredNodeProviders.completeExceptionally(it)
           }
         }
-        catch (e: Throwable) {
-          logger.error("Error computing provider nodes", e)
-        }
+      }.onError {
+        logger.error("Error computing provider nodes", it)
+        deferredNodeProviders.completeExceptionally(it)
       }
     }
     else {

@@ -121,7 +121,17 @@ class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: P
           myUpdatePendingFlow.value = false
         }
 
-        val deferredNodes = nodesUpdate.deferredProviderNodes.await()
+        val deferredNodes = try {
+          nodesUpdate.deferredProviderNodes.await()
+        }
+        catch (e: Throwable) {
+          logger.error("Error computing provider nodes", e)
+          rebuildTreeOnDeferredNodes = false
+          withContext(Dispatchers.UI) {
+            myUpdatePendingFlow.value = false
+          }
+          return@collect
+        }
 
         val deferredProviderNodesList = deferredNodes?.nodeProviders ?: emptyList()
         val mainNodes = deferredNodes?.nodes ?: emptyList()
