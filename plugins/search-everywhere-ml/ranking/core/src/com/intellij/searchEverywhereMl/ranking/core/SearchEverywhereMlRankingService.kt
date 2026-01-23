@@ -105,18 +105,18 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     return searchState.orderByMl
   }
 
-  override fun onSearchRestart(tabId: String,
-                               reason: SearchRestartReason,
-                               keysTyped: Int,
-                               backspacesTyped: Int,
-                               searchQuery: String,
-                               searchResults: List<SearchEverywhereFoundElementInfo>,
-                               searchScope: ScopeDescriptor?,
-                               isSearchEverywhere: Boolean) {
+  override fun onSearchRestart(
+    tabId: String,
+    reason: SearchRestartReason,
+    searchQuery: String,
+    searchResults: List<SearchEverywhereFoundElementInfo>,
+    searchScope: ScopeDescriptor?,
+    isSearchEverywhere: Boolean
+  ) {
     if (!isEnabled()) return
 
     getCurrentSession()?.onSearchRestart(
-      reason, tabId, keysTyped, backspacesTyped, searchQuery, searchResults.toInternalType(),
+      reason, tabId, searchQuery, searchResults.toInternalType(),
       searchScope, isSearchEverywhere
     )
   }

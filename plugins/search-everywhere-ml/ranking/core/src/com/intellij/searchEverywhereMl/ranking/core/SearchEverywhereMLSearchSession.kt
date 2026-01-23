@@ -59,8 +59,6 @@ internal class SearchEverywhereMLSearchSession private constructor(
   fun onSearchRestart(
     reason: SearchRestartReason,
     tabId: String,
-    keysTyped: Int,
-    backspacesTyped: Int,
     searchQuery: String,
     searchResults: List<SearchEverywhereFoundElementInfoWithMl>,
     searchScope: ScopeDescriptor?,

@@ -45,10 +45,12 @@ interface SearchEverywhereMlService {
                              priority: Int,
                              correction: SearchEverywhereSpellCheckResult): SearchEverywhereFoundElementInfo
 
-  fun onSearchRestart(tabId: String, reason: SearchRestartReason,
-                      keysTyped: Int, backspacesTyped: Int, searchQuery: String,
+  fun onSearchRestart(tabId: String,
+                      reason: SearchRestartReason,
+                      searchQuery: String,
                       searchResults: List<SearchEverywhereFoundElementInfo>,
-                      searchScope: ScopeDescriptor?, isSearchEverywhere: Boolean)
+                      searchScope: ScopeDescriptor?,
+                      isSearchEverywhere: Boolean)
 
   fun onItemSelected(tabId: String,
                      indexes: IntArray, selectedItems: List<Any>,

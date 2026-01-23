@@ -956,7 +956,7 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
     if (myMlService != null) {
       myMlService.onSearchRestart(
         tabId, reason,
-        mySearchTypingListener.mySymbolKeysTyped, mySearchTypingListener.myBackspacesTyped, namePattern,
+        namePattern,
         myListModel.getFoundElementsInfo(),
         getSelectedSearchScope(myHeader.getSelectedTab()), myHeader.isEverywhere()
       );
