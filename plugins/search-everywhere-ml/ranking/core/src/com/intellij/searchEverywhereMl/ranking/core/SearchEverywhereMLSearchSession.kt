@@ -78,7 +78,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
       performanceTracker.start()
 
       SearchEverywhereMlSearchState(
-        project, nextSearchIndex, tab, searchScope, isSearchEverywhere, sessionStartTime, searchReason, keysTyped, backspacesTyped,
+        project, nextSearchIndex, tab, searchScope, isSearchEverywhere, sessionStartTime, searchReason,
         searchQuery, modelProviderWithCache, providersCache
       )
     }

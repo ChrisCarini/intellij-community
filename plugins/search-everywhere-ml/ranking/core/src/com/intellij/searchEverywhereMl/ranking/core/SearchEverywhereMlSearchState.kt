@@ -12,8 +12,6 @@ import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.internal.statistic.eventLog.events.EventPair
 import com.intellij.openapi.project.Project
-import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
-import com.intellij.searchEverywhereMl.SearchEverywhereState
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.isTabWithMlRanking
 import com.intellij.searchEverywhereMl.ranking.core.features.FeaturesProviderCache
@@ -26,23 +24,17 @@ import com.intellij.searchEverywhereMl.ranking.core.model.SearchEverywhereRankin
 import com.intellij.util.applyIf
 
 internal class SearchEverywhereMlSearchState(
-  override val project: Project?,
-  override val index: Int,
-  override val tab: SearchEverywhereTab,
-  override val searchScope: ScopeDescriptor?,
-  override val isSearchEverywhere: Boolean,
-  override val sessionStartTime: Long,
-  override val searchRestartReason: SearchRestartReason,
-  override val keysTyped: Int,
-  override val backspacesTyped: Int,
-  override val query: String,
+  val project: Project?,
+  val index: Int,
+  val tab: SearchEverywhereTab,
+  val searchScope: ScopeDescriptor?,
+  val isSearchEverywhere: Boolean,
+  val sessionStartTime: Long,
+  val searchRestartReason: SearchRestartReason,
+  val query: String,
   private val modelProvider: SearchEverywhereModelProvider,
   private val providersCache: FeaturesProviderCache?,
-) : SearchEverywhereState {
-  override val stateStartTime: Long = System.currentTimeMillis()
-
-  override val experimentGroup: Int = SearchEverywhereMlExperiment.experimentGroup
-
+) {
   val searchStateFeatures = SearchEverywhereStateFeaturesProvider.getFeatures(this)
 
   val orderByMl: Boolean
