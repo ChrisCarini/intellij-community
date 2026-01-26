@@ -64,8 +64,6 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     val session = getCurrentSession() ?: return foundElementInfoWithoutMl
     val state = session.getCurrentSearchState() ?: return foundElementInfoWithoutMl
 
-    val elementFeatures = state.getElementFeatures(element, contributor, priority, correction)
-
     val effectiveContributor = if (contributor is SearchEverywhereContributorWrapper) contributor.getEffectiveContributor() else contributor
 
     val mlWeight = if (shouldCalculateMlWeight(effectiveContributor, state, element)) {
