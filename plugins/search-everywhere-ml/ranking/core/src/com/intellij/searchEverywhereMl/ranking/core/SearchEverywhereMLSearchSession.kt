@@ -164,16 +164,16 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
     fun getElementFeatures(element: Any,
                            contributor: SearchEverywhereContributor<*>,
-                           contributorFeatures: List<EventPair<*>>,
                            priority: Int,
-                           context: SearchEverywhereMLContextInfo,
                            correction: SearchEverywhereSpellCheckResult): List<EventPair<*>> {
+      val contributorFeatures = getContributorFeatures(contributor)
+
       return SearchEverywhereElementFeaturesProvider.getFeatureProvidersForContributor(contributor.searchProviderId)
         .flatMap { featuresProvider ->
           featuresProvider.getElementFeatures(element, sessionStartTime, query, priority, providersCache, correction)
         }
         .applyIf(tab == SearchEverywhereTab.All) {
-          val mlScore = getElementMLScoreForAllTab(contributor.searchProviderId, context.features, this, contributorFeatures)
+          val mlScore = getElementMLScoreForAllTab(contributor.searchProviderId, cachedContextInfo.features, this, contributorFeatures)
           if (mlScore == null) {
             return@applyIf this
           } else {
