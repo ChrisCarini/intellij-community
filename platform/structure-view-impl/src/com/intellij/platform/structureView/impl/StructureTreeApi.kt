@@ -24,6 +24,8 @@ interface StructureTreeApi : RemoteApi<Unit> {
   @TestOnly
   suspend fun getNewSelection(id: Int): Int?
 
+  suspend fun navigateToElement(id: Int, elementId: Int): Boolean
+
   companion object {
     suspend fun getInstance(): StructureTreeApi {
       return RemoteApiProviderService.resolve(remoteApiDescriptor<StructureTreeApi>())

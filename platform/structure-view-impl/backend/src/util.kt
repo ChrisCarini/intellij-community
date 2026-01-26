@@ -3,7 +3,6 @@ package com.intellij.platform.structureView.backend
 
 import com.intellij.ide.projectView.PresentationData
 import com.intellij.ide.rpc.rpcId
-import com.intellij.ide.rpc.weakRpcId
 import com.intellij.ide.structureView.StructureViewModel
 import com.intellij.ide.structureView.StructureViewTreeElement
 import com.intellij.ide.ui.colors.rpcId
@@ -27,7 +26,6 @@ import com.intellij.platform.structureView.impl.uiModel.DelegatingProviderTreeAc
 import com.intellij.platform.structureView.impl.uiModel.FilterTreeActionDto
 import com.intellij.platform.structureView.impl.uiModel.SorterTreeActionDto
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionDto
-import com.intellij.pom.Navigatable
 
 internal fun StructureViewTreeElement.toDto(id: Int,
                                             parentId: Int,
@@ -45,7 +43,6 @@ internal fun StructureViewTreeElement.toDto(id: Int,
     speedSearchText,
     this.value.hashCode(),
     presentation.toDto(),
-    (value as? Navigatable)?.weakRpcId(),
     autoExpand ?: false,
     alwaysShowsPlus ?: false,
     alwaysLeaf ?: false,

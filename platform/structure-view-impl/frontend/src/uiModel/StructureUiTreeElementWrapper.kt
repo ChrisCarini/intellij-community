@@ -6,7 +6,6 @@ import com.intellij.navigation.ItemPresentation
 import com.intellij.openapi.ui.Queryable
 import com.intellij.openapi.vcs.FileStatus
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
-import com.intellij.pom.Navigatable
 import com.intellij.ui.icons.RowIcon
 import javax.swing.Icon
 
@@ -45,9 +44,6 @@ class StructureUiTreeElementWrapper : StructureUiTreeElement, Queryable {
   
   override val shouldAutoExpand: Boolean
     get() = delegate?.shouldAutoExpand ?: false
-  
-  override val navigatable: Navigatable?
-    get() = delegate?.navigatable
   
   override val fileStatus: FileStatus
     get() = delegate?.fileStatus ?: FileStatus.NOT_CHANGED

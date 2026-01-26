@@ -108,17 +108,11 @@ class StructureViewTreeElement(project: Project, nodeModel: StructureUiTreeEleme
     }
   }
 
-  override fun navigate(requestFocus: Boolean) {
-    value.navigatable?.navigate(requestFocus)
-  }
+  override fun navigate(requestFocus: Boolean) {}
 
-  override fun canNavigate(): Boolean {
-    return value.navigatable?.canNavigate() ?: false
-  }
+  override fun canNavigate(): Boolean = false
 
-  override fun canNavigateToSource(): Boolean {
-    return value.navigatable?.canNavigateToSource() ?: false
-  }
+  override fun canNavigateToSource(): Boolean = false
 
   override fun isAutoExpandAllowed(): Boolean = value.shouldAutoExpand
 

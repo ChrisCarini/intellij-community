@@ -3,7 +3,6 @@ package com.intellij.platform.structureView.impl.uiModel
 
 import com.intellij.navigation.ItemPresentation
 import com.intellij.openapi.vcs.FileStatus
-import com.intellij.pom.Navigatable
 
 interface StructureUiTreeElement {
   val id: Int
@@ -14,7 +13,6 @@ interface StructureUiTreeElement {
   val alwaysShowPlus: Boolean
   val alwaysLeaf: Boolean
   val shouldAutoExpand: Boolean
-  val navigatable: Navigatable?
   val fileStatus: FileStatus
   val filterResults: List<Boolean>
   val children: List<StructureUiTreeElement>

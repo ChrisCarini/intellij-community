@@ -23,12 +23,14 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.writeIntentReadAction
+import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.ex.util.EditorUtil
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.TextEditor
+import com.intellij.openapi.fileEditor.ex.IdeDocumentHistory
 import com.intellij.openapi.fileTypes.LanguageFileType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -42,6 +44,8 @@ import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
 import com.intellij.platform.structureView.impl.dto.*
 import com.intellij.ide.rpc.fileEditor
+import com.intellij.lang.LangBundle
+import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeActionDto
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionDto
 import com.intellij.psi.PsiElement
@@ -269,6 +273,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
       val root = entry.structureTreeModel.root ?: return@compute null
       visit(root, entry.structureTreeModel, TreePath(root)) {
         StructureViewComponent.visitPathForElementSelection(it, currentEditorElement, editorOffset, state)
+        false
       }
 
 
@@ -290,6 +295,48 @@ internal class StructureTreeApiImpl : StructureTreeApi {
       StructureViewComponent.unwrapValue(TreeUtil.getAbstractTreeNode(adjusted))
     }
     return if (adjusted == null) null else value
+  }
+
+  override suspend fun navigateToElement(id: Int, elementId: Int): Boolean {
+    val entry = structureViews[id] ?: return false
+
+    val elementValue = entry.nodeToId.entries.find { it.value == elementId }?.key ?: return false
+
+    val targetElement = entry.structureTreeModel.invoker.compute {
+      var targetElement: StructureViewTreeElement? = null
+
+      val root = entry.structureTreeModel.root ?: return@compute null
+      visit(root, entry.structureTreeModel, TreePath(root)) {
+        val wrapper = TreeUtil.getUserObject(it.lastPathComponent) as? TreeElementWrapper
+        val element = wrapper?.getValue() as? StructureViewTreeElement
+        return@visit if (element?.value == elementValue) {
+          targetElement = element
+          true
+        }
+        else {
+          false
+        }
+      }
+      targetElement
+    }.asDeferred().await()
+
+
+    if (targetElement == null) return false
+
+    //todo put file in some(?) data context for navigation
+    return withContext(Dispatchers.EDT) {
+      var succeeded = false
+      WriteIntentReadAction.run {
+        CommandProcessor.getInstance().executeCommand(entry.project, {
+          if (targetElement.canNavigateToSource()) {
+            targetElement.navigate(true)
+            succeeded = true
+          }
+          IdeDocumentHistory.getInstance(entry.project).includeCurrentCommandAsNavigation()
+        }, LangBundle.message("command.name.navigate"), null)
+      }
+      succeeded
+    }
   }
 
   private data class ComputeNodesResult(
@@ -334,9 +381,10 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     visit(root, entry.structureTreeModel, TreePath(root)) {
       StructureViewComponent.visitPathForElementSelection(it, currentEditorElement, editorOffset, state)
 
-      val element = TreeUtil.getUserObject(it.lastPathComponent) as? TreeElementWrapper ?: return@visit
+      val element = TreeUtil.getUserObject(it.lastPathComponent) as? TreeElementWrapper ?: return@visit false
 
       processTreeElement(expandInfoProvider, elementInfoProvider, element, mainNodes, nodeProvidersMap, filters, entry)
+      false
     }
 
     logger.debug { "computeNodes: Tree traversal completed" }
@@ -451,8 +499,9 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     val root = entry.structureTreeModel.root ?: return null
 
     visit(root, entry.structureTreeModel, TreePath(root)) {
-      val element = TreeUtil.getUserObject(it.lastPathComponent) as? TreeElementWrapper ?: return@visit
+      val element = TreeUtil.getUserObject(it.lastPathComponent) as? TreeElementWrapper ?: return@visit false
       processTreeElement(expandInfoProvider, elementInfoProvider, element, mainNodes, providerNodesMap, filters, entry)
+      false
     }
 
     return DeferredNodesDto(
@@ -528,14 +577,15 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     }
   }
 
-  private fun visit(element: TreeNode, model: StructureTreeModel<SmartTreeStructure>, path: TreePath, action: (TreePath) -> Unit) {
-    if (model.isDisposed) return
+  private fun visit(element: TreeNode, model: StructureTreeModel<SmartTreeStructure>, path: TreePath, action: (TreePath) -> Boolean): Boolean {
+    if (model.isDisposed) return true
 
     for (child in model.getChildren(element)) {
       val childPath = path.pathByAddingChild(child)
-      action(childPath)
-      visit(child, model, childPath, action)
+      if (action(childPath)) return true
+      if (visit(child, model, childPath, action)) return true
     }
+    return false
   }
 
   private fun logFileStructureCheckboxClick(action: TreeAction, fileEditor: FileEditor, project: Project) {

@@ -23,8 +23,6 @@ import com.intellij.openapi.actionSystem.UiDataProvider.Companion.wrapComponent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.UI
-import com.intellij.openapi.application.WriteIntentReadAction
-import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.debug
@@ -32,10 +30,10 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.fileEditor.TextEditor
-import com.intellij.openapi.fileEditor.ex.IdeDocumentHistory
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.keymap.KeymapUtil
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.runBlockingCancellable
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
@@ -45,7 +43,6 @@ import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import com.intellij.openapi.ui.popup.util.PopupUtil
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.NlsContexts
-import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.structureView.frontend.uiModel.CheckboxTreeAction
@@ -57,7 +54,6 @@ import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.platform.util.coroutines.childScope
-import com.intellij.pom.Navigatable
 import com.intellij.ui.*
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.panels.Wrapper
@@ -72,7 +68,6 @@ import com.intellij.ui.treeStructure.Tree
 import com.intellij.ui.treeStructure.filtered.FilteringTreeStructure
 import com.intellij.ui.treeStructure.filtered.FilteringTreeStructure.FilteringNode
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
-import com.intellij.util.containers.nullize
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.SpeedSearchAdvertiser
 import com.intellij.util.ui.UIUtil
@@ -87,12 +82,14 @@ import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.concurrency.asDeferred
+import org.jetbrains.concurrency.asPromise
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.datatransfer.DataFlavor
 import java.awt.event.*
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.*
@@ -539,12 +536,6 @@ class FileStructurePopup(
     }
     sink.set<JBPopup>(LangDataKeys.POSITION_ADJUSTER_POPUP, myPopup)
     sink.set<TreeExpander>(PlatformDataKeys.TREE_EXPANDER, myTreeExpander)
-
-    val selection = tree.getSelectionPaths()
-    selection?.mapNotNull { unwrapTreeElement(it.lastPathComponent) }
-    val selectedElements = selection?.mapNotNull { unwrapTreeElement(it.lastPathComponent) }
-    sink.lazy<Navigatable>(CommonDataKeys.NAVIGATABLE) { selectedElements?.first() }
-    sink.lazy<Array<Navigatable?>>(CommonDataKeys.NAVIGATABLE_ARRAY) { selectedElements?.nullize()?.toTypedArray() }
   }
 
   private fun createSettingsButton(): JComponent {
@@ -588,37 +579,40 @@ class FileStructurePopup(
       return unwrapTreeElement(if (path == null) null else path.lastPathComponent)
     }
 
-  private fun navigateSelectedElement(): Boolean {
+  private fun navigateSelectedElement(): CompletableFuture<Boolean> {
     val selectedNode = selectedNode
     if (ApplicationManager.getApplication().isInternal()) {
       val enteredPrefix = mySpeedSearch.enteredPrefix
-      val itemText: String? = if (selectedNode != null) getSpeedSearchText(selectedNode) else null
+      val itemText = if (selectedNode != null) getSpeedSearchText(selectedNode) else null
       if (StringUtil.isNotEmpty(enteredPrefix) && StringUtil.isNotEmpty(itemText)) {
         LOG.info("Chosen in file structure popup by prefix '$enteredPrefix': '$itemText'")
       }
     }
 
-    val succeeded = Ref<Boolean>()
-    val commandProcessor = CommandProcessor.getInstance()
-    WriteIntentReadAction.run {
-      commandProcessor.executeCommand(myProject, Runnable {
-        if (selectedNode != null) {
-          if (selectedNode.canNavigateToSource()) {
-            selectedNode.navigate(true)
-            myPopup!!.cancel()
-            succeeded.set(true)
-          }
-          else {
-            succeeded.set(false)
-          }
-        }
-        else {
-          succeeded.set(false)
-        }
-        IdeDocumentHistory.getInstance(myProject).includeCurrentCommandAsNavigation()
-      }, LangBundle.message("command.name.navigate"), null)
+    val deferred = CompletableFuture<Boolean>()
+
+    if (selectedNode == null) {
+      deferred.complete(false)
+      return deferred
     }
-    return succeeded.get()
+
+    val elementId = selectedNode.value.id
+    val modelId = (myModel as StructureUiModelImpl).dtoId
+
+    cs.launch {
+      val succeeded = StructureTreeApi.getInstance().navigateToElement(modelId, elementId)
+      if (succeeded) {
+        withContext(Dispatchers.EDT) {
+          myPopup!!.cancel()
+          deferred.complete(true)
+        }
+      }
+      else {
+        deferred.complete(false)
+      }
+    }
+
+    return deferred
   }
 
   private fun addCheckbox(panel: JPanel, action: CheckboxTreeAction) {
@@ -956,8 +950,10 @@ class FileStructurePopup(
   private inner class NavigateSelectedElementAction(private val myPanel: JPanel) : DumbAwareAction() {
     override fun actionPerformed(e: AnActionEvent) {
       val succeeded = navigateSelectedElement()
-      if (succeeded) {
-        unregisterCustomShortcutSet(myPanel)
+      succeeded.thenAccept {
+        if (it) {
+          unregisterCustomShortcutSet(myPanel)
+        }
       }
     }
   }

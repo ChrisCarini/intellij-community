@@ -1,14 +1,12 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.structureView.frontend.uiModel
 
-import com.intellij.ide.rpc.navigatable
 import com.intellij.navigation.ItemPresentation
 import com.intellij.openapi.ui.Queryable
 import com.intellij.openapi.vcs.FileStatus
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.structureView.impl.dto.toPresentation
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
-import com.intellij.pom.Navigatable
 import com.intellij.ui.icons.RowIcon
 import javax.swing.Icon
 
@@ -35,9 +33,6 @@ open class StructureUiTreeElementImpl(val dto: StructureViewTreeElementDto) : St
 
   override val shouldAutoExpand: Boolean
     get() = dto.autoExpand
-
-  override val navigatable: Navigatable?
-    get() = dto.navigatable?.navigatable()
 
   override val fileStatus: FileStatus
     get() = FileStatus.NOT_CHANGED
