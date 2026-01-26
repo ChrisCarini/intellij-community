@@ -15,7 +15,6 @@ import com.intellij.searchEverywhereMl.ranking.core.features.statistician.getPro
 
 internal object SearchEverywhereContributorFeaturesProvider {
   val CONTRIBUTOR_INFO_ID = EventFields.String("contributor_id", ALLOWED_CONTRIBUTOR_ID_LIST)
-  val CONTRIBUTOR_WEIGHT = EventFields.Int("contributor_weight")
   val CONTRIBUTOR_IS_MOST_POPULAR = EventFields.Boolean("contributor_is_most_popular")
   val CONTRIBUTOR_POPULARITY_INDEX = EventFields.Int("contributor_popularity_index")
   val IS_ESSENTIAL_CONTRIBUTOR = EventFields.Boolean("contributor_is_essential")
@@ -26,7 +25,7 @@ internal object SearchEverywhereContributorFeaturesProvider {
 
   fun getFeaturesDeclarations(): List<EventField<*>> {
     return listOf(
-      CONTRIBUTOR_INFO_ID, CONTRIBUTOR_WEIGHT,
+      CONTRIBUTOR_INFO_ID,
       CONTRIBUTOR_IS_MOST_POPULAR, CONTRIBUTOR_POPULARITY_INDEX,
       IS_ESSENTIAL_CONTRIBUTOR, ESSENTIAL_CONTRIBUTOR_PREDICTION
     ) + LOCAL_STATISTICS.getFieldsDeclaration() + GLOBAL_STATISTICS.getFieldsDeclaration()
@@ -42,7 +41,6 @@ internal object SearchEverywhereContributorFeaturesProvider {
     val contributor_id = contributor.searchProviderId
     val info = arrayListOf<EventPair<*>>(
       CONTRIBUTOR_INFO_ID.with(contributor_id),
-      CONTRIBUTOR_WEIGHT.with(contributor.sortWeight),
     )
 
     info.addAll(LOCAL_STATISTICS.getLocalStatistics(contributor_id, sessionStartTime))
