@@ -139,6 +139,4 @@ class OpenFeaturesInScratchFileAction : AnAction() {
                                      val contributor: String,
                                      val features: Map<String, Any>)
 
-  @JsonPropertyOrder("id", "weight")
-  private data class ContributorInfo(val id: String, val weight: Int)
 }
