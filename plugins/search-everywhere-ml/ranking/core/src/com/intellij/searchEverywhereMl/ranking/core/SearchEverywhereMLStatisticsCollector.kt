@@ -280,6 +280,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
                                                                   SESSION_DURATION, SE_TAB_ID_KEY)
   internal val KEY_NOT_COMPUTED_EVENT = GROUP.registerEvent("key.not.computed",
                                                             SESSION_ID,
-                                                            CLASSES_WITHOUT_KEY_PROVIDERS_FIELD)
+                                                            CLASSES_WITHOUT_KEY_PROVIDERS_FIELD,
+                                                            "Event sent once per Search Everywhere session with a list of classes for which key was not computed")
   // endregion
 }
