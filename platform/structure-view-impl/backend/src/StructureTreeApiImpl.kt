@@ -46,6 +46,7 @@ import com.intellij.platform.structureView.impl.dto.*
 import com.intellij.ide.rpc.fileEditor
 import com.intellij.lang.LangBundle
 import com.intellij.openapi.application.WriteIntentReadAction
+import com.intellij.openapi.diagnostic.rethrowControlFlowException
 import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeActionDto
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionDto
 import com.intellij.psi.PsiElement
@@ -200,6 +201,8 @@ internal class StructureTreeApiImpl : StructureTreeApi {
       }.asDeferred().await()
     }
     catch (e: Throwable) {
+      rethrowControlFlowException(e)
+
       logger.error("Error creating structure model for file: $file", e)
       return null
     }
