@@ -9,6 +9,7 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.isEssentialContributorPredictionExperiment
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultProviderAdapter
 import com.intellij.searchEverywhereMl.ranking.core.model.CatBoostModelFactory
 import com.intellij.searchEverywhereMl.ranking.core.model.SearchEverywhereCatBoostBinaryClassifierModel
 import java.util.WeakHashMap
@@ -35,10 +36,10 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
    * so that past sessions and their related predicted probabilities can be garbage-collected.
 
    * The key is a `SearchState` object that represents the state of a search session.
-   * The value is a map associating individual contributors (`SearchEverywhereContributor`) with
+   * The value is a map associating individual `SearchResultProviderAdapter` with
    * their predicted probabilities (`Float`) for being considered essential in the current search state.
    */
-  private val contributorPredictionCache = WeakHashMap<SearchEverywhereMLSearchSession.SearchState, MutableMap<SearchEverywhereContributor<*>, Float>>()
+  private val contributorPredictionCache = WeakHashMap<SearchEverywhereMLSearchSession.SearchState, MutableMap<SearchResultProviderAdapter, Float>>()
 
   override fun isAvailable(): Boolean {
     return isActiveExperiment() && isSearchStateActive()
@@ -62,37 +63,37 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
     }
   }
 
-  private fun computeProbability(contributor: SearchEverywhereContributor<*>): Float {
-    val features = getFeatures(contributor).associate { it.field.name to it.data }
+  private fun computeProbability(provider: SearchResultProviderAdapter): Float {
+    val features = getFeatures(provider).associate { it.field.name to it.data }
     return model.predict(features).toFloat()
   }
 
   override fun isContributorEssential(contributor: SearchEverywhereContributor<*>): Boolean {
-    val proba = getContributorEssentialPrediction(contributor)
+    val proba = getContributorEssentialPrediction(SearchResultProviderAdapter.createAdapterFor(contributor))
     return proba >= TRUE_THRESHOLD
   }
 
-  internal fun getContributorEssentialPrediction(contributor: SearchEverywhereContributor<*>,
+  internal fun getContributorEssentialPrediction(provider: SearchResultProviderAdapter,
                                                  searchState: SearchEverywhereMLSearchSession.SearchState = getSearchState()): Float {
     val cache = contributorPredictionCache.getOrPut(searchState) { hashMapOf() }
-    return cache.getOrPut(contributor) {
-      computeProbability(contributor).also { probability ->
-        thisLogger().debug("Predicted probability of ${contributor.searchProviderId} is $probability")
+    return cache.getOrPut(provider) {
+      computeProbability(provider).also { probability ->
+        thisLogger().debug("Predicted probability of ${provider.id} is $probability")
       }
     }
   }
 
-  fun getCachedPredictionsForState(searchState: SearchEverywhereMLSearchSession.SearchState): Map<SearchEverywhereContributor<*>, Float> {
+  fun getCachedPredictionsForState(searchState: SearchEverywhereMLSearchSession.SearchState): Map<SearchResultProviderAdapter, Float> {
     return contributorPredictionCache[searchState]?.toMap() ?: emptyMap()
   }
 
-  private fun getFeatures(contributor: SearchEverywhereContributor<*>): List<EventPair<*>> {
+  private fun getFeatures(provider: SearchResultProviderAdapter): List<EventPair<*>> {
     val searchSession = getSearchSession()
     val searchState = getSearchState()
 
     val sessionContextFeatures = searchSession.cachedContextInfo.features
     val stateFeatures = searchState.searchStateFeatures
-    val contributorFeatures = searchState.getContributorFeatures(contributor)
+    val contributorFeatures = searchState.getContributorFeatures(provider)
 
     return sessionContextFeatures + stateFeatures + contributorFeatures
   }

@@ -5,7 +5,6 @@ package com.intellij.searchEverywhereMl.ranking.core
 import com.intellij.ide.actions.searcheverywhere.ActionSearchEverywhereContributor
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereFeature
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereUI
-import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
 import com.intellij.internal.statistic.eventLog.events.EventField
 import com.intellij.internal.statistic.eventLog.events.ListEventField
 import com.intellij.internal.statistic.eventLog.events.ObjectEventField
@@ -67,8 +66,9 @@ class SearchEverywhereMlStatisticsCollectorTest : SearchEverywhereLoggingTestCas
 
     val reportedRestartRestored = searchRestartedEvent.event.data[REBUILD_REASON_KEY.name]
 
-    assertTrue("First ${STATE_CHANGED.eventId} event's ${REBUILD_REASON_KEY.name} should be ${SearchRestartReason.SEARCH_STARTED}",
-               reportedRestartRestored == SearchRestartReason.SEARCH_STARTED.toString())
+    assertTrue("First ${STATE_CHANGED.eventId} event's ${REBUILD_REASON_KEY.name} should be ${SearchStateChangeReason.SEARCH_START} " +
+               "Got $reportedRestartRestored",
+               reportedRestartRestored == SearchStateChangeReason.SEARCH_START.toString())
   }
 
   @Test

@@ -12,14 +12,13 @@ import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
-import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereFoundElementInfoWithMl
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereRankingDiffCalculator
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultProviderAdapter
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContributorFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.searchEverywhereMlRankingService
 
@@ -81,15 +80,16 @@ class OpenFeaturesInScratchFileAction : AnAction() {
     val foundElementsInfo = searchEverywhereUI.foundElementsInfo
 
     val features = foundElementsInfo
-      .map { SearchEverywhereFoundElementInfoWithMl.from(it) }
-      .map { info ->
-        val rankingWeight = info.priority
-        val contributor = info.contributor.searchProviderId
-        val elementName = StringUtil.notNullize(info.element.toString(), "undefined")
-        val mlWeight = info.mlWeight
-        val mlFeatures: Map<String, Any> = info.mlFeatures.associate { it.field.name to it.data as Any }
+      .map { SearchResultAdapter.createAdapterFor(it) }
+      .map { state.getProcessedSearchResultById(it.stateLocalId) }
+      .map { searchResult ->
+        val rankingWeight = searchResult.originalWeight
+        val contributor = searchResult.provider.id
+        val elementName = searchResult.getRawItem().toString()
+        val mlWeight = searchResult.mlProbability?.value
+        val mlFeatures = searchResult.mlFeatures?.associate { it.field.name to it.data as Any } ?: emptyMap()
+        val elementId = searchResult.sessionWideId?.value
 
-        val elementId = ReadAction.compute<Int?, Nothing> { searchSession.itemIdProvider.getId(info.element) }
         return@map ElementFeatures(
           elementId,
           elementName,
@@ -100,9 +100,13 @@ class OpenFeaturesInScratchFileAction : AnAction() {
         )
       }
 
-    val contributors = foundElementsInfo.map { info -> info.contributor }.toHashSet()
-    val contributorFeatures = contributors.map { SearchEverywhereContributorFeaturesProvider.getFeatures(it,
-                                                                                                         searchSession.sessionStartTime)}
+    val providers = foundElementsInfo
+      .map { info -> info.contributor }
+      .map { SearchResultProviderAdapter.createAdapterFor(it) }
+      .toSet()
+
+    val contributorFeatures = providers.map { SearchEverywhereContributorFeaturesProvider.getFeatures(it,
+                                                                                                      searchSession.sessionStartTime)}
 
     val diffInfos = if (state.orderByMl) SearchEverywhereRankingDiffCalculator.getRankingDiffInfos(foundElementsInfo) else emptyList()
 

@@ -2,6 +2,7 @@
 package com.intellij.ide.actions.searcheverywhere;
 
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
@@ -59,6 +60,11 @@ public class SearchEverywhereFoundElementInfo {
   @ApiStatus.Internal
   public SearchEverywhereSpellCheckResult getCorrection() {
     return correction;
+  }
+
+  @Contract("_ -> new")
+  public SearchEverywhereFoundElementInfo withPriority(int priority) {
+    return new SearchEverywhereFoundElementInfo(uuid, element, priority, contributor, correction);
   }
 
   public String getDescription() {

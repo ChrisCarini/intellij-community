@@ -8,6 +8,7 @@ import com.intellij.concurrency.ConcurrentCollectionFactory
 import com.intellij.ide.actions.searcheverywhere.*
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.internal.statistic.eventLog.events.EventPair
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.IntellijInternalApi
@@ -15,6 +16,11 @@ import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.TextEmbeddingProvider
 import com.intellij.searchEverywhereMl.isLoggingEnabled
 import com.intellij.searchEverywhereMl.isTabWithMlRanking
+import com.intellij.searchEverywhereMl.ranking.core.adapters.MlProbability
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SessionWideId
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultProviderAdapter
+import com.intellij.searchEverywhereMl.ranking.core.adapters.StateLocalId
 import com.intellij.searchEverywhereMl.ranking.core.features.*
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereElementFeaturesProvider.Companion.ML_SCORE_KEY
 import com.intellij.searchEverywhereMl.ranking.core.features.statistician.SearchEverywhereStatisticianService
@@ -34,7 +40,8 @@ internal class SearchEverywhereMLSearchSession private constructor(
   val project: Project?,
   val sessionId: Int,
 ) {
-  val itemIdProvider = SearchEverywhereMlOrderedItemIdProvider { MissingKeyProviderCollector.addMissingProviderForClass(it::class.java) }
+  val sessionWideIdProvider =
+    SearchEverywhereMlOrderedItemIdProvider { MissingKeyProviderCollector.addMissingProviderForClass(it::class.java) }
 
   val sessionStartTime: Long = System.currentTimeMillis()
   private val providersCache = FeaturesProviderCacheDataProvider().getDataToCache(project)
@@ -59,7 +66,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     reason: SearchStateChangeReason,
     tabId: String,
     searchQuery: String,
-    searchResults: List<SearchEverywhereFoundElementInfoWithMl>,
+    rawSearchResults: List<SearchResultAdapter.Raw>,
     searchScope: ScopeDescriptor?,
     isSearchEverywhere: Boolean,
   ) {
@@ -81,13 +88,14 @@ internal class SearchEverywhereMLSearchSession private constructor(
     }
 
     if (prevState != null && prevState.tab.isLoggingEnabled()) {
-      SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, prevState, searchResults, prevTimeToResult)
+      val processedSearchResults = rawSearchResults.map { prevState.getProcessedSearchResultById(it.stateLocalId) }
+      SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, prevState, processedSearchResults, prevTimeToResult)
     }
   }
 
   fun onItemSelected(
     indexes: IntArray, selectedItems: List<Any>,
-    searchResults: List<SearchEverywhereFoundElementInfoWithMl>,
+    searchResults: List<SearchResultAdapter.Raw>,
   ) {
     val state = getCurrentSearchState() ?: return
     if (!state.tab.isLoggingEnabled()) return
@@ -98,7 +106,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     if (state.tab == SearchEverywhereTab.All) {
       searchResults
         .slice(indexes.asIterable())
-        .forEach { increaseProvidersUseCount(it.contributor.searchProviderId) }
+        .forEach { increaseProvidersUseCount(it.provider.id) }
     }
 
     indexes.forEach { selectedIndex ->
@@ -106,7 +114,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     }
   }
 
-  fun onSearchFinished(searchResults: List<SearchEverywhereFoundElementInfoWithMl>) {
+  fun onSearchFinished(rawSearchResults: List<SearchResultAdapter.Raw>) {
     val state = getCurrentSearchState() ?: return
 
     val sessionEndTime = System.currentTimeMillis()
@@ -114,7 +122,8 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
     if (state.tab.isLoggingEnabled()) {
       // "flush" the previous search restarted event
-      SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, state, searchResults, performanceTracker.timeElapsed)
+      val processedSearchResults = rawSearchResults.map { state.getProcessedSearchResultById(it.stateLocalId) }
+      SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, state, processedSearchResults, performanceTracker.timeElapsed)
     }
 
     SearchEverywhereMLStatisticsCollector.onSessionFinished(project, sessionId, state.tab, sessionDuration)
@@ -157,29 +166,100 @@ internal class SearchEverywhereMLSearchSession private constructor(
           return false
         }
 
+        if (tab == SearchEverywhereTab.Actions && query.isEmpty()) {
+          // Don't sort recently used actions which appear on an empty query
+          return false
+        }
+
         return tab.isMlRankingEnabled
       }
 
     private val model: SearchEverywhereRankingModel by lazy { modelProviderWithCache.getModel(tab as SearchEverywhereTab.TabWithMlRanking) }
 
-    fun getElementFeatures(element: Any,
-                           contributor: SearchEverywhereContributor<*>,
-                           priority: Int,
-                           correction: SearchEverywhereSpellCheckResult): List<EventPair<*>> {
-      val contributorFeatures = getContributorFeatures(contributor)
+    private val searchResultCache: MutableMap<StateLocalId, SearchResultAdapter.Processed> = mutableMapOf()
 
-      return SearchEverywhereElementFeaturesProvider.getFeatureProvidersForContributor(contributor.searchProviderId)
+    fun processSearchResult(
+      searchResult: SearchResultAdapter.Raw,
+      correction: SearchEverywhereSpellCheckResult = SearchEverywhereSpellCheckResult.NoCorrection,
+    ): SearchResultAdapter.Processed {
+      return searchResult
+        .toProcessed()
+        .computeMlFeatures(correction)
+        .computeMlProbabilityIfEnabled()
+        .tryComputeId()
+        .also {
+          searchResultCache[it.stateLocalId] = it
+        }
+    }
+
+    fun getProcessedSearchResultById(id: StateLocalId): SearchResultAdapter.Processed {
+      return searchResultCache.getValue(id)
+    }
+
+    private fun getAllFeatures(
+      contextFeatures: List<EventPair<*>>,
+      elementFeatures: List<EventPair<*>>,
+      contributorFeatures: List<EventPair<*>>,
+    ): Map<String, Any?> {
+      return (contextFeatures + elementFeatures + searchStateFeatures + contributorFeatures)
+        .associate { it.field.name to it.data }
+    }
+
+    private fun getForContributor(contributorId: String): SearchEverywhereRankingModel {
+      val tab = when (contributorId) {
+        ActionSearchEverywhereContributor::class.java.simpleName -> SearchEverywhereTab.Actions
+        FileSearchEverywhereContributor::class.java.simpleName, RecentFilesSEContributor::class.java.simpleName -> SearchEverywhereTab.Files
+        ClassSearchEverywhereContributor::class.java.simpleName -> SearchEverywhereTab.Classes
+        else -> throw IllegalArgumentException("Unsupported provider: $contributorId")
+      }
+
+      return modelProviderWithCache.getModel(tab)
+    }
+
+    private fun shouldCalculateMlWeight(searchResult: SearchResultAdapter): Boolean {
+      if (!orderByMl) {
+        return false
+      }
+
+      if (searchResult.isSemantic) {
+        // Do not calculate machine learning weight for semantic items until the ranking models know how to treat them
+        return false
+      }
+
+      return true
+    }
+
+
+    fun getContributorFeatures(provider: SearchResultProviderAdapter): List<EventPair<*>> {
+      return SearchEverywhereContributorFeaturesProvider.getFeatures(provider, sessionStartTime)
+    }
+
+    private fun SearchResultAdapter.Raw.toProcessed(): SearchResultAdapter.Processed {
+      return SearchResultAdapter.Processed(this, null, null, null)
+    }
+
+    private fun SearchResultAdapter.Processed.computeMlFeatures(correction: SearchEverywhereSpellCheckResult = SearchEverywhereSpellCheckResult.NoCorrection): SearchResultAdapter.Processed {
+      val mlFeatures = SearchEverywhereElementFeaturesProvider.getFeatureProvidersForContributor(provider.id)
         .flatMap { featuresProvider ->
-          featuresProvider.getElementFeatures(element, sessionStartTime, query, priority, providersCache, correction)
+          featuresProvider.getElementFeatures(getRawItem(),
+                                              sessionStartTime,
+                                              query,
+                                              originalWeight,
+                                              providersCache,
+                                              correction)
         }
         .applyIf(tab == SearchEverywhereTab.All) {
-          val mlScore = getElementMLScoreForAllTab(contributor.searchProviderId, cachedContextInfo.features, this, contributorFeatures)
+          val contributorFeatures = getContributorFeatures(provider)
+          val mlScore = getElementMLScoreForAllTab(provider.id, cachedContextInfo.features, this, contributorFeatures)
           if (mlScore == null) {
             return@applyIf this
-          } else {
+          }
+          else {
             return@applyIf this + listOf(ML_SCORE_KEY.with(mlScore))
           }
         }
+
+      return this.copy(mlFeatures = mlFeatures)
     }
 
     /**
@@ -208,35 +288,28 @@ internal class SearchEverywhereMLSearchSession private constructor(
       }
     }
 
-    private fun getAllFeatures(
-      contextFeatures: List<EventPair<*>>,
-      elementFeatures: List<EventPair<*>>,
-      contributorFeatures: List<EventPair<*>>,
-    ): Map<String, Any?> {
-      return (contextFeatures + elementFeatures + searchStateFeatures + contributorFeatures)
-        .associate { it.field.name to it.data }
-    }
-
-    private fun getForContributor(contributorId: String): SearchEverywhereRankingModel {
-      val tab = when (contributorId) {
-        ActionSearchEverywhereContributor::class.java.simpleName -> SearchEverywhereTab.Actions
-        FileSearchEverywhereContributor::class.java.simpleName, RecentFilesSEContributor::class.java.simpleName -> SearchEverywhereTab.Files
-        ClassSearchEverywhereContributor::class.java.simpleName -> SearchEverywhereTab.Classes
-        else -> throw IllegalArgumentException("Unsupported contributorId: $contributorId")
+    private fun SearchResultAdapter.Processed.computeMlProbabilityIfEnabled(): SearchResultAdapter.Processed {
+      if (!shouldCalculateMlWeight(this)) {
+        return this
       }
 
-      return modelProviderWithCache.getModel(tab)
+      val mlFeatures = requireNotNull(mlFeatures) { "ML Probability cannot be calculated when feature list is null " }
+
+      val features = getAllFeatures(cachedContextInfo.features,
+                                    mlFeatures,
+                                    getContributorFeatures(provider))
+      val probability = model.predict(features)
+      return this.copy(mlProbability = MlProbability(probability))
     }
 
-    fun getMLWeight(context: SearchEverywhereMLContextInfo,
-                    elementFeatures: List<EventPair<*>>,
-                    contributorFeatures: List<EventPair<*>>): Double {
-      val features = getAllFeatures(context.features, elementFeatures, contributorFeatures)
-      return model.predict(features)
-    }
-
-    fun getContributorFeatures(contributor: SearchEverywhereContributor<*>): List<EventPair<*>> {
-      return SearchEverywhereContributorFeaturesProvider.getFeatures(contributor, sessionStartTime)
+    private fun SearchResultAdapter.Processed.tryComputeId(): SearchResultAdapter.Processed {
+      val id = ReadAction.compute<Int?, Nothing> { sessionWideIdProvider.getId(this.getRawItem()) }
+      return if (id != null) {
+          this.copy(sessionWideId = SessionWideId(id))
+      }
+      else {
+          this
+      }
     }
   }
 

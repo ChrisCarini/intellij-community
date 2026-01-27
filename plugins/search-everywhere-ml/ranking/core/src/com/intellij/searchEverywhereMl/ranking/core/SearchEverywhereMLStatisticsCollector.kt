@@ -25,6 +25,7 @@ import com.intellij.openapi.util.registry.Registry
 import com.intellij.searchEverywhereMl.MLSE_RECORDER_ID
 import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContextFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContributorFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereElementFeaturesProvider
@@ -66,7 +67,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
     project: Project?,
     searchSession: SearchEverywhereMLSearchSession,
     searchState: SearchEverywhereMLSearchSession.SearchState,
-    searchResults: List<SearchEverywhereFoundElementInfoWithMl>,
+    searchResults: List<SearchResultAdapter.Processed>,
     timeToFirstResult: Int,
   ) {
     if (!isLoggingEnabled) return
@@ -78,7 +79,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
                          ?.let { it as SearchEverywhereEssentialContributorMlMarker }
                          ?.getCachedPredictionsForState(searchState)
                          ?.keys
-                       ?: searchResults.map { it.contributor }.distinct()
+                       ?: searchResults.map { it.provider }.distinct()
 
 
     val contributorFeatures = contributors
@@ -135,25 +136,35 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
     }
 
 
-  private fun SearchEverywhereFoundElementInfoWithMl.toObjectEventData(): ObjectEventData {
-    return ObjectEventData(
-      buildList {
-        this@toObjectEventData.elementId?.let { add(ID_KEY.with(it)) }
-        add(ELEMENT_CONTRIBUTOR.with(contributor.searchProviderId))
-        add(FEATURES_DATA_KEY.with(ObjectEventData(this@toObjectEventData.mlFeatures)))
-
-        this@toObjectEventData.getActionIdOrNull()?.let { add(ACTION_ID_KEY.with(it)) }
-
-        this@toObjectEventData.mlWeight?.let { add(ML_WEIGHT_KEY.with(it)) }
-
-        add(PRIORITY_KEY.with(this@toObjectEventData.priority))
+  private fun SearchResultAdapter.Processed.toObjectEventData(): ObjectEventData {
+    val searchResultData = buildList {
+      if (this@toObjectEventData.sessionWideId != null) {
+        add(ID_KEY.with(this@toObjectEventData.sessionWideId.value))
       }
-    )
+
+      add(ELEMENT_CONTRIBUTOR.with(this@toObjectEventData.provider.id))
+
+      if (this@toObjectEventData.mlFeatures != null) {
+        add(FEATURES_DATA_KEY.with(ObjectEventData(this@toObjectEventData.mlFeatures)))
+      }
+
+      if (this@toObjectEventData.mlProbability != null) {
+        add(ML_WEIGHT_KEY.with(this@toObjectEventData.mlProbability.value))
+      }
+
+      this@toObjectEventData.getActionIdOrNull()?.let { actionId ->
+        add(ACTION_ID_KEY.with(actionId))
+      }
+
+      add(PRIORITY_KEY.with(this@toObjectEventData.originalWeight))
+    }
+
+    return ObjectEventData(searchResultData)
   }
 
-  private fun SearchEverywhereFoundElementInfoWithMl.getActionIdOrNull(): String? {
+  private fun SearchResultAdapter.getActionIdOrNull(): String? {
     val actionManager = ActionManager.getInstance()
-    val element = this.element
+    val element = this.getRawItem()
 
     return if ((element is GotoActionModel.MatchedValue) && (element.value is GotoActionModel.ActionWrapper)) {
       val action = (element.value as GotoActionModel.ActionWrapper).action
@@ -167,6 +178,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   internal val GROUP = EventLogGroup("mlse.log", 131, MLSE_RECORDER_ID,
                                      "ML in Search Everywhere Log Group")
 
+  // region Fields
   internal val IS_INTERNAL = EventFields.Boolean("is_internal")
   private val ORDER_BY_ML_GROUP = EventFields.Boolean("order_by_ml")
   internal val EXPERIMENT_GROUP = EventFields.Int("experiment_group")
@@ -237,7 +249,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   )
 
   private val CLASSES_WITHOUT_KEY_PROVIDERS_FIELD = ClassListEventField("unsupported_classes")
-
+  // endregion
   // region Events
   internal val SESSION_STARTED: VarargEventId = GROUP.registerVarargEvent("session.started",
                                                                           "An event denoting a start of Search Everywhere session",
