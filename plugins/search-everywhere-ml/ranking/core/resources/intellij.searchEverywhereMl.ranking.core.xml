@@ -19,11 +19,6 @@
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
-
-    <registryKey defaultValue="false"
-                 description="Mark position changes in Search Everywhere"
-                 key="search.everywhere.ml.show.diff"/>
-
     <registryKey defaultValue=""
                  description="Path to the local action-ranking model."
                  key="search.everywhere.ml.action.model.path"/>

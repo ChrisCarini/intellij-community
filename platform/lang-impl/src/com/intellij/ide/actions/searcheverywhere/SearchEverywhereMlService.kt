@@ -5,10 +5,8 @@ import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
-import com.intellij.ui.components.JBList
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.Contract
-import javax.swing.ListCellRenderer
 
 @ApiStatus.Internal
 interface SearchEverywhereMlService {
@@ -62,10 +60,6 @@ interface SearchEverywhereMlService {
   fun notifySearchResultsUpdated()
 
   fun onDialogClose()
-
-  fun wrapRenderer(renderer: ListCellRenderer<Any>, listModel: SearchListModel): ListCellRenderer<Any>
-
-  fun buildListener(listModel: SearchListModel, resultsList: JBList<Any>, selectionTracker: SEListSelectionTracker): SearchListener?
 
   fun getExperimentVersion(): Int
 

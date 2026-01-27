@@ -16,7 +16,6 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
-import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereRankingDiffCalculator
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultProviderAdapter
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContributorFeaturesProvider
@@ -35,7 +34,6 @@ class OpenFeaturesInScratchFileAction : AnAction() {
     private const val SEARCH_STATE_FEATURES_KEY = "searchStateFeatures"
     private const val CONTRIBUTORS_KEY = "contributors"
     private const val FOUND_ELEMENTS_KEY = "foundElements"
-    private const val RANKING_DIFFS_KEY = "rankingDiffs"
   }
 
   override fun update(e: AnActionEvent) {
@@ -108,8 +106,6 @@ class OpenFeaturesInScratchFileAction : AnAction() {
     val contributorFeatures = providers.map { SearchEverywhereContributorFeaturesProvider.getFeatures(it,
                                                                                                       searchSession.sessionStartTime)}
 
-    val diffInfos = if (state.orderByMl) SearchEverywhereRankingDiffCalculator.getRankingDiffInfos(foundElementsInfo) else emptyList()
-
     return mapOf(
       SHOULD_ORDER_BY_ML_KEY to state.orderByMl,
       EXPERIMENT_GROUP_KEY to SearchEverywhereMlExperiment.experimentGroup,
@@ -117,7 +113,6 @@ class OpenFeaturesInScratchFileAction : AnAction() {
       SEARCH_STATE_FEATURES_KEY to state.searchStateFeatures.associate { it.field.name to it.data },
       CONTRIBUTORS_KEY to contributorFeatures.map { c -> c.associate { it.field.name to it.data }.toSortedMap() },
       FOUND_ELEMENTS_KEY to features,
-      RANKING_DIFFS_KEY to diffInfos
     )
   }
 

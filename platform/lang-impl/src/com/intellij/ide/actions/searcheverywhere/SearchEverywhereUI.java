@@ -286,14 +286,6 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
 
     mySelectionTracker = new SEListSelectionTracker(myResultsList, myListModel);
 
-    if (myMlService != null) {
-      SearchListener mlListener = myMlService.buildListener(myListModel, myResultsList, mySelectionTracker);
-
-      if (mlListener != null) {
-        addSearchListener(mlListener);
-      }
-    }
-
     myExternalSearchListeners.add(topicPublisher);
     mySearcher = new MixedResultsSearcher(
       wrapperListener,
@@ -373,12 +365,7 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
       return (list, value, index, isSelected, cellHasFocus) -> new JPanel();
     }
 
-    ListCellRenderer<Object> renderer = myListFactory.createListRenderer(myListModel, myHeader);
-
-    if (myMlService != null) {
-      return myMlService.wrapRenderer(renderer, myListModel);
-    }
-    return renderer;
+    return myListFactory.createListRenderer(myListModel, myHeader);
   }
 
   @Override
