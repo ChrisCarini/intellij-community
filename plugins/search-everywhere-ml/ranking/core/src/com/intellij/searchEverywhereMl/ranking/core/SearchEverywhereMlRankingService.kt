@@ -20,7 +20,6 @@ import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.isTabWithMlRanking
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
-import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereElementFeaturesProvider.Companion.BUFFERED_TIMESTAMP
 import com.intellij.ui.components.JBList
 import org.jetbrains.annotations.ApiStatus
 import java.util.UUID
@@ -136,15 +135,6 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
   override fun getExperimentVersion(): Int = SearchEverywhereMlExperiment.VERSION
 
   override fun getExperimentGroup(): Int = SearchEverywhereMlExperiment.experimentGroup
-
-  override fun addBufferedTimestamp(item: SearchEverywhereFoundElementInfo, timestamp: Long) {
-    (item as? SearchEverywhereFoundElementInfoWithMl)?.let {
-      val session = getCurrentSession() ?: return
-      session.getCurrentSearchState()?.apply {
-        item.addMlFeature(BUFFERED_TIMESTAMP.with(timestamp))
-      }
-    }
-  }
 
   private fun List<SearchEverywhereFoundElementInfo>.toAdapter(): List<SearchResultAdapter.Raw> {
     return this.map {

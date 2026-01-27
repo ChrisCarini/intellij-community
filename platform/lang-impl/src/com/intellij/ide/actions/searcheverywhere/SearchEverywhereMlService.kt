@@ -70,6 +70,4 @@ interface SearchEverywhereMlService {
   fun getExperimentVersion(): Int
 
   fun getExperimentGroup(): Int
-
-  fun addBufferedTimestamp(item: SearchEverywhereFoundElementInfo, timestamp: Long)
 }

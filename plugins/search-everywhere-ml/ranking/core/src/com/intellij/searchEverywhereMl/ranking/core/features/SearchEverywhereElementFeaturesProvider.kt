@@ -42,7 +42,6 @@ abstract class SearchEverywhereElementFeaturesProvider(private val supportedProv
     internal val ML_SCORE_KEY = EventFields.Double("ml_score")
     internal val SIMILARITY_SCORE = EventFields.Double("similarity_score")
     internal val IS_SEMANTIC_ONLY = EventFields.Boolean("is_semantic_only")
-    internal val BUFFERED_TIMESTAMP = EventFields.Long("buffered_timestamp")
 
     internal val PREFIX_SAME_START_COUNT = EventFields.Int("prefix_same_start_count")
     internal val PREFIX_GREEDY_SCORE = EventFields.Double("prefix_greedy_score")
@@ -69,7 +68,7 @@ abstract class SearchEverywhereElementFeaturesProvider(private val supportedProv
 
     fun getDefaultFields(): List<EventField<*>> {
       return listOf(
-        NAME_LENGTH, ML_SCORE_KEY, SIMILARITY_SCORE, IS_SEMANTIC_ONLY, BUFFERED_TIMESTAMP,
+        NAME_LENGTH, ML_SCORE_KEY, SIMILARITY_SCORE, IS_SEMANTIC_ONLY,
         PREFIX_SAME_START_COUNT, PREFIX_GREEDY_SCORE, PREFIX_GREEDY_WITH_CASE_SCORE,
         PREFIX_MATCHED_WORDS_SCORE, PREFIX_MATCHED_WORDS_RELATIVE, PREFIX_MATCHED_WORDS_WITH_CASE_SCORE,
         PREFIX_MATCHED_WORDS_WITH_CASE_RELATIVE, PREFIX_SKIPPED_WORDS, PREFIX_MATCHING_TYPE, PREFIX_EXACT,
