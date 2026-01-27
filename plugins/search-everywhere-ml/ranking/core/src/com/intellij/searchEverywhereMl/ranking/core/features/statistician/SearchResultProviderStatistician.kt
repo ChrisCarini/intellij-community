@@ -32,6 +32,6 @@ internal fun getProviderStatistics(): SeItemsProviderStatistics {
  */
 internal data class SeItemsProviderStatistics(val contributorUsage: List<Pair<String, Int>>)
 
-internal class SeItemsProviderStatistician : Statistician<String, String>() {
+internal class SearchResultProviderStatistician : Statistician<String, String>() {
   override fun serialize(providerId: String, location: String) = StatisticsInfo(location, providerId)
 }

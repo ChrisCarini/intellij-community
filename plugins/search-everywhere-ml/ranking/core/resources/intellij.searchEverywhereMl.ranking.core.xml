@@ -40,7 +40,7 @@
                   implementationClass="com.intellij.searchEverywhereMl.ranking.core.features.statistician.SearchEverywhereSymbolStatistician"/>
 
     <statistician key="searchEverywhereContributor"
-                  implementationClass="com.intellij.searchEverywhereMl.ranking.core.features.statistician.SearchEverywhereContributorStatistician"/>
+                  implementationClass="com.intellij.searchEverywhereMl.ranking.core.features.statistician.SearchResultProviderStatistician"/>
 
     <statistics.validation.customValidationRule
       implementation="com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereRunConfigurationTypeValidator"/>
