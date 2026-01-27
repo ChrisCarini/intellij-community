@@ -93,6 +93,10 @@ class SeItemDataImpl internal constructor(
     return SeItemDataImpl(uuid, providerId, weight, presentation, uuidsToReplace, additionalInfo, itemRef)
   }
 
+  fun withWeight(weight: Int): SeItemDataImpl {
+    return SeItemDataImpl(uuid, providerId, weight, presentation, uuidsToReplace, additionalInfo, itemRef)
+  }
+
   fun contentEquals(other: Any?): Boolean {
     if (this === other) return true
     if (other !is SeItemDataImpl) return false
@@ -115,3 +119,6 @@ fun SeItemData.withUuidToReplace(uuidToReplace: List<String>): SeItemData = (thi
 
 @ApiStatus.Internal
 fun SeItemData.withPresentation(presentation: SeItemPresentation): SeItemData = (this as SeItemDataImpl).withPresentation(presentation)
+
+@ApiStatus.Internal
+fun SeItemData.withWeight(weight: Int): SeItemData = (this as SeItemDataImpl).withWeight(weight)
