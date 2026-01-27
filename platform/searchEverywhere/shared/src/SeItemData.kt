@@ -79,6 +79,8 @@ class SeItemDataImpl internal constructor(
 ): SeItemData {
   val isCommand: Boolean get() = additionalInfo[SeItemDataKeys.IS_COMMAND]?.toBoolean() == true
 
+  val isSemantic: Boolean get() = additionalInfo[SeItemDataKeys.IS_SEMANTIC]?.toBoolean() == true
+
   override fun fetchItemIfExists(): SeItem? {
     return itemRef.derefOrNull()?.findItemOrNull()
   }
@@ -101,6 +103,9 @@ class SeItemDataImpl internal constructor(
 
 @get:ApiStatus.Internal
 val SeItemData.isCommand: Boolean get() = (this as SeItemDataImpl).isCommand
+
+@get:ApiStatus.Internal
+val SeItemData.isSemantic: Boolean get() = (this as SeItemDataImpl).isSemantic
 
 @ApiStatus.Internal
 fun SeItemData.contentEquals(other: Any?): Boolean = (this as SeItemDataImpl).contentEquals(other)
