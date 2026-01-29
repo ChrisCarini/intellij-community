@@ -42,6 +42,8 @@ jvm_library(
     "//java/java-psi-api:psi",
     "//plugins/kotlin/code-insight/api",
     "//platform/lang-impl",
+    "//plugins/kotlin/code-insight/utils",
+    "//plugins/kotlin/base/psi",
   ]
 )
 
@@ -148,6 +150,7 @@ jvm_library(
     "@lib//:kotlinc-kotlin-compiler-tests",
     "//plugins/gradle/tooling-extension-impl:toolingExtension-tests",
     "//plugins/gradle/tooling-extension-impl:toolingExtension-tests_test_lib",
+    "//plugins/kotlin/base/compiler-configuration",
   ],
   runtime_deps = [":ide-plugin-shared-tests"]
 )
