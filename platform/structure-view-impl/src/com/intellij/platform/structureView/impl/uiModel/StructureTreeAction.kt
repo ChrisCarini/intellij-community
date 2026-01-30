@@ -64,8 +64,6 @@ class NodeProviderTreeActionDto(
   override val shortcutsIds: Array<ShortcutId>?,
   override val actionIdForShortcut: String?,
   override val checkboxText: @Nls String,
-  val nodesDto: List<StructureViewTreeElementDto>,
-  val nodesLoaded: Boolean,
 ) : CheckboxTreeActionDto
 
 @Serializable

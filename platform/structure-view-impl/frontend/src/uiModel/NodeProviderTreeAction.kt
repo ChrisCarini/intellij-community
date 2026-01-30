@@ -15,15 +15,13 @@ class NodeProviderTreeAction(
   override val shortcutsIds: Array<ShortcutId>?,
   override val actionIdForShortcut: String?,
   override val checkboxText: @Nls String,
-  nodes: List<StructureUiTreeElement>,
-  nodesLoaded: Boolean,
 ) : CheckboxTreeAction {
 
   @Volatile
-  private var myNodes: List<StructureUiTreeElement> = nodes
+  private var myNodes: List<StructureUiTreeElement> = emptyList()
 
   @Volatile
-  var nodesLoaded: Boolean = nodesLoaded
+  var nodesLoaded: Boolean = false
     private set
 
   val nodes: List<StructureUiTreeElement>

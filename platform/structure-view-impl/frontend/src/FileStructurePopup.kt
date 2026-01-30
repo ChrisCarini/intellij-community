@@ -625,7 +625,7 @@ class FileStructurePopup(
     checkBox.setOpaque(false)
     UIUtil.applyStyle(UIUtil.ComponentStyle.SMALL, checkBox)
 
-    val selected = action.isEnabledByDefault
+    val selected = myModel.isActionEnabled(action)
     checkBox.setSelected(selected)
     val isRevertedStructureFilter = action.isReverted
     checkBox.addActionListener {

@@ -83,27 +83,42 @@ class FilterTreeAction(
 
 
 fun StructureTreeActionDto.toImpl(): StructureTreeAction = when (this) {
-  is SorterTreeActionDto -> SorterTreeAction(actionType.fromDto(),
-                                             name,
-                                             isReverted,
-                                             presentationDto.toPresentation(),
-                                             isEnabledByDefault)
-  is DelegatingProviderTreeActionDto -> DelegatingProviderTreeAction(actionType.fromDto(),
-                                                                     name,
-                                                                     isReverted,
-                                                                     presentationDto.toPresentation(),
-                                                                     shortcutsIds,
-                                                                     actionIdForShortcut,
-                                                                     checkboxText,
-                                                                     isEnabledByDefault)
-  is FilterTreeActionDto -> FilterTreeAction(order,
-                                             actionType.fromDto(),
-                                             name,
-                                             presentationDto.toPresentation(),
-                                             isReverted,
-                                             isEnabledByDefault,
-                                             shortcutsIds,
-                                             actionIdForShortcut,
-                                             checkboxText)
-  is NodeProviderTreeActionDto -> error("Shouldn't be used with NodeProviderTreeActionDto")
+  is SorterTreeActionDto -> {
+    SorterTreeAction(actionType.fromDto(),
+                     name,
+                     isReverted,
+                     presentationDto.toPresentation(),
+                     isEnabledByDefault)
+  }
+  is DelegatingProviderTreeActionDto -> {
+    DelegatingProviderTreeAction(actionType.fromDto(),
+                                 name,
+                                 isReverted,
+                                 presentationDto.toPresentation(),
+                                 shortcutsIds,
+                                 actionIdForShortcut,
+                                 checkboxText,
+                                 isEnabledByDefault)
+  }
+  is FilterTreeActionDto -> {
+    FilterTreeAction(order,
+                     actionType.fromDto(),
+                     name,
+                     presentationDto.toPresentation(),
+                     isReverted,
+                     isEnabledByDefault,
+                     shortcutsIds,
+                     actionIdForShortcut,
+                     checkboxText)
+  }
+  is NodeProviderTreeActionDto -> {
+    NodeProviderTreeAction(actionType.fromDto(),
+                           name,
+                           presentationDto.toPresentation(),
+                           isReverted,
+                           isEnabledByDefault,
+                           shortcutsIds,
+                           actionIdForShortcut,
+                           checkboxText)
+  }
 }

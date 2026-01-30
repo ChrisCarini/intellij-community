@@ -24,6 +24,7 @@ import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.structureView.impl.dto.toDto
 import com.intellij.platform.structureView.impl.uiModel.DelegatingProviderTreeActionDto
 import com.intellij.platform.structureView.impl.uiModel.FilterTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeActionDto
 import com.intellij.platform.structureView.impl.uiModel.SorterTreeActionDto
 import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionDto
 
@@ -64,11 +65,12 @@ internal fun ItemPresentation.toDto(): PresentationDataDto {
   )
 }
 
-internal fun createAllActionsButNonDelegatedNodeProviderDtos(treeModel: StructureViewModel): List<StructureTreeActionDto> {
+internal fun createActionModels(treeModel: StructureViewModel): List<StructureTreeActionDto> {
   val sorterDtos = treeModel.sorters.toDto()
 
-  val weirdNodeProviders = getDelegatingNodeProviders(treeModel)?.mapNotNull { provider ->
-    if (provider !is FileStructureNodeProvider<*>) return@mapNotNull null
+  val nodeProviders = getNodeProviders(treeModel)
+
+  val nodeProviderDtos = nodeProviders?.map { provider ->
     val (actionIdForShortcut, shortcut) = if (provider is ActionShortcutProvider) {
       provider.actionIdForShortcut to emptyList()
     }
@@ -76,16 +78,30 @@ internal fun createAllActionsButNonDelegatedNodeProviderDtos(treeModel: Structur
       null to provider.shortcut.map { it.rpcId() }
     }
 
-    DelegatingProviderTreeActionDto(
-      StructureTreeActionDto.Type.FILTER,
-      provider.name,
-      false,
-      provider.presentation.toDto(),
-      shortcut.toTypedArray(),
-      actionIdForShortcut,
-      provider.checkBoxText,
-      getDefaultValue(provider),
-    )
+    if (provider is DelegatingNodeProvider<*>) {
+      DelegatingProviderTreeActionDto(
+        StructureTreeActionDto.Type.FILTER,
+        provider.name,
+        false,
+        provider.presentation.toDto(),
+        shortcut.toTypedArray(),
+        actionIdForShortcut,
+        provider.checkBoxText,
+        getDefaultValue(provider),
+      )
+    }
+    else {
+      NodeProviderTreeActionDto(
+        StructureTreeActionDto.Type.FILTER,
+        provider.name,
+        provider.presentation.toDto(),
+        false,
+        getDefaultValue(provider),
+        shortcut.toTypedArray(),
+        actionIdForShortcut,
+        provider.checkBoxText,
+      )
+    }
   } ?: emptyList()
 
   //todo for not a popup these don't have to implement FileStructureFilter
@@ -110,17 +126,11 @@ internal fun createAllActionsButNonDelegatedNodeProviderDtos(treeModel: Structur
     )
   }
 
-  return sorterDtos + weirdNodeProviders + filterDtos
+  return sorterDtos + nodeProviderDtos + filterDtos
 }
 
 internal fun getNodeProviders(treeModel: TreeModel): List<FileStructureNodeProvider<*>>? {
   return (treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<FileStructureNodeProvider<*>>()
-    ?.filter { it !is DelegatingNodeProvider<*> }
-}
-
-
-private fun getDelegatingNodeProviders(treeModel: TreeModel): List<DelegatingNodeProvider<*>>? {
-  return (treeModel as? ProvidingTreeModel)?.nodeProviders?.filterIsInstance<DelegatingNodeProvider<*>>()
 }
 
 private fun Array<Sorter>.toDto(): List<StructureTreeActionDto> {

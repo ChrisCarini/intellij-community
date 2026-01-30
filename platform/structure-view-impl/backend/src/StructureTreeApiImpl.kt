@@ -2,7 +2,6 @@
 package com.intellij.platform.structureView.backend
 
 import com.intellij.ide.actions.ViewStructureAction
-import com.intellij.ide.rpc.rpcId
 import com.intellij.ide.structureView.StructureViewModel
 import com.intellij.ide.structureView.StructureViewModel.ElementInfoProvider
 import com.intellij.ide.structureView.StructureViewModel.ExpandInfoProvider
@@ -11,7 +10,6 @@ import com.intellij.ide.structureView.TreeBasedStructureViewBuilder
 import com.intellij.ide.structureView.logical.PhysicalAndLogicalStructureViewBuilder
 import com.intellij.ide.structureView.newStructureView.*
 import com.intellij.ide.util.*
-import com.intellij.ide.util.FileStructurePopup.getDefaultValue
 import com.intellij.ide.util.FileStructurePopup.saveState
 import com.intellij.ide.util.treeView.smartTree.*
 import com.intellij.ide.vfs.VirtualFileId
@@ -47,8 +45,6 @@ import com.intellij.ide.rpc.fileEditor
 import com.intellij.lang.LangBundle
 import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.diagnostic.rethrowControlFlowException
-import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeActionDto
-import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionDto
 import com.intellij.psi.PsiElement
 import com.intellij.ui.PlaceHolder
 import com.intellij.ui.tree.StructureTreeModel
@@ -195,7 +191,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
         entry.wrapper.rebuildTree()
 
         val rootModel = createRootModel(wrapper.rootElement as TreeElementWrapper, treeModel as? ExpandInfoProvider, getElementInfoProvider(treeModel))
-        val actions = createAllActionsButNonDelegatedNodeProviderDtos(treeModel)
+        val actions = createActionModels(treeModel)
 
         rootModel to actions
       }.asDeferred().await()
@@ -345,7 +341,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
   private data class ComputeNodesResult(
     val editorSelectionId: Int?,
     val nodes: List<StructureViewTreeElementDto>,
-    val nodeProviders: List<NodeProviderTreeActionDto>,
+    val nodeProviders: List<NodeProviderNodesDto>,
     val deferredProviderNodes: Deferred<DeferredNodesDto>,
   )
 
@@ -359,7 +355,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     val mainNodes = mutableListOf<StructureViewTreeElementDto>()
     //todo for not a popup these don't have to implement FileStructureNodeProvider
-    val nodeProvidersMap = getNodeProviders(entry.treeModel)?.associate { it to mutableListOf<StructureViewTreeElementDto>() }
+    val nodeProvidersMap = getNodeProviders(entry.treeModel)?.associate { it to mutableListOf<StructureViewTreeElementDto>() } ?: emptyMap()
     val expandInfoProvider = entry.treeModel as? ExpandInfoProvider
     val elementInfoProvider = getElementInfoProvider(entry.treeModel)
 
@@ -367,7 +363,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     val filters = entry.treeModel.filters.filterIsInstance<FileStructureFilter>()
 
     logger.debug {
-      val nodeProvidersCount = nodeProvidersMap?.size ?: 0
+      val nodeProvidersCount = nodeProvidersMap.size
       val filtersCount = filters.size
       "computeNodes: Setup - nodeProviders: $nodeProvidersCount, filters: $filtersCount, " +
       "expandInfoProvider: ${expandInfoProvider != null}, elementInfoProvider: ${elementInfoProvider != null}"
@@ -394,37 +390,22 @@ internal class StructureTreeApiImpl : StructureTreeApi {
 
     val selectedValue = processStateToGetSelectedValue(state, entry, currentEditorElement)
 
-    val nodeProviders = nodeProvidersMap?.entries?.map { (provider, nodes) ->
-      val (actionIdForShortcut, shortcut) = if (provider is ActionShortcutProvider) {
-        provider.actionIdForShortcut to emptyList()
-      }
-      else {
-        null to provider.shortcut.map { it.rpcId() }
-      }
-
+    val nodeProviders = nodeProvidersMap.entries.map { (provider, nodes) ->
       val nodesLoaded = entry.backendActionOwner.isActionActive(provider)
 
       logger.info("Node provider ${provider.name} has nodes loaded: $nodesLoaded")
 
-      NodeProviderTreeActionDto(
-        StructureTreeActionDto.Type.FILTER,
+      NodeProviderNodesDto(
         provider.name,
-        provider.presentation.toDto(),
-        false,
-        getDefaultValue(provider),
-        shortcut.toTypedArray(),
-        actionIdForShortcut,
-        provider.checkBoxText,
         nodes,
-        nodesLoaded,
       )
-    } ?: emptyList()
+    }
 
     val selection = entry.nodeToId[selectedValue]
 
     val deferredNodeProviders = CompletableFuture<DeferredNodesDto>()
 
-    if (nodeProviders.any { !it.nodesLoaded }) {
+    if (nodeProvidersMap.keys.any { !entry.backendActionOwner.isActionActive(it) }) {
       entry.structureTreeModel.invoker.invokeLater {
         val entry = structureViews[entryId] ?: return@invokeLater
         // Check if any providers don't have their nodes loaded yet
@@ -491,8 +472,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     require(entry.structureTreeModel.invoker.isValidThread)
 
     //all node providers are enabled anyway
-    val providerNodesMap =
-      getNodeProviders(entry.treeModel)?.nullize()?.associateWith { mutableListOf<StructureViewTreeElementDto>() } ?: return null
+    val providerNodesMap = getNodeProviders(entry.treeModel)?.associateWith { mutableListOf<StructureViewTreeElementDto>() } ?: return null
     val expandInfoProvider = entry.treeModel as? ExpandInfoProvider
     val elementInfoProvider = getElementInfoProvider(entry.treeModel)
     val filters = entry.treeModel.filters.filterIsInstance<FileStructureFilter>()
