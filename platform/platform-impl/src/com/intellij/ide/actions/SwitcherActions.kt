@@ -11,6 +11,7 @@ import com.intellij.openapi.actionSystem.CustomShortcutSet
 import com.intellij.openapi.actionSystem.remoting.ActionRemoteBehaviorSpecification
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.DumbAwareToggleAction
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.util.BitUtil.isSet
 import com.intellij.util.ui.accessibility.ScreenReader
 import org.jetbrains.annotations.ApiStatus
@@ -33,7 +34,7 @@ internal class ShowSwitcherBackwardAction : BaseSwitcherAction(false)
 @ApiStatus.Internal
 abstract class BaseSwitcherAction(val forward: Boolean?) : DumbAwareAction() {
   init {
-    templatePresentation.isRWLockRequired = false
+    templatePresentation.isRWLockRequired = shouldUseFallbackSwitcher()
   }
 
   private fun isControlTab(event: KeyEvent?) = event?.run { isControlDown && keyCode == KeyEvent.VK_TAB } ?: false
@@ -69,7 +70,7 @@ internal class ShowRecentFilesAction : LightEditCompatible, BaseRecentFilesActio
 internal class ShowRecentlyEditedFilesAction : BaseRecentFilesAction(true)
 internal abstract class BaseRecentFilesAction(private val onlyEditedFiles: Boolean) : DumbAwareAction() {
   init {
-    templatePresentation.isRWLockRequired = false
+    templatePresentation.isRWLockRequired = shouldUseFallbackSwitcher()
   }
 
   override fun update(event: AnActionEvent) {
@@ -95,7 +96,7 @@ internal abstract class BaseRecentFilesAction(private val onlyEditedFiles: Boole
 
 internal class SwitcherIterateThroughItemsAction : DumbAwareAction() {
   init {
-    templatePresentation.isRWLockRequired = false
+    templatePresentation.isRWLockRequired = shouldUseFallbackSwitcher()
   }
 
   override fun update(event: AnActionEvent) {
@@ -119,7 +120,7 @@ internal class SwitcherIterateThroughItemsAction : DumbAwareAction() {
 
 internal class SwitcherToggleOnlyEditedFilesAction : DumbAwareToggleAction(), ActionRemoteBehaviorSpecification.Frontend {
   init {
-    templatePresentation.isRWLockRequired = false
+    templatePresentation.isRWLockRequired = shouldUseFallbackSwitcher()
   }
 
   private fun getCheckBox(event: AnActionEvent) =
@@ -149,7 +150,7 @@ internal class SwitcherNextProblemAction : SwitcherProblemAction(true)
 internal class SwitcherPreviousProblemAction : SwitcherProblemAction(false)
 internal abstract class SwitcherProblemAction(val forward: Boolean) : DumbAwareAction() {
   init {
-    templatePresentation.isRWLockRequired = false
+    templatePresentation.isRWLockRequired = shouldUseFallbackSwitcher()
   }
 
   private fun getFileList(event: AnActionEvent) =

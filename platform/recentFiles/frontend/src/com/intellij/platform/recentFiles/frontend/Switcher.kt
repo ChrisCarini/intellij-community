@@ -384,11 +384,13 @@ object Switcher : BaseSwitcherAction(null), ActionRemoteBehaviorSpecification.Fr
       }
       uiUpdateScope.launch(CoroutineName("Switcher hint popup updater")) {
         selectedValueFlow.collectLatest { selectedValue ->
-          withContext(Dispatchers.EDT) { // can't use UI because updatePopup needs a WIRA
+          withContext(Dispatchers.UI) {
             val hint = hint
             val popupUpdater = if (hint == null || !hint.isVisible) null else hint.getUserData(PopupUpdateProcessorBase::class.java)
             if (selectedValue != null && popupUpdater != null) {
-              popupUpdater.updatePopup(CommonDataKeys.PSI_ELEMENT.getData(DataManager.getInstance().getDataContext(this@SwitcherPanel)))
+              withContext(Dispatchers.EDT) {
+                popupUpdater.updatePopup(CommonDataKeys.PSI_ELEMENT.getData(DataManager.getInstance().getDataContext(this@SwitcherPanel)))
+              }
             }
           }
         }
@@ -468,7 +470,7 @@ object Switcher : BaseSwitcherAction(null), ActionRemoteBehaviorSpecification.Fr
       }
 
       if (alreadyReleasedKeys?.isNotEmpty() == true) {
-        uiUpdateScope.launch(Dispatchers.UI) { // using EDT because some navigate() stuff inside may need the WIL
+        uiUpdateScope.launch(Dispatchers.UI) {
           for (event in alreadyReleasedKeys) {
             onKeyRelease.keyReleased(event)
           }
