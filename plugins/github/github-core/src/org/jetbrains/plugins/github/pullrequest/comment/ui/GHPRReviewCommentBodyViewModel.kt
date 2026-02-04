@@ -64,7 +64,7 @@ class GHPRReviewCommentBodyViewModel internal constructor(
   private val taskLauncher = SingleCoroutineLauncher(cs)
 
   val htmlImageLoader: AsyncHtmlImageLoader = dataContext.htmlImageLoader
-  private val server: GithubServerPath = dataContext.repositoryDataService.repositoryMapping.repository.serverPath
+  val server: GithubServerPath = dataContext.repositoryDataService.repositoryMapping.repository.serverPath
   private val repository: GitRepository = dataContext.repositoryDataService.remoteCoordinates.repository
 
   private val vm by lazy { project.service<GHPRProjectViewModel>() }
@@ -109,14 +109,14 @@ class GHPRReviewCommentBodyViewModel internal constructor(
     val markdownConverter = GHMarkdownToHtmlConverter(project)
     val suggestions = body.getSuggestions()
     if (suggestions.isEmpty()) {
-      val html = markdownConverter.convertMarkdown(body)
+      val html = markdownConverter.convertMarkdown(body, server)
       return@combineStateIn listOf(GHPRCommentBodyBlock.HTML(html))
     }
     else {
       val patchReader = PatchReader(PatchHunkUtil.createPatchFromHunk("_", thread.diffHunk))
       val hunk = patchReader.readTextPatches().firstOrNull()?.hunks?.firstOrNull() ?: run {
         LOG.warn("Empty diff hunk for thread $thread")
-        val html = markdownConverter.convertMarkdown(body)
+        val html = markdownConverter.convertMarkdown(body, server)
         return@combineStateIn listOf(GHPRCommentBodyBlock.HTML(html))
       }
       val code = hunk.lines
@@ -124,7 +124,7 @@ class GHPRReviewCommentBodyViewModel internal constructor(
         .takeLast(thread.codeLinesCount)
         .joinToString(separator = "\n") { it.text }
 
-      val htmlBody = markdownConverter.convertMarkdownWithSuggestedChange(body, thread.filePath, code)
+      val htmlBody = markdownConverter.convertMarkdownWithSuggestedChange(body, thread.filePath, code, server)
       val content = htmlBody.removePrefix("<body>").removeSuffix("</body>")
       val blocks = GHPRReviewCommentBodyComponentFactory.collectCommentBlocks(content)
       var suggestionIdx = 0

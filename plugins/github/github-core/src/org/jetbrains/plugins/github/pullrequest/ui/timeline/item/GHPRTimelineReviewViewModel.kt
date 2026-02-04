@@ -76,7 +76,7 @@ internal class UpdateableGHPRTimelineReviewViewModel internal constructor(
     reviewData.createThreadsVmsFlow().stateIn(cs, SharingStarted.Eagerly, ComputedResult.loading())
 
   override val bodyHtml: StateFlow<String> = dataState.map {
-    it.body.convertToHtml(project)
+    it.body.convertToHtml(project, dataContext.repositoryDataService.repositoryMapping.repository.serverPath)
   }.stateIn(cs, SharingStarted.Eagerly, "")
 
   override val isBusy: StateFlow<Boolean> = taskLauncher.busy

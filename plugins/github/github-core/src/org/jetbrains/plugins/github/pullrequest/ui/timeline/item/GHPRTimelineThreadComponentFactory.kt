@@ -181,7 +181,7 @@ internal object GHPRTimelineThreadComponentFactory {
     val textPane = SimpleHtmlPane(addBrowserListener = false).apply {
       addGithubHyperlinkListener(vm.bodyVm::openPullRequestInfoAndTimeline)
       foreground = UIUtil.getContextHelpForeground()
-      bindTextIn(cs, vm.bodyVm.body.mapState { it.convertToHtml(project) })
+      bindTextIn(cs, vm.bodyVm.body.mapState { it.convertToHtml(project, vm.bodyVm.server) })
     }.let { pane ->
       CollaborationToolsUIUtil
         .wrapWithLimitedSize(pane, DimensionRestrictions.LinesHeight(pane, 2, CodeReviewChatItemUIUtil.TEXT_CONTENT_WIDTH))
