@@ -22,6 +22,9 @@ jvm_library(
   kotlinc_opts = ":custom_bundles",
   deps = [
     "@lib//:kotlin-stdlib",
+    "//fleet/build/codecache",
+    "//fleet/build/sign",
+    "//fleet/codecache",
     "//fleet/build/fs",
     "//fleet/bundles",
     "@lib//:kotlinx-coroutines-core",

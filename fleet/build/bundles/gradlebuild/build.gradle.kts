@@ -60,6 +60,9 @@ kotlin {
     implementation(jps.org.jetbrains.kotlinx.kotlinx.serialization.json.jvm231489733.get().let { "${it.group}:kotlinx-serialization-json:${it.version}" }) {
       isTransitive = false
     }
+    implementation(project(":fleet.build.codecache"))
+    implementation(project(":fleet.build.sign"))
+    implementation(project(":fleet.codecache"))
     implementation(project(":fleet.build.fs"))
     implementation(project(":fleet.bundles"))
   }
