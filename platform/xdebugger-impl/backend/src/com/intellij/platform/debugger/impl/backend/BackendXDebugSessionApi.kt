@@ -485,7 +485,7 @@ private fun XStackFrame.canDrop(session: XDebugSessionImpl): ThreeState {
 
 internal fun XStackFrame.computeTextPresentation(): XStackFramePresentation {
   val parts = mutableListOf<XStackFramePresentationFragment>()
-  customizeTextPresentation { fragment, attributes -> parts += XStackFramePresentationFragment(fragment, attributes.toRpc()) }
+  customizeTextPresentation { fragment, attributes -> parts += XStackFramePresentationFragment(fragment, attributes.rpcId()) }
   return XStackFramePresentation(parts, null, null)
 }
 

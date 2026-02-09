@@ -4,6 +4,7 @@ package com.intellij.java.debugger.impl.shared.actions
 import com.intellij.execution.filters.Filter
 import com.intellij.frontend.FrontendApplicationInfo
 import com.intellij.frontend.FrontendType
+import com.intellij.ide.ui.colors.attributes
 import com.intellij.ide.ui.icons.icon
 import com.intellij.java.debugger.impl.shared.SharedDebuggerUtils
 import com.intellij.java.debugger.impl.shared.SharedJavaDebuggerSession
@@ -18,7 +19,6 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.registry.Registry
-import com.intellij.platform.debugger.impl.rpc.toSimpleTextAttributes
 import com.intellij.platform.debugger.impl.shared.SplitDebuggerAction
 import com.intellij.platform.debugger.impl.shared.proxy.XDebugSessionProxy
 import com.intellij.ui.SimpleTextAttributes
@@ -102,7 +102,7 @@ private fun threadDumpData(dto: JavaThreadDumpDto): ThreadDumpData {
 
 private fun ThreadDumpWithAwaitingDependencies.toDumpItems(): List<DumpItem> {
   val iconsCache = icons.map { it.icon() }
-  val attributesCache = attributes.map { it.toSimpleTextAttributes() }
+  val attributesCache = attributes.map { it.attributes() }
 
   val feDumpItems = items.map { FrontendDumpItem(it, iconsCache, attributesCache, stackTraces, stateDescriptions, iconToolTips) }
   for ((index, awaitingIndices) in awaitingDependencies) {

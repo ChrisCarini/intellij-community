@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.debugger.impl.backend
 
+import com.intellij.ide.ui.colors.rpcId
 import com.intellij.ide.ui.icons.rpcId
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.util.NlsContexts
@@ -65,7 +66,7 @@ internal class BackendXExecutionStackApi : XExecutionStackApi {
               frame.customizePresentation().collectLatest { presentation ->
                 val fragments = buildList {
                   presentation.fragments.forEach { (text, attributes) ->
-                    add(XStackFramePresentationFragment(text, attributes.toRpc()))
+                    add(XStackFramePresentationFragment(text, attributes.rpcId()))
                   }
                 }
                 val newPresentation = XStackFramePresentation(fragments, presentation.icon?.rpcId(), presentation.tooltipText)
