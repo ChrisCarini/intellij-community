@@ -7,7 +7,12 @@ import com.intellij.ide.util.treeView.smartTree.ActionPresentation
 import com.intellij.openapi.actionSystem.Shortcut
 import com.intellij.platform.structureView.frontend.uiModel.StructureTreeAction.Companion.fromDto
 import com.intellij.platform.structureView.impl.dto.toPresentation
-import com.intellij.platform.structureView.impl.uiModel.*
+import com.intellij.platform.structureView.impl.uiModel.DelegatingProviderTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.FilterTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.NodeProviderTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.SorterTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.StructureTreeActionDto
+import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.Nls
 import org.jetbrains.annotations.NonNls

@@ -18,8 +18,6 @@ interface StructurePopup: TreeActionsOwner, Disposable {
 
 @ApiStatus.Internal
 interface StructurePopupProvider {
-  fun createPopup(project: Project, fileEditor: FileEditor): StructurePopup?
-
   /**
    * callbackAfterNavigation doesn't work in the new file structure popup
    */

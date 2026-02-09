@@ -15,7 +15,9 @@ import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiTreeElementImpl.Companion.toUiElement
 import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.ide.rpc.rpcId
+import com.intellij.openapi.diagnostic.rethrowControlFlowException
 import com.intellij.platform.structureView.impl.dto.NodeProviderNodesDto
+import com.intellij.platform.structureView.impl.dto.StructureViewDtoId
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.util.containers.ContainerUtil
 import kotlinx.coroutines.Dispatchers
@@ -25,21 +27,26 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
+import org.jetbrains.annotations.TestOnly
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicInteger
 
 @ApiStatus.Internal
-class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: Project) : StructureUiModel {
+internal class StructureUiModelImpl : StructureUiModel {
   override var dto: StructureViewModelDto? = null
   internal val myUpdatePendingFlow: MutableStateFlow<Boolean> = MutableStateFlow(true)
 
   private val myModelListeners = ContainerUtil.createLockFreeCopyOnWriteList<StructureUiModelListener>()
 
-  internal val dtoId = nextId.getAndIncrement()
+  @Volatile
+  private var dtoId: StructureViewDtoId? = null
+
+  @Volatile
+  private var isDisposed = false
 
   override val rootElement: StructureUiTreeElementWrapper = StructureUiTreeElementWrapper()
 
-  private val cs = StructureViewScopeHolder.getInstance().cs.childScope("scope for ${file.name} structure view with id: $dtoId")
+  private val cs: kotlinx.coroutines.CoroutineScope
 
   private val myEnabledActionNames = CopyOnWriteArrayList<String>()
 
@@ -51,9 +58,14 @@ class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: P
   @Volatile
   private var rebuildTreeOnDeferredNodes: Boolean = false
 
-  init {
-    cs.launch {
-      val model = StructureTreeApi.getInstance().getStructureViewModel(fileEditor.rpcId(), file.rpcId(), project.projectId(), dtoId)
+  /**
+   * Constructor that fetches DTO via RPC (for monolith mode or when called from frontend).
+   */
+  constructor(fileEditor: FileEditor, file: VirtualFile, project: Project) {
+    cs = StructureViewScopeHolder.getInstance().cs.childScope("scope for ${file.name} structure view")
+
+    StructureViewScopeHolder.getInstance().cs.launch {
+      val model = StructureTreeApi.getInstance().getStructureViewModel(fileEditor.rpcId(), file.rpcId(), project.projectId())
 
       if (model == null) {
         logger.warn("No structure view model for $file")
@@ -63,65 +75,91 @@ class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: P
         }
         return@launch
       }
-      dto = model
 
-      // Convert DTOs to impl classes
-      myActions = model.actions.map { it.toImpl() }
+      dtoId = model.id
+      if (isDisposed) {
+        StructureTreeApi.getInstance().structureViewModelDisposed(model.id)
+        return@launch
+      }
 
-      myEnabledActionNames.addAll(myActions.filter {
-        if (it is FilterTreeAction) {
-          it.isReverted != it.isEnabledByDefault
-        }
-        else {
-          it.isEnabledByDefault
-        }
-      }.map { it.name })
+      cs.launch {
+        initializeWithModel(model)
+      }
+    }
+  }
 
-      model.nodes.toFlow().collect { nodesUpdate ->
-        if (nodesUpdate == null) {
-          return@collect
-        }
+  /**
+   * Constructor that accepts a pre-created DTO (for split mode when model is sent via topic).
+   */
+  constructor(model: StructureViewModelDto, fileName: String) {
+    dtoId = model.id
+    cs = StructureViewScopeHolder.getInstance().cs.childScope("scope for $fileName structure view with id: $dtoId")
 
-        applyNodesModel(model.rootNode,
-                        nodesUpdate.nodeProviders,
-                        nodesUpdate.nodes,
-                        nodesUpdate.editorSelectionId)
+    cs.launch {
+      initializeWithModel(model)
+    }
+  }
 
+  private suspend fun initializeWithModel(model: StructureViewModelDto) {
+    dto = model
+
+    // Convert DTOs to impl classes
+    myActions = model.actions.map { it.toImpl() }
+
+    myEnabledActionNames.addAll(myActions.filter {
+      if (it is FilterTreeAction) {
+        it.isReverted != it.isEnabledByDefault
+      }
+      else {
+        it.isEnabledByDefault
+      }
+    }.map { it.name })
+
+    model.nodes.toFlow().collect { nodesUpdate ->
+      if (nodesUpdate == null) {
+        return@collect
+      }
+
+      applyNodesModel(model.rootNode,
+                      nodesUpdate.nodeProviders,
+                      nodesUpdate.nodes,
+                      nodesUpdate.editorSelectionId)
+
+      withContext(Dispatchers.UI) {
+        myModelListeners.forEach { it.onActionsChanged() }
+        myModelListeners.forEach { it.onTreeChanged() }
+        myUpdatePendingFlow.value = false
+      }
+
+      val deferredNodes = try {
+        nodesUpdate.deferredProviderNodes.await()
+      }
+      catch (e: Throwable) {
+        rebuildTreeOnDeferredNodes = false
         withContext(Dispatchers.UI) {
-          myModelListeners.forEach { it.onActionsChanged() }
-          myModelListeners.forEach { it.onTreeChanged() }
           myUpdatePendingFlow.value = false
         }
+        rethrowControlFlowException(e)
+        logger.error("Error computing provider nodes", e)
+        return@collect
+      }
 
-        val deferredNodes = try {
-          nodesUpdate.deferredProviderNodes.await()
-        }
-        catch (e: Throwable) {
-          logger.error("Error computing provider nodes", e)
-          rebuildTreeOnDeferredNodes = false
-          withContext(Dispatchers.UI) {
-            myUpdatePendingFlow.value = false
-          }
-          return@collect
-        }
+      if (deferredNodes != null) {
+        applyNodesModel(model.rootNode,
+                        deferredNodes.nodeProviders,
+                        deferredNodes.nodes,
+                        nodesUpdate.editorSelectionId)
+      }
 
-        if (deferredNodes != null) {
-          applyNodesModel(model.rootNode,
-                          deferredNodes.nodeProviders,
-                          deferredNodes.nodes,
-                          nodesUpdate.editorSelectionId)
+      // If an incomplete node provider was enabled while waiting for deferred nodes, rebuild tree now
+      if (rebuildTreeOnDeferredNodes) {
+        if (deferredNodes == null || deferredNodes.nodeProviders.isEmpty()) {
+          logger.error("Deferred provider nodes list is empty, but rebuildTreeOnDeferredNodes is true")
         }
-
-        // If an incomplete node provider was enabled while waiting for deferred nodes, rebuild tree now
-        if (rebuildTreeOnDeferredNodes) {
-          if (deferredNodes == null || deferredNodes.nodeProviders.isEmpty()) {
-            logger.error("Deferred provider nodes list is empty, but rebuildTreeOnDeferredNodes is true")
-          }
-          rebuildTreeOnDeferredNodes = false
-          withContext(Dispatchers.UI) {
-            myModelListeners.forEach { it.onTreeChanged() }
-            myUpdatePendingFlow.value = false
-          }
+        rebuildTreeOnDeferredNodes = false
+        withContext(Dispatchers.UI) {
+          myModelListeners.forEach { it.onTreeChanged() }
+          myUpdatePendingFlow.value = false
         }
       }
     }
@@ -162,9 +200,12 @@ class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: P
     }
 
     cs.launch {
-      StructureTreeApi.getInstance().setTreeActionState(dtoId, action.name, isEnabled, isAutoClicked)
+      val id = getModelId()
+      StructureTreeApi.getInstance().setTreeActionState(id, action.name, isEnabled, isAutoClicked)
     }
   }
+
+  private fun getModelId(): StructureViewDtoId = dtoId ?: error("No model id set")
 
   private fun applyNodesModel(
     rootDto: StructureViewTreeElementDto,
@@ -210,6 +251,35 @@ class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: P
 
   override fun getActions(): Collection<StructureTreeAction> = myActions
 
+  override fun navigateTo(element: StructureUiTreeElement?): CompletableFuture<Boolean> {
+    val deferred = CompletableFuture<Boolean>()
+
+    if (element == null) {
+      deferred.complete(false)
+      return deferred
+    }
+
+    val elementId = element.id
+    val modelId = getModelId()
+
+    cs.launch {
+      val succeeded = StructureTreeApi.getInstance().navigateToElement(modelId, elementId)
+      if (succeeded) {
+        deferred.complete(true)
+      }
+      else {
+        deferred.complete(false)
+      }
+    }
+
+    return deferred
+  }
+
+  @TestOnly
+  override suspend fun getNewSelection(): Int? {
+    return StructureTreeApi.getInstance().getNewSelection(getModelId())
+  }
+
   override fun getUpdatePendingFlow(): StateFlow<Boolean> = myUpdatePendingFlow
 
   override fun addListener(listener: StructureUiModelListener) {
@@ -217,10 +287,15 @@ class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: P
   }
 
   override fun dispose() {
+    isDisposed = true
+    val id = dtoId
     cs.cancel()
     myModelListeners.clear()
+
+    //the model will be disposed on receival
+    if (id == null) return
     StructureViewScopeHolder.getInstance().cs.launch {
-      StructureTreeApi.getInstance().structureViewModelDisposed(dtoId)
+      StructureTreeApi.getInstance().structureViewModelDisposed(id)
     }
   }
 
@@ -247,7 +322,6 @@ class StructureUiModelImpl(fileEditor: FileEditor, file: VirtualFile, project: P
   }
 
   companion object {
-    private var nextId = AtomicInteger()
     private val logger = logger<StructureUiModelImpl>()
   }
 }

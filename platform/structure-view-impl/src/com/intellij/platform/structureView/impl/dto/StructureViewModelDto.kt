@@ -10,7 +10,14 @@ import org.jetbrains.annotations.ApiStatus
 
 @ApiStatus.Internal
 @Serializable
+data class StructureViewDtoId(
+  val id: Int
+)
+
+@ApiStatus.Internal
+@Serializable
 data class StructureViewModelDto(
+  val id: StructureViewDtoId,
   val rootNode: StructureViewTreeElementDto,
   val nodes: RpcFlow<TreeNodesDto?>,
   val smartExpand: Boolean,

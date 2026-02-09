@@ -88,7 +88,7 @@ class FileStructureTestFixture(private val myFixture: CodeInsightTestFixture) : 
 
     companion object {
         fun update(popup: StructurePopupTestExt?, doRebuild: Boolean = true) {
-            if (popup is com.intellij.ide.util.FileStructurePopup) {
+            if (doRebuild && popup is com.intellij.ide.util.FileStructurePopup) {
                 PlatformTestUtil.waitForPromise(popup.rebuildAndUpdate())
             } else if (popup is com.intellij.platform.structureView.frontend.FileStructurePopup) {
               val cs = StructureViewScopeHolder.getInstance().cs.childScope("test scope")

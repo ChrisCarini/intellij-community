@@ -10,7 +10,7 @@ import com.intellij.openapi.vcs.FileStatus
 import com.intellij.platform.structureView.frontend.uiModel.FilterTreeAction
 import com.intellij.platform.structureView.frontend.uiModel.NodeProviderTreeAction
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
-import com.intellij.platform.structureView.impl.uiModel.*
+import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import org.jetbrains.annotations.Unmodifiable
 
 class StructureViewTreeElement(project: Project, nodeModel: StructureUiTreeElement, val viewModel: StructureUiModel): AbstractTreeNode<StructureUiTreeElement>(project, nodeModel) {

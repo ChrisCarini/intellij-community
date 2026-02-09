@@ -6,10 +6,10 @@ import com.intellij.ide.structureView.StructureViewBuilder;
 import com.intellij.ide.structureView.StructureViewModel;
 import com.intellij.ide.structureView.TreeBasedStructureViewBuilder;
 import com.intellij.ide.structureView.logical.PhysicalAndLogicalStructureViewBuilder;
-import com.intellij.ide.structureView.newStructureView.StructurePopup;
 import com.intellij.ide.structureView.newStructureView.StructurePopupProvider;
 import com.intellij.ide.util.treeView.AbstractTreeNode;
 import com.intellij.ide.util.treeView.smartTree.TreeStructureUtil;
+import com.intellij.idea.AppMode;
 import com.intellij.openapi.editor.ex.util.EditorUtil;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.project.Project;
@@ -26,15 +26,10 @@ import static com.intellij.ide.actions.ViewStructureAction.createStructureViewMo
 
 class OldStructurePopupProviderImpl implements StructurePopupProvider {
   @Override
-  public @Nullable StructurePopup createPopup(@NotNull Project project, @NotNull FileEditor fileEditor) {
-    return createPopup(project, fileEditor, null);
-  }
-
-  @Override
   public @Nullable FileStructurePopup createPopup(@NotNull Project project,
                                                   @NotNull FileEditor fileEditor,
                                                   @Nullable Consumer<AbstractTreeNode<?>> callbackAfterNavigation) {
-    if (Registry.is("frontend.structure.popup")) return null;
+    if (!AppMode.isRemoteDevHost() && Registry.is("frontend.structure.popup")) return null;
     PsiDocumentManager.getInstance(project).commitAllDocuments();
     StructureViewBuilder builder = fileEditor.getStructureViewBuilder();
     if (builder == null) return null;

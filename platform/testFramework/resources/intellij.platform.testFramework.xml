@@ -4,7 +4,6 @@
     <module name="intellij.libraries.junit5.launcher"/>
     <module name="intellij.platform.testFramework.impl"/>
     <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
-    <module name="intellij.platform.structureView.frontend"/>
     <module name="intellij.platform.testFramework.common"/>
     <module name="intellij.platform.testFramework.core"/>
     <!-- endregion -->

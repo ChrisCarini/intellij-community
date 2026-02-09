@@ -5,6 +5,8 @@ import com.intellij.openapi.Disposable
 import com.intellij.platform.structureView.impl.dto.StructureViewModelDto
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import kotlinx.coroutines.flow.StateFlow
+import org.jetbrains.annotations.TestOnly
+import java.util.concurrent.CompletableFuture
 
 interface StructureUiModel: Disposable {
   val dto: StructureViewModelDto?
@@ -18,6 +20,11 @@ interface StructureUiModel: Disposable {
   fun setActionEnabled(action: StructureTreeAction, isEnabled: Boolean, isAutoClicked: Boolean)
 
   fun getActions(): Collection<StructureTreeAction>
+
+  fun navigateTo(element: StructureUiTreeElement?): CompletableFuture<Boolean>
+
+  @TestOnly
+  suspend fun getNewSelection(): Int?
 
   fun getUpdatePendingFlow(): StateFlow<Boolean>
 

@@ -4,7 +4,10 @@ package com.intellij.platform.structureView.frontend
 import com.intellij.CommonBundle
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.icons.AllIcons
-import com.intellij.ide.*
+import com.intellij.ide.DataManager
+import com.intellij.ide.DefaultTreeExpander
+import com.intellij.ide.IdeBundle
+import com.intellij.ide.TreeExpander
 import com.intellij.ide.dnd.aware.DnDAwareTree
 import com.intellij.ide.structureView.newStructureView.StructurePopup
 import com.intellij.ide.structureView.newStructureView.StructurePopupTestExt
@@ -18,7 +21,22 @@ import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.ide.util.treeView.NodeRenderer
 import com.intellij.lang.LangBundle
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.CustomShortcutSet
+import com.intellij.openapi.actionSystem.DataSink
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.IdeActions
+import com.intellij.openapi.actionSystem.LangDataKeys
+import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.actionSystem.Shortcut
+import com.intellij.openapi.actionSystem.ToggleAction
+import com.intellij.openapi.actionSystem.UiDataProvider
 import com.intellij.openapi.actionSystem.UiDataProvider.Companion.wrapComponent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
@@ -33,7 +51,6 @@ import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.keymap.KeymapUtil
 import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.runBlockingCancellable
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
@@ -48,13 +65,19 @@ import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.structureView.frontend.uiModel.CheckboxTreeAction
 import com.intellij.platform.structureView.frontend.uiModel.StructureTreeAction
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModel
-import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelImpl
 import com.intellij.platform.structureView.frontend.uiModel.StructureUiModelListener
-import com.intellij.platform.structureView.impl.StructureTreeApi
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.platform.util.coroutines.childScope
-import com.intellij.ui.*
+import com.intellij.ui.ClickListener
+import com.intellij.ui.IdeBorderFactory
+import com.intellij.ui.PlaceProvider
+import com.intellij.ui.ScrollPaneFactory
+import com.intellij.ui.SideBorder
+import com.intellij.ui.SpeedSearchComparator
+import com.intellij.ui.SpeedSearchObjectWithWeight
+import com.intellij.ui.SpinningProgressIcon
+import com.intellij.ui.TreeSpeedSearch
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.panels.Wrapper
 import com.intellij.ui.popup.PopupUpdateProcessor
@@ -72,27 +95,41 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.SpeedSearchAdvertiser
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeUtil
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.concurrency.asDeferred
-import org.jetbrains.concurrency.asPromise
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.datatransfer.DataFlavor
-import java.awt.event.*
+import java.awt.event.ActionEvent
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
+import java.awt.event.HierarchyEvent
+import java.awt.event.HierarchyListener
+import java.awt.event.MouseEvent
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
-import javax.swing.*
+import javax.swing.JComponent
+import javax.swing.JLabel
+import javax.swing.JPanel
+import javax.swing.SwingConstants
+import javax.swing.TransferHandler
 import javax.swing.tree.TreeModel
 import javax.swing.tree.TreePath
 import kotlin.coroutines.resume
@@ -132,6 +169,8 @@ class FileStructurePopup(
   private var showTime: Long = 0
 
   private var myCanClose = true
+
+  @Volatile
   var isDisposed: Boolean = false
     private set
 
@@ -141,7 +180,7 @@ class FileStructurePopup(
     DaemonCodeAnalyzer.getInstance(myProject).disableUpdateByTimer(this)
     myTreeStructure = object : StructureViewTreeStructure(myProject, myModel) {
       override fun rebuildTree() {
-        if (!ApplicationManager.getApplication().isUnitTestMode() && myPopup!!.isDisposed()) {
+        if (!ApplicationManager.getApplication().isUnitTestMode() && isDisposed) {
           return
         }
         ProgressManager.getInstance().computePrioritized<Any?, RuntimeException?> {
@@ -271,7 +310,7 @@ class FileStructurePopup(
   }
 
   private fun installUpdater(delayMillis: Int) {
-    if (ApplicationManager.getApplication().isUnitTestMode() || myPopup!!.isDisposed()) {
+    if (ApplicationManager.getApplication().isUnitTestMode()) {
       return
     }
 
@@ -279,7 +318,7 @@ class FileStructurePopup(
       var previousFilter = ""
 
       flow {
-        while (!isDisposed && !myPopup!!.isDisposed()) {
+        while (!isDisposed) {
           val currentPrefix = mySpeedSearch.enteredPrefix ?: ""
           emit(currentPrefix)
           delay(delayMillis.toLong())
@@ -288,7 +327,7 @@ class FileStructurePopup(
         .distinctUntilChanged()
         .collectLatest { prefix ->
           withContext(Dispatchers.UI) {
-            if (isDisposed || myPopup!!.isDisposed()) {
+            if (isDisposed) {
               return@withContext
             }
 
@@ -481,7 +520,9 @@ class FileStructurePopup(
 
     cs.launch(start = CoroutineStart.UNDISPATCHED) {
       treeModel.getUpdatePendingFlow().collect {
-        component.isVisible = it
+        withContext(Dispatchers.EDT) {
+          component.isVisible = it
+        }
       }
     }
 
@@ -589,26 +630,13 @@ class FileStructurePopup(
       }
     }
 
-    val deferred = CompletableFuture<Boolean>()
+    val deferred = myModel.navigateTo(selectedNode?.value)
 
-    if (selectedNode == null) {
-      deferred.complete(false)
-      return deferred
-    }
-
-    val elementId = selectedNode.value.id
-    val modelId = (myModel as StructureUiModelImpl).dtoId
-
-    cs.launch {
-      val succeeded = StructureTreeApi.getInstance().navigateToElement(modelId, elementId)
-      if (succeeded) {
-        withContext(Dispatchers.EDT) {
+    deferred.thenAccept {
+      if (it) {
+        cs.launch(Dispatchers.EDT) {
           myPopup!!.cancel()
-          deferred.complete(true)
         }
-      }
-      else {
-        deferred.complete(false)
       }
     }
 
@@ -755,6 +783,9 @@ class FileStructurePopup(
         listener.actionPerformed(ActionEvent(this, 1, ""))
       }
     }
+    else {
+      LOG.error("Action '$actionName' not found in FileStructurePopup")
+    }
   }
 
   @TestOnly
@@ -819,7 +850,7 @@ class FileStructurePopup(
   @ApiStatus.Internal
   @TestOnly
   suspend fun selectCurrent() {
-    val id = StructureTreeApi.getInstance().getNewSelection((myModel as StructureUiModelImpl).dtoId)
+    val id = myModel.getNewSelection()
     val visitor: TreeVisitor = object : TreeVisitor {
       override fun visitThread() = VisitThread.BGT
 

@@ -8,6 +8,7 @@ import com.intellij.platform.structureView.impl.dto.StructureViewTreeElementDto
 import com.intellij.platform.structureView.impl.dto.toPresentation
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.ui.icons.RowIcon
+import org.jetbrains.annotations.TestOnly
 import javax.swing.Icon
 
 open class StructureUiTreeElementImpl(val dto: StructureViewTreeElementDto) : StructureUiTreeElement, Queryable {
@@ -56,6 +57,7 @@ open class StructureUiTreeElementImpl(val dto: StructureViewTreeElementDto) : St
     return "StructureUiTreeElementImpl(dto=$dto)"
   }
 
+  @TestOnly
   override fun putInfo(info: MutableMap<in String, in String?>) {
     info["text"] = presentation.presentableText
     info["location"] = presentation.locationString

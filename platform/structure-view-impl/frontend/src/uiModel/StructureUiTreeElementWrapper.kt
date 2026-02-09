@@ -7,6 +7,7 @@ import com.intellij.openapi.ui.Queryable
 import com.intellij.openapi.vcs.FileStatus
 import com.intellij.platform.structureView.impl.uiModel.StructureUiTreeElement
 import com.intellij.ui.icons.RowIcon
+import org.jetbrains.annotations.TestOnly
 import javax.swing.Icon
 
 class StructureUiTreeElementWrapper : StructureUiTreeElement, Queryable {
@@ -70,6 +71,7 @@ class StructureUiTreeElementWrapper : StructureUiTreeElement, Queryable {
     }
   }
 
+  @TestOnly
   override fun putInfo(info: MutableMap<in String, in String?>) {
     info["text"] = presentation.presentableText
     info["location"] = presentation.locationString

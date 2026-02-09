@@ -843,10 +843,15 @@ public final class FileStructurePopup implements Disposable, TreeActionsOwner, S
   }
 
   private void logFileStructureCheckboxClick(TreeAction action) {
-    FileType fileType = myFileEditor.getFile().getFileType();
+    logFileStructureCheckboxClick(myFileEditor, myProject, action);
+  }
+
+  @ApiStatus.Internal
+  public static void logFileStructureCheckboxClick(FileEditor fileEditor, Project project, TreeAction action) {
+    FileType fileType = fileEditor.getFile().getFileType();
     Language language = fileType instanceof LanguageFileType ? ((LanguageFileType)fileType).getLanguage() : null;
 
-    ActionsCollectorImpl.recordActionInvoked(myProject, pairs -> {
+    ActionsCollectorImpl.recordActionInvoked(project, pairs -> {
       pairs.add(EventFields.PluginInfoFromInstance.with(action));
       pairs.add(EventFields.ActionPlace.with(ActionPlaces.FILE_STRUCTURE_POPUP));
       pairs.add(EventFields.CurrentFile.with(language));
