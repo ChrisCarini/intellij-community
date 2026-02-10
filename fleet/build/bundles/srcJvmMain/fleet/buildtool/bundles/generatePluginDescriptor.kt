@@ -37,6 +37,7 @@ import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.joinToString
@@ -48,6 +49,7 @@ import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.extension
+import kotlin.io.path.inputStream
 import kotlin.io.path.isDirectory
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
@@ -98,7 +100,6 @@ fun generatePluginDescriptor(
 
   val temporaryDir = createTempDirectory("resolvedConfigurationCache")
 
-
   val dependencies = runBlocking(Dispatchers.IO) {
     logger.info("[fleet-dependencies] Resolving Marketplace and project plugins dependencies for requirements map...")
     val dependencies = resolvePluginsDependencies(
@@ -116,7 +117,6 @@ fun generatePluginDescriptor(
 
   val pluginName = PluginName(pluginId)
   val pluginVersion = PluginVersion.fromString(pluginVersion)
-
   val moduleJarsByLayer = runtimeClasspathByLayer.mapNotNull { (layerSelector, jarsCollection) ->
     val jars = jarsCollection.unwrapJarFiles()
     require(jars.all { it.extension == "jar" }) {
@@ -133,19 +133,9 @@ fun generatePluginDescriptor(
   }.toMap()
 
   logger.info("Copying jars used in descriptor to '$jarsUsedInDescriptor'")
-  moduleJarsByLayer.forEach { (layerSelector, moduleJars) ->
-    moduleJars.forEach { jar ->
-      val target = jarsUsedInDescriptor.resolve(jar.fileName)
-      logger.info("[${layerSelector.selector}] copying '$jar' to '$target'")
-      try {
-        jar.copyTo(target = target, overwrite = false)
-      }
-      catch (e: FileAlreadyExistsException) {
-        when {
-          sha256(target.readBytes()) == sha256(jar.readBytes()) -> {} // TODO: could we ensure this never has to be called? Technically such jar should be added once in the common layer instead of in frontend and workspace layers for example
-          else -> error("two or more layers of this plugin refer to a different jar called '${jar.name}'")
-        }
-      }
+  val outputModuleJarsByLayer = moduleJarsByLayer.mapValues { (layerSelector, moduleJars) ->
+    moduleJars.map { jar ->
+      copyJarToOutputDirectory(jar, layerSelector, jarsUsedInDescriptor, logger)
     }
   }
 
@@ -154,7 +144,7 @@ fun generatePluginDescriptor(
     it.deleteRecursively()
     it.createDirectories()
   }
-  val documentationResources = moduleJarsByLayer.mapNotNull { (layerSelector, jars) ->
+  val documentationResources = outputModuleJarsByLayer.mapNotNull { (layerSelector, jars) ->
     readDocumentationResourcesContent(jars)?.let {
       packResourcesToZip(it.asSequence(),
                          documentationZipsDirectory,
@@ -169,7 +159,7 @@ fun generatePluginDescriptor(
     "resource files must have unique names despite directory structures, but found:\n${duplicatedNames.entries.joinToString("\n") { (name, files) -> " - name '$name' used in $files" }}"
   }
 
-  val parts = PluginParts(layers = moduleJarsByLayer.map { (layerSelector, moduleJars) ->
+  val parts = PluginParts(layers = outputModuleJarsByLayer.map { (layerSelector, moduleJars) ->
     val resourceFileToMetadata = resources.filter { it.layerSelector == layerSelector.selector }.flatMap { resource ->
       val metadata = when (val p = resource.platforms) {
         null -> emptyMap()
@@ -329,7 +319,7 @@ private fun filterConflictingJars(
     }
     !alreadyExisting
   }
-  val filteredJars = ok.map { (jar, _) -> jar }
+  val filteredByModuleNameJars = ok.map { (jar, _) -> jar }
   val conflictingModules = conflicting.map { (_, moduleName) -> moduleName }
 
   if (conflictingModules.isNotEmpty()) { // TODO: better logging including maybe which dep brought the module
@@ -340,6 +330,8 @@ private fun filterConflictingJars(
       conflictingModules.joinToString(", ")
     }")
   }
+
+  val filteredJars = filteredByModuleNameJars.filterNot(::isEmptyJar)
 
   return filteredJars.toSet()
 }
@@ -365,6 +357,22 @@ private fun moduleIsRelevantToFleetRuntime(jar: Path): Boolean {
   }
 }
 
+private fun copyJarToOutputDirectory(jar: Path, layerSelector: LayerSelector, outputDirectory: Path, logger: Logger): Path {
+  val moduleName = ModuleFinder.of(jar).findAll().single().descriptor().name()
+  val target = outputDirectory.resolve("$moduleName.jar")
+  logger.info("[${layerSelector.selector}] copying '$jar' to '$target'")
+  try {
+    jar.copyTo(target = target, overwrite = false)
+  }
+  catch (e: FileAlreadyExistsException) {
+    when {
+      sha256(target.readBytes()) == sha256(jar.readBytes()) -> {} // TODO: could we ensure this never has to be called? Technically such jar should be added once in the common layer instead of in frontend and workspace layers for example
+      else -> error("two or more layers of this plugin refer to a different jar called '${jar.name}'")
+    }
+  }
+  return target
+}
+
 private const val FLEET_KERNEL_PLUGIN_SERVICE: String = "fleet.kernel.plugins.Plugin"
 
 /**
@@ -378,6 +386,24 @@ internal fun Set<Path>.unwrapJarFiles() = flatMap {
     else -> listOf(it)
   }
 }
+
+internal val emptyJarContents = listOf(
+  "__index__",
+  "META-INF/MANIFEST.mf"
+)
+
+private fun isEmptyJar(jar: Path): Boolean {
+  ZipInputStream(jar.inputStream().buffered()).use { zipInputStream ->
+    while (true) {
+      val entry = zipInputStream.nextEntry ?: break
+      if (!entry.isDirectory && emptyJarContents.none { entry.name.endsWith(it) }) {
+        return false // Found real content - return fast
+      }
+    }
+    return true
+  }
+}
+
 
 class FleetResource(
   val files: Set<Path>,

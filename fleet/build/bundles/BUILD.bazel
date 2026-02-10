@@ -42,6 +42,9 @@ jvm_library(
   kotlinc_opts = ":custom_bundles",
   runtime_deps = [
     ":bundles",
+    "//fleet/build/codecache:codecache_test_lib",
+    "//fleet/build/sign:sign_test_lib",
+    "//fleet/codecache:codecache_test_lib",
     "//fleet/build/fs:fs_test_lib",
     "//fleet/bundles:bundles_test_lib",
   ]
