@@ -23,6 +23,7 @@ import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatistics
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.SESSION_ID
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.SESSION_STARTED
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.STATE_CHANGED
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereStateFeaturesProvider
 import org.junit.Before
 import org.junit.Test

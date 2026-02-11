@@ -1,14 +1,15 @@
 package com.intellij.searchEverywhereMl.ranking.core
 
 import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Tests for [SearchStateChangeReason.Companion] class.
+ * Tests for [com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason.Companion] class.
  * 
- * Verifies the [SearchStateChangeReason.Companion.fromSearchRestartReason] method
- * which converts [SearchRestartReason] enum values to corresponding [SearchStateChangeReason] values.
+ * Verifies the [com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason.Companion.fromSearchRestartReason] method
+ * which converts [SearchRestartReason] enum values to corresponding [com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason] values.
  */
 class SearchStateChangeReasonTest {
   

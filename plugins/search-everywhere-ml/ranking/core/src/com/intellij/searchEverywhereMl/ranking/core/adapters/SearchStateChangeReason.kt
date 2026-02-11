@@ -1,4 +1,4 @@
-package com.intellij.searchEverywhereMl.ranking.core
+package com.intellij.searchEverywhereMl.ranking.core.adapters
 
 import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
 
@@ -19,7 +19,7 @@ enum class SearchStateChangeReason {
 
   companion object {
     /**
-     * Converts values of [SearchRestartReason] (old Search Everywhere implementation)
+     * Converts values of [com.intellij.ide.actions.searcheverywhere.SearchRestartReason] (old Search Everywhere implementation)
      * to corresponding [SearchStateChangeReason] (implementation-agnostic) values.
      */
     fun fromSearchRestartReason(restartReason: SearchRestartReason): SearchStateChangeReason {
@@ -33,4 +33,8 @@ enum class SearchStateChangeReason {
       }
     }
   }
+}
+
+fun SearchRestartReason.toSearchStateChangeReason(): SearchStateChangeReason {
+  return SearchStateChangeReason.fromSearchRestartReason(this)
 }
