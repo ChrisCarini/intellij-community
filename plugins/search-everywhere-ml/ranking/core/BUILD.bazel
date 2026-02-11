@@ -49,6 +49,7 @@ jvm_library(
     "//plugins/search-everywhere-ml/ranking/ext",
     "//plugins/search-everywhere-ml",
     "//platform/execution",
+    "//platform/searchEverywhere/frontend",
   ],
   exports = ["//platform/statistics"]
 )
@@ -126,6 +127,7 @@ jvm_library(
     "//platform/statistics/testFramework:testFramework_test_lib",
     "//platform/execution",
     "//platform/execution:execution_test_lib",
+    "//platform/searchEverywhere/frontend",
   ],
   exports = [
     "//platform/statistics",

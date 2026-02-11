@@ -2,6 +2,7 @@
   <resource-bundle>messages.searchEverywhereMlBundle</resource-bundle>
 
   <dependencies>
+    <module name="intellij.platform.searchEverywhere.frontend"/>
     <module name="intellij.platform.ml.impl"/>
     <module name="intellij.searchEverywhereMl.ranking.ext"/>
   </dependencies>
@@ -51,6 +52,8 @@
       implementation="com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereEssentialContributorMlMarker"/>
 
     <searchEverywhereMlService implementation="com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMlRankingService"/>
+
+    <searchEverywhere.mlService implementation="com.intellij.searchEverywhereMl.ranking.core.SplitSeMlService"/>
   </extensions>
 
   <extensionPoints>
