@@ -17,14 +17,6 @@ import org.jetbrains.kotlin.library.uniqueName
 import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.platform.TargetPlatform
 
-/**
- * Whether a certain KLIB is compatible for the purposes of IDE: indexation, resolve, etc.
- */
-sealed class KlibCompatibilityInfo(val isCompatible: Boolean) {
-    object Compatible : KlibCompatibilityInfo(true)
-    class IncompatibleMetadata(val isOlder: Boolean) : KlibCompatibilityInfo(false)
-}
-
 @K1ModeProjectStructureApi
 abstract class AbstractKlibLibraryInfo internal constructor(project: Project, library: LibraryEx, val libraryRoot: String) :
     LibraryInfo(project, library) {
@@ -51,21 +43,3 @@ abstract class AbstractKlibLibraryInfo internal constructor(project: Project, li
         private val LOG = Logger.getInstance(AbstractKlibLibraryInfo::class.java)
     }
 }
-
-val KotlinLibrary?.compatibilityInfo: KlibCompatibilityInfo
-    get() {
-        val metadataVersion = safeRead(null) { metadataVersion }
-        return when {
-            metadataVersion == null -> {
-                // Too old KLIB format, even doesn't have metadata version
-                KlibCompatibilityInfo.IncompatibleMetadata(true)
-            }
-
-            !metadataVersion.isCompatibleWithCurrentCompilerVersion() -> {
-                val isOlder = metadataVersion.isAtMost(MetadataVersion.INSTANCE_NEXT)
-                KlibCompatibilityInfo.IncompatibleMetadata(isOlder)
-            }
-
-            else -> KlibCompatibilityInfo.Compatible
-        }
-    }
