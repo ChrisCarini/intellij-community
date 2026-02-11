@@ -15,6 +15,27 @@ import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason
 
 internal class SplitSeMlService : SeMlService {
+  internal companion object {
+    fun inferStateChangeReason(
+      previousState: SearchEverywhereMLSearchSession.SearchState?,
+      tabId: String,
+      inputQuery: String,
+      scopeDescriptor: ScopeDescriptor?,
+    ): SearchStateChangeReason {
+      if (previousState == null) {
+        return SearchStateChangeReason.SEARCH_START
+      }
+
+      val tab = SearchEverywhereTab.getById(tabId)
+
+      return when {
+        inputQuery != previousState.query -> SearchStateChangeReason.QUERY_CHANGE
+        scopeDescriptor != previousState.searchScope -> SearchStateChangeReason.SCOPE_CHANGE
+        tab != previousState.tab -> SearchStateChangeReason.TAB_CHANGE
+        else -> SearchStateChangeReason.QUERY_CHANGE
+      }
+    }
+  }
   override val isEnabled: Boolean
     get() = SearchEverywhereMlFacade.isMlEnabled
 
@@ -44,7 +65,7 @@ internal class SplitSeMlService : SeMlService {
 
     val scopeDescriptor = searchParams.getScopeDescriptorIfExists(currentOrDefaultProject(project))
     val isSearchEverywhere = searchParams.isSearchEverywhere()
-    val reason = inferStateChangeReason(previousState, tabId, searchParams, scopeDescriptor)
+    val reason = inferStateChangeReason(previousState, tabId, searchParams.inputQuery, scopeDescriptor)
 
     SearchEverywhereMlFacade.onStateStarted(tabId, searchParams.inputQuery, reason, scopeDescriptor, isSearchEverywhere)
   }
@@ -63,26 +84,6 @@ internal class SplitSeMlService : SeMlService {
 
   override fun onSessionFinished() {
     SearchEverywhereMlFacade.onSessionFinished()
-  }
-
-  private fun inferStateChangeReason(
-    previousState: SearchEverywhereMLSearchSession.SearchState?,
-    tabId: String,
-    searchParams: SeParams,
-    scopeDescriptor: ScopeDescriptor?,
-  ): SearchStateChangeReason {
-    if (previousState == null) {
-      return SearchStateChangeReason.SEARCH_START
-    }
-
-    val tab = SearchEverywhereTab.getById(tabId)
-
-    return when {
-      searchParams.inputQuery != previousState.query -> SearchStateChangeReason.QUERY_CHANGE
-      scopeDescriptor != previousState.searchScope -> SearchStateChangeReason.SCOPE_CHANGE
-      tab != previousState.tab -> SearchStateChangeReason.TAB_CHANGE
-      else -> SearchStateChangeReason.QUERY_CHANGE
-    }
   }
 
   private fun SeParams.getScopeDescriptorIfExists(project: Project): ScopeDescriptor? {

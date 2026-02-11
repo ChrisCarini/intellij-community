@@ -109,6 +109,8 @@ jvm_library(
     "//json/backend:backend_test_lib",
     "//platform/testFramework",
     "//platform/testFramework:testFramework_test_lib",
+    "//platform/testFramework/junit5",
+    "//platform/testFramework/junit5:junit5_test_lib",
     "@lib//:search_everywhere_ml-ranking-core-find-action-model",
     "@lib//:search_everywhere_ml-ranking-core-find-action-model-experimental",
     "@lib//:search_everywhere_ml-ranking-core-find-file-model",
