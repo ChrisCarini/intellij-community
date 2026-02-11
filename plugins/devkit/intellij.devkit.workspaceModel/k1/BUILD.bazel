@@ -40,6 +40,7 @@ jvm_library(
     "//platform/util",
     "//platform/core-api:core",
     "//platform/analysis-api:analysis",
+    "//plugins/kotlin/base/fe10/project-structure",
   ]
 )
 
@@ -90,6 +91,8 @@ jvm_library(
     "//platform/analysis-api:analysis_test_lib",
     "//platform/testFramework/junit5",
     "//platform/testFramework/junit5:junit5_test_lib",
+    "//plugins/kotlin/base/fe10/project-structure",
+    "//plugins/kotlin/base/fe10/project-structure:project-structure_test_lib",
   ]
 )
 ### auto-generated section `build intellij.devkit.workspaceModel.k1` end

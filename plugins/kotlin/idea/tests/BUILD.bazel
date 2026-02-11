@@ -370,6 +370,8 @@ jvm_library(
     "//plugins/kotlin/intellij.kotlin.base.test:base-test_test_lib",
     "//platform/platform-tests:tests",
     "//platform/platform-tests:tests_test_lib",
+    "//plugins/kotlin/base/fe10/project-structure",
+    "//plugins/kotlin/base/fe10/project-structure:project-structure_test_lib",
   ],
   exports = [
     "//plugins/kotlin/intellij.kotlin.base.test:base-test",

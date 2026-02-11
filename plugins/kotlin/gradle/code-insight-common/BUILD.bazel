@@ -55,6 +55,7 @@ jvm_library(
     "//platform/execution",
     "//platform/lang-api:lang",
     "//platform/backend/observation",
+    "//plugins/kotlin/base/fe10/project-structure",
   ]
 )
 
