@@ -1,4 +1,6 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+@file:OptIn(IntellijInternalApi::class)
+
 package com.intellij.platform.searchEverywhere.frontend.vm
 
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
@@ -19,6 +21,7 @@ import com.intellij.openapi.progress.currentThreadCoroutineScope
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.platform.searchEverywhere.SeFilterState
 import com.intellij.platform.searchEverywhere.SeItemData
 import com.intellij.platform.searchEverywhere.SeItemDataKeys
@@ -40,6 +43,7 @@ import com.intellij.platform.searchEverywhere.frontend.SeSelectionResultKeep
 import com.intellij.platform.searchEverywhere.frontend.SeSelectionResultText
 import com.intellij.platform.searchEverywhere.frontend.SeTab
 import com.intellij.platform.searchEverywhere.frontend.SeTabInfo
+import com.intellij.platform.searchEverywhere.frontend.ml.SeMlService
 import com.intellij.platform.searchEverywhere.frontend.ui.SePopupHeaderPane
 import com.intellij.platform.searchEverywhere.isCommand
 import com.intellij.platform.searchEverywhere.presentations.SeAdaptedItemEmptyPresentation
@@ -196,9 +200,13 @@ class SeTabVmImpl(
           val params = SeParams(searchPattern, filterData)
           val searchId = UUID.randomUUID().toString()
 
+          SeMlService.getInstanceIfEnabled()?.onStateStarted(this@SeTabVmImpl.tabId, params)
+
           val resultsFlow = tab.getItems(params).let { resultsFlow ->
             val resultsFlowWithAdaptedPresentations = resultsFlow.mapNotNull {
               checkAndAddMissingPresentationIfPossible(it)
+            }.map {
+              calculateMlWeight(it)
             }
 
             val essential = tab.essentialProviderIds()
@@ -291,6 +299,19 @@ class SeTabVmImpl(
     }
     else {
       resultEvent
+    }
+  }
+
+  private fun calculateMlWeight(resultEvent: SeResultEvent): SeResultEvent {
+    if (resultEvent !is SeResultAddedEvent && resultEvent !is SeResultReplacedEvent) return resultEvent
+    val mlService = SeMlService.getInstanceIfEnabled() ?: return resultEvent
+
+    val itemData = resultEvent.itemDataOrNull() ?: return resultEvent
+    val newItemData = mlService.applyMlWeight(itemData)
+
+    return when (resultEvent) {
+      is SeResultAddedEvent -> SeResultAddedEvent(newItemData)
+      is SeResultReplacedEvent -> SeResultReplacedEvent(resultEvent.uuidsToReplace, newItemData)
     }
   }
 

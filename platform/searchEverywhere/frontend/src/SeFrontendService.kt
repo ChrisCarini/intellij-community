@@ -1,4 +1,6 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+@file:OptIn(IntellijInternalApi::class)
+
 package com.intellij.platform.searchEverywhere.frontend
 
 import com.intellij.ide.actions.SearchEverywhereManagerFactory
@@ -18,6 +20,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.openapi.util.WindowStateService
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.platform.project.projectId
@@ -36,6 +39,7 @@ import com.intellij.platform.searchEverywhere.frontend.ui.SePopupContentPane
 import com.intellij.platform.searchEverywhere.frontend.ui.SePopupHeaderPane
 import com.intellij.platform.searchEverywhere.frontend.vm.SeDummyTabVm
 import com.intellij.platform.searchEverywhere.frontend.vm.SePopupVm
+import com.intellij.platform.searchEverywhere.frontend.ml.SeMlService
 import com.intellij.platform.searchEverywhere.impl.SeRemoteApi
 import com.intellij.platform.searchEverywhere.providers.SeLog
 import com.intellij.platform.searchEverywhere.providers.SeLog.LIFE_CYCLE
@@ -137,6 +141,8 @@ class SeFrontendService(val project: Project?, private val coroutineScope: Corou
 
       try {
         popupSemaphore.withPermit {
+          SeMlService.getInstanceIfEnabled()?.onSessionStarted(project, tabId)
+          
           val providersHolder = SeProvidersHolder.initialize(initEvent, project, session, "Frontend", false)
           localProvidersHolder = providersHolder
           initializeVmAndSetToPopup(popupFuture,
@@ -163,6 +169,8 @@ class SeFrontendService(val project: Project?, private val coroutineScope: Corou
         localProvidersHolder = null
 
         withContext(NonCancellable) {
+          SeMlService.getInstanceIfEnabled()?.onSessionFinished()
+          
           popupScope.cancel()
           if (removeSessionRef.get()) {
             change {

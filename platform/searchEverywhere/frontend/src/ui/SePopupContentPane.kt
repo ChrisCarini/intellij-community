@@ -1,4 +1,6 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+@file:OptIn(IntellijInternalApi::class)
+
 package com.intellij.platform.searchEverywhere.frontend.ui
 
 import com.intellij.icons.AllIcons
@@ -37,6 +39,7 @@ import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.ListItemDescriptorAdapter
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.util.SystemInfoRt
 import com.intellij.openapi.util.registry.Registry
@@ -50,6 +53,7 @@ import com.intellij.platform.searchEverywhere.frontend.SeSelectionResultClose
 import com.intellij.platform.searchEverywhere.frontend.SeSelectionResultText
 import com.intellij.platform.searchEverywhere.frontend.SeSelectionState
 import com.intellij.platform.searchEverywhere.frontend.SearchEverywhereFrontendBundle
+import com.intellij.platform.searchEverywhere.frontend.ml.SeMlService
 import com.intellij.platform.searchEverywhere.frontend.tabs.actions.SeActionItemPresentationRenderer
 import com.intellij.platform.searchEverywhere.frontend.tabs.all.SeAllTab
 import com.intellij.platform.searchEverywhere.frontend.tabs.files.SeTargetItemPresentationRenderer
@@ -292,6 +296,11 @@ class SePopupContentPane(
     launch {
       vm.currentTabFlow.flatMapLatest {
         withContext(Dispatchers.EDT) {
+          // If there was a previous search that didn't complete, report its results to ML
+          if (!isSearchCompleted.load() && resultListModel.size > 0) {
+            SeMlService.getInstanceIfEnabled()?.onStateFinished(currentResultsInList.toList())
+          }
+
           resultListModel.reset()
           semanticWarning.value = resultListModel.isValidAndHasOnlySemantic
         }
@@ -328,6 +337,8 @@ class SePopupContentPane(
               isSearchCompleted.store(true)
               resultListModel.removeLoadingItem()
               searchStatePublisher.searchStoppedProducingResults(searchId, resultListModel.size, true)
+
+              SeMlService.getInstanceIfEnabled()?.onStateFinished(currentResultsInList.toList())
 
               if (!resultListModel.isValid || resultListModel.isEmpty) {
                 if (!textField.text.isEmpty()) {
