@@ -135,11 +135,9 @@ internal class StructureUiModelImpl : StructureUiModel {
         nodesUpdate.deferredProviderNodes.await()
       }
       catch (e: Throwable) {
-        rebuildTreeOnDeferredNodes = false
-        withContext(Dispatchers.UI) {
-          myUpdatePendingFlow.value = false
-        }
         rethrowControlFlowException(e)
+        rebuildTreeOnDeferredNodes = false
+        myUpdatePendingFlow.value = false
         logger.error("Error computing provider nodes", e)
         return@collect
       }

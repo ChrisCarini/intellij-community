@@ -462,7 +462,7 @@ class FileStructurePopup(
     val f4 = ActionManager.getInstance().getAction(IdeActions.ACTION_EDIT_SOURCE).shortcutSet.getShortcuts()
     val enter = CustomShortcutSet.fromString("ENTER").shortcuts
     val shortcutSet = CustomShortcutSet(*(f4 + enter))
-    NavigateSelectedElementAction(panel).registerCustomShortcutSet(shortcutSet, panel)
+    NavigateSelectedElementAction().registerCustomShortcutSet(shortcutSet, panel)
 
     DumbAwareAction.create {
       if (mySpeedSearch.isPopupActive) {
@@ -978,14 +978,9 @@ class FileStructurePopup(
     }
   }
 
-  private inner class NavigateSelectedElementAction(private val myPanel: JPanel) : DumbAwareAction() {
+  private inner class NavigateSelectedElementAction : DumbAwareAction() {
     override fun actionPerformed(e: AnActionEvent) {
-      val succeeded = navigateSelectedElement()
-      succeeded.thenAccept {
-        if (it) {
-          unregisterCustomShortcutSet(myPanel)
-        }
-      }
+      navigateSelectedElement()
     }
   }
 

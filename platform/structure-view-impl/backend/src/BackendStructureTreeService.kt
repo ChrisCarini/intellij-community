@@ -81,8 +81,8 @@ internal class BackendStructureTreeService(private val session: ClientAppSession
 
     val disposable = Disposer.newDisposable(session, "Disposable for structure model with id: $id")
 
-    val treeModel: StructureViewModel? = try {
-      withContext(Dispatchers.EDT) {
+    val dto = try {
+      val treeModel: StructureViewModel? = withContext(Dispatchers.EDT) {
         writeIntentReadAction {
           val structureViewBuilder = fileEditor.structureViewBuilder ?: return@writeIntentReadAction null
           when (structureViewBuilder) {
@@ -102,126 +102,131 @@ internal class BackendStructureTreeService(private val session: ClientAppSession
           }
         }
       }
-    }
-    catch (e: Throwable) {
-      Disposer.dispose(disposable)
 
-      rethrowControlFlowException(e)
-      return null
-    }
+      if (treeModel == null) return null
 
-    if (treeModel == null) return null
+      //todo flag for tw
+      (treeModel as? PlaceHolder)?.setPlace(TreeStructureUtil.PLACE)
 
-    //todo flag for tw
-    (treeModel as? PlaceHolder)?.setPlace(TreeStructureUtil.PLACE)
+      val backendActionOwner = BackendTreeActionOwner(allNodeProvidersActive = false)
+      val wrapper = object : SmartTreeStructure(project, TreeModelWrapper(treeModel, backendActionOwner)) {
+        override fun rebuildTree() {
+          if (!structureViews.containsKey(id)) return
+          super.rebuildTree()
+        }
 
-    val backendActionOwner = BackendTreeActionOwner(allNodeProvidersActive = false)
-    val wrapper = object : SmartTreeStructure(project, TreeModelWrapper(treeModel, backendActionOwner)) {
-      override fun rebuildTree() {
-        if (!structureViews.containsKey(id)) return
-        super.rebuildTree()
+        override fun createTree(): TreeElementWrapper {
+          return StructureViewComponent.createWrapper(myProject, myModel.getRoot(), myModel)
+        }
       }
 
-      override fun createTree(): TreeElementWrapper {
-        return StructureViewComponent.createWrapper(myProject, myModel.getRoot(), myModel)
-      }
-    }
+      val myStructureTreeModel = StructureTreeModel<SmartTreeStructure>(wrapper, disposable)
 
-    val myStructureTreeModel = StructureTreeModel<SmartTreeStructure>(wrapper, disposable)
+      val requestFlow = MutableSharedFlow<StructureViewEvent>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+      )
+      val nodesFlow = MutableStateFlow<TreeNodesDto?>(null)
+      val entry = StructureViewEntry(wrapper,
+                                     myStructureTreeModel,
+                                     treeModel,
+                                     requestFlow,
+                                     backendActionOwner,
+                                     fileEditor,
+                                     disposable,
+                                     project,
+                                     navigationCallback)
 
-    val requestFlow = MutableSharedFlow<StructureViewEvent>(
-      extraBufferCapacity = 1,
-      onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    val nodesFlow = MutableStateFlow<TreeNodesDto?>(null)
-    val entry = StructureViewEntry(wrapper,
-                                   myStructureTreeModel,
-                                   treeModel,
-                                   requestFlow,
-                                   backendActionOwner,
-                                   fileEditor,
-                                   disposable,
-                                   project,
-                                   navigationCallback)
+      structureViews[id] = entry
 
-    structureViews[id] = entry
-
-    val job = StructureViewScopeHolder.getInstance().cs.launch(CoroutineName("StructureView event processor for id: $id"), start = CoroutineStart.UNDISPATCHED) {
-      entry.requestFlow.collectLatest { event ->
-        when (event) {
-          is StructureViewEvent.ComputeNodes -> {
-            val computeStartTime = System.currentTimeMillis()
-            val nodes = entry.structureTreeModel.invoker.compute {
-              computeNodes(id)
-            }.asDeferred().await()
-
-            logger.debug {
-              val computeTime = System.currentTimeMillis() - computeStartTime
-              "Nodes for the structure model with id: $id were computed in $computeTime ms"
-            }
-
-            val nodesDto = nodes?.let {
-              TreeNodesDto(it.editorSelectionId, it.nodes, it.nodeProviders, it.deferredProviderNodes)
-            }
-            nodesFlow.emit(nodesDto)
-          }
-          is StructureViewEvent.Dispose -> {
-            try {
-              entry.structureTreeModel.invoker.compute {
-                entry.nodeToId.clear()
+      val job = StructureViewScopeHolder.getInstance().cs.launch(CoroutineName("StructureView event processor for id: $id"),
+                                                                 start = CoroutineStart.UNDISPATCHED) {
+        entry.requestFlow.collectLatest { event ->
+          when (event) {
+            is StructureViewEvent.ComputeNodes -> {
+              val computeStartTime = System.currentTimeMillis()
+              val nodes = entry.structureTreeModel.invoker.compute {
+                computeNodes(id)
               }.asDeferred().await()
+
+              logger.debug {
+                val computeTime = System.currentTimeMillis() - computeStartTime
+                "Nodes for the structure model with id: $id were computed in $computeTime ms"
+              }
+
+              val nodesDto = nodes?.let {
+                TreeNodesDto(it.editorSelectionId, it.nodes, it.nodeProviders, it.deferredProviderNodes)
+              }
+              nodesFlow.emit(nodesDto)
             }
-            finally {
-              nodesFlow.emit(null)
-              withContext(Dispatchers.EDT) {
-                Disposer.dispose(entry.disposable)
-                logger.debug { "Structure model with id: $id was disposed" }
+            is StructureViewEvent.Dispose -> {
+              try {
+                entry.structureTreeModel.invoker.compute {
+                  entry.nodeToId.clear()
+                }.asDeferred().await()
+              }
+              finally {
+                nodesFlow.emit(null)
+                withContext(Dispatchers.EDT) {
+                  Disposer.dispose(entry.disposable)
+                  logger.debug { "Structure model with id: $id was disposed" }
+                }
               }
             }
           }
         }
       }
-    }
 
-    Disposer.register(disposable, Disposable { job.cancel() })
+      Disposer.register(disposable, Disposable { job.cancel() })
 
-    val (root, actions) = try {
-      myStructureTreeModel.invoker.compute {
-        entry.wrapper.rebuildTree()
+      val (root, actions) = try {
+        myStructureTreeModel.invoker.compute {
+          entry.wrapper.rebuildTree()
 
-        val rootModel = createRootModel(wrapper.rootElement as TreeElementWrapper, treeModel as? ExpandInfoProvider, getElementInfoProvider(treeModel))
-        val actions = createActionModels(treeModel)
+          val rootModel = createRootModel(wrapper.rootElement as TreeElementWrapper, treeModel as? ExpandInfoProvider, getElementInfoProvider(treeModel))
+          val actions = createActionModels(treeModel)
 
-        rootModel to actions
-      }.asDeferred().await()
+          rootModel to actions
+        }.asDeferred().await()
+      }
+      catch (e: Throwable) {
+        rethrowControlFlowException(e)
+
+        logger.error("Error creating structure model for file: $fileEditor", e)
+        return null
+      }
+
+      if (root == null) {
+        logger.error("Root model for structure model with id: $id (file $fileEditor) is null")
+        return null
+      }
+
+      entry.requestFlow.tryEmit(StructureViewEvent.ComputeNodes)
+
+      logger.debug {
+        val time = System.currentTimeMillis() - startTime
+        "Structure model with id: $id was created in $time ms"
+      }
+
+      StructureViewModelDto(
+        StructureViewDtoId(id),
+        root,
+        nodesFlow.toRpc(),
+        (treeModel as? ExpandInfoProvider)?.isSmartExpand ?: false,
+        (treeModel as? ExpandInfoProvider)?.minimumAutoExpandDepth ?: 2,
+        false, /*todo for tw*/
+        actions
+      )
     }
     catch (e: Throwable) {
+      Disposer.dispose(disposable)
+      structureViews.remove(id)
+
       rethrowControlFlowException(e)
-
-      logger.error("Error creating structure model for file: $fileEditor", e)
       return null
     }
 
-    if (root == null) {
-      logger.error("Root model for structure model with id: $id (file $fileEditor) is null")
-      return null
-    }
-
-    entry.requestFlow.tryEmit(StructureViewEvent.ComputeNodes)
-
-    logger.debug {
-      val time = System.currentTimeMillis() - startTime
-      "Structure model with id: $id was created in $time ms"
-    }
-    return StructureViewModelDto(
-      StructureViewDtoId(id),
-      root,
-      nodesFlow.toRpc(),
-      (treeModel as? ExpandInfoProvider)?.isSmartExpand ?: false,
-      (treeModel as? ExpandInfoProvider)?.minimumAutoExpandDepth ?: 2,
-      false, /*todo for tw*/
-      actions
-    )
+    return dto
   }
 
   suspend fun disposeStructureViewModel(id: StructureViewDtoId) {
