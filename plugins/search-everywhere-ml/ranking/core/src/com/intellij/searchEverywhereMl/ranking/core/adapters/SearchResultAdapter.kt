@@ -3,12 +3,14 @@ package com.intellij.searchEverywhereMl.ranking.core.adapters
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereFoundElementInfo
 import com.intellij.ide.actions.searcheverywhere.SemanticSearchEverywhereContributor
 import com.intellij.internal.statistic.eventLog.events.EventPair
+import com.intellij.platform.searchEverywhere.SeItemData
+import com.intellij.platform.searchEverywhere.isSemantic
 
 @JvmInline
 value class SessionWideId(val value: Int)
 
 @JvmInline
-value class StateLocalId(private val value: String)
+value class StateLocalId(val value: String)
 
 @JvmInline
 value class MlProbability(val value: Double) {
@@ -18,8 +20,6 @@ value class MlProbability(val value: Double) {
 }
 
 sealed interface SearchResultAdapter {
-  fun getRawItem(): Any
-
   val provider: SearchResultProviderAdapter
 
   val originalWeight: Int
@@ -38,20 +38,46 @@ sealed interface SearchResultAdapter {
     fun createAdapterFor(foundElementInfo: SearchEverywhereFoundElementInfo): Raw {
       return LegacyFoundElementInfoAdapter(foundElementInfo)
     }
+
+    fun createAdapterFor(seItemData: SeItemData): Raw {
+      return SeItemDataAdapter(seItemData)
+    }
   }
 
-  interface Raw : SearchResultAdapter
+  interface Raw : SearchResultAdapter {
+    fun fetchRawItemIfExists(): Any?
+  }
 
   data class Processed(
     private val adapter: SearchResultAdapter,
+    val rawItem: Any?,
     val sessionWideId: SessionWideId?,
     val mlFeatures: List<EventPair<*>>?,
     val mlProbability: MlProbability?,
-  ) : SearchResultAdapter by adapter
+  ) : SearchResultAdapter by adapter {
+    override fun toString(): String {
+      return "Processed(" +
+             "stateLocalId=${stateLocalId.value}}" +
+             "rawItem=${rawItem?.javaClass?.simpleName}, " +
+             "sessionWideId=${sessionWideId?.value}, " +
+             "mlFeatures=${mlFeatures?.size}, " +
+             "mlProbability=${mlProbability?.value})"
+    }
+  }
+}
+
+private class SeItemDataAdapter(private val seItemData: SeItemData) : SearchResultAdapter.Raw {
+  override fun fetchRawItemIfExists(): Any? = seItemData.fetchItemIfExists()?.rawObject
+
+  override val provider: SearchResultProviderAdapter = SearchResultProviderAdapter.createAdapterFor(seItemData.providerId.value)
+  override val originalWeight: Int = seItemData.weight
+  override val isSemantic: Boolean = seItemData.isSemantic
+  override val stateLocalId: StateLocalId
+    get() = StateLocalId(requireNotNull(seItemData.uuid) { "UUID cannot be null for ${seItemData.javaClass.simpleName}" })
 }
 
 private class LegacyFoundElementInfoAdapter(private val foundElementInfo: SearchEverywhereFoundElementInfo) : SearchResultAdapter.Raw {
-  override fun getRawItem(): Any = foundElementInfo.element
+  override fun fetchRawItemIfExists(): Any? = foundElementInfo.element
 
   override val provider: SearchResultProviderAdapter = SearchResultProviderAdapter.createAdapterFor(foundElementInfo.contributor)
 

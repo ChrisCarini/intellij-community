@@ -162,9 +162,9 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
     return ObjectEventData(searchResultData)
   }
 
-  private fun SearchResultAdapter.getActionIdOrNull(): String? {
+  private fun SearchResultAdapter.Processed.getActionIdOrNull(): String? {
     val actionManager = ActionManager.getInstance()
-    val element = this.getRawItem()
+    val element = this.rawItem
 
     return if ((element is GotoActionModel.MatchedValue) && (element.value is GotoActionModel.ActionWrapper)) {
       val action = (element.value as GotoActionModel.ActionWrapper).action
