@@ -9,8 +9,14 @@ sealed interface SearchResultProviderAdapter {
     fun createAdapterFor(contributor: SearchEverywhereContributor<*>): SearchResultProviderAdapter {
       return LegacyContributorAdapter(contributor)
     }
+
+    fun createAdapterFor(providerId: String): SearchResultProviderAdapter {
+      return DefaultSearchResultProviderAdapter(providerId)
+    }
   }
 }
+
+private data class DefaultSearchResultProviderAdapter(override val id: String): SearchResultProviderAdapter
 
 internal class LegacyContributorAdapter(val contributor: SearchEverywhereContributor<*>) : SearchResultProviderAdapter {
   override val id: String
