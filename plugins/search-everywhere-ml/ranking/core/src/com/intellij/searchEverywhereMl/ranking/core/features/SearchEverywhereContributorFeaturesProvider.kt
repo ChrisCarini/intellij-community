@@ -62,12 +62,16 @@ internal object SearchEverywhereContributorFeaturesProvider {
   fun getEssentialContributorFeatures(searchState: SearchEverywhereMLSearchSession.SearchState,
                                       provider: SearchResultProviderAdapter): List<EventPair<*>> {
     val marker = SearchEverywhereEssentialContributorMarker.getInstanceOrNull()
-    if (marker == null && provider is LegacyContributorAdapter) {
+    if (marker == null) {
       // In the case where we do not have a marker available, we will log the default essential behavior,
       // so we can simply rely on EssentialContributor.checkEssential
-      return listOf(
-        IS_ESSENTIAL_CONTRIBUTOR.with(EssentialContributor.checkEssential(provider.contributor))
-      )
+      if (provider is LegacyContributorAdapter) {
+        return listOf(
+          IS_ESSENTIAL_CONTRIBUTOR.with(EssentialContributor.checkEssential(provider.contributor))
+        )
+      } else {
+        return emptyList()
+      }
     }
 
     // Here - we do not want to call EssentialContributor.checkEssential, because that would get
