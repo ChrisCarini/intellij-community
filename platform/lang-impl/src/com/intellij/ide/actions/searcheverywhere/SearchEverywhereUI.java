@@ -941,10 +941,9 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
 
     String tabId = myHeader.getSelectedTab().getID();
     if (myMlService != null) {
-      myMlService.onSearchRestart(
+      myMlService.onStateStarted(
         tabId, reason,
         namePattern,
-        myListModel.getFoundElementsInfo(),
         getSelectedSearchScope(myHeader.getSelectedTab()), myHeader.isEverywhere()
       );
     }
@@ -1481,7 +1480,7 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
   public void closePopup() {
     if (isShowing() || ApplicationManager.getApplication().isUnitTestMode()) {
       if (myMlService != null) {
-        myMlService.onSearchFinished(ContainerUtil.copyList(myListModel.getFoundElementsInfo()));
+        myMlService.onSessionFinished();
       }
     }
 
@@ -1763,11 +1762,12 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
 
     @Override
     public void elementsAdded(@NotNull List<? extends SearchEverywhereFoundElementInfo> list) {
-      if (mySearchProgressIndicator == null || mySearchProgressIndicator.isCanceled()) return;
-
       if (myMlService != null) {
+        myMlService.onStateFinished(list);
         myMlService.notifySearchResultsUpdated();
       }
+
+      if (mySearchProgressIndicator == null || mySearchProgressIndicator.isCanceled()) return;
 
       mySelectionTracker.lock();
       myListModel.addElements(list);

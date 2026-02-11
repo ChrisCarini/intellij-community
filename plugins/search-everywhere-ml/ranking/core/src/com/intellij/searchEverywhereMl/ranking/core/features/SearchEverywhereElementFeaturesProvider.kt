@@ -13,7 +13,7 @@ import com.intellij.internal.statistic.eventLog.events.IntEventField
 import com.intellij.internal.statistic.eventLog.events.StringEventField
 import com.intellij.internal.statistic.utils.getPluginInfo
 import com.intellij.openapi.extensions.ExtensionPointName
-import com.intellij.searchEverywhereMl.ranking.core.searchEverywhereMlRankingService
+import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMlFacade
 import com.intellij.textMatching.PrefixMatchingType
 import com.intellij.textMatching.PrefixMatchingUtil
 import com.intellij.textMatching.WholeTextMatchUtil
@@ -139,7 +139,7 @@ abstract class SearchEverywhereElementFeaturesProvider(private val supportedProv
   }
 
   protected fun getQueryEmbedding(queryText: String, split: Boolean = false): FloatTextEmbedding? {
-    return searchEverywhereMlRankingService?.getCurrentSession()?.getSearchQueryEmbedding(queryText, split)
+    return SearchEverywhereMlFacade.activeSession?.getSearchQueryEmbedding(queryText, split)
   }
 
   fun EventField<*>.tryWith(value: Any): EventPair<*> {

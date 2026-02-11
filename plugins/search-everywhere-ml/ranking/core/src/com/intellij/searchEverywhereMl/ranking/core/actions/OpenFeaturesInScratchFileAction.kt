@@ -16,10 +16,10 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
+import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMlFacade
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultProviderAdapter
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContributorFeaturesProvider
-import com.intellij.searchEverywhereMl.ranking.core.searchEverywhereMlRankingService
 
 /**
  * This action will open a scratch file with a feature dump.
@@ -49,12 +49,12 @@ class OpenFeaturesInScratchFileAction : AnAction() {
     if (e.place == ActionPlaces.ACTION_SEARCH) return false
 
     val seManager = SearchEverywhereManager.getInstance(e.project)
-    val session = searchEverywhereMlRankingService?.getCurrentSession()
+    val session = SearchEverywhereMlFacade.activeSession
 
     return e.project != null
            && seManager.isShown
            && session != null
-           && session.getCurrentSearchState() != null
+           && session.activeState != null
   }
 
   override fun actionPerformed(e: AnActionEvent) {
@@ -71,9 +71,8 @@ class OpenFeaturesInScratchFileAction : AnAction() {
   }
 
   private fun getFeaturesReport(searchEverywhereUI: SearchEverywhereUI): Map<String, Any> {
-    val mlSessionService = searchEverywhereMlRankingService ?: return emptyMap()
-    val searchSession = mlSessionService.getCurrentSession()!!
-    val state = searchSession.getCurrentSearchState()!!
+    val searchSession = SearchEverywhereMlFacade.activeSession!!
+    val state = searchSession.activeState!!
 
     val foundElementsInfo = searchEverywhereUI.foundElementsInfo
 
@@ -83,7 +82,7 @@ class OpenFeaturesInScratchFileAction : AnAction() {
       .map { searchResult ->
         val rankingWeight = searchResult.originalWeight
         val contributor = searchResult.provider.id
-        val elementName = searchResult.getRawItem().toString()
+        val elementName = searchResult.rawItem.toString()
         val mlWeight = searchResult.mlProbability?.value
         val mlFeatures = searchResult.mlFeatures?.associate { it.field.name to it.data as Any } ?: emptyMap()
         val elementId = searchResult.sessionWideId?.value

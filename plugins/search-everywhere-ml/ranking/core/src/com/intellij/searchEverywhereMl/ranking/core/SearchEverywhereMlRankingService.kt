@@ -15,40 +15,20 @@ import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
 import com.intellij.ide.actions.searcheverywhere.SemanticSearchEverywhereContributor
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.openapi.project.Project
-import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
-import com.intellij.searchEverywhereMl.SearchEverywhereTab
-import com.intellij.searchEverywhereMl.isTabWithMlRanking
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
+import com.intellij.searchEverywhereMl.ranking.core.adapters.toSearchStateChangeReason
 import org.jetbrains.annotations.ApiStatus
 import java.util.*
-import java.util.concurrent.atomic.AtomicReference
 
-internal val searchEverywhereMlRankingService: SearchEverywhereMlRankingService?
-  get() = SearchEverywhereMlService.EP_NAME.findExtensionOrFail(SearchEverywhereMlRankingService::class.java).takeIf { it.isEnabled() }
 
 @ApiStatus.Internal
 class SearchEverywhereMlRankingService : SearchEverywhereMlService {
-  private var activeSession: AtomicReference<SearchEverywhereMLSearchSession?> = AtomicReference()
-
   override fun isEnabled(): Boolean {
-    return SearchEverywhereTab.tabsWithLogging.any { it.isTabWithMlRanking() && it.isMlRankingEnabled }
-           || SearchEverywhereMlExperiment.isAllowed
-  }
-
-
-  internal fun getCurrentSession(): SearchEverywhereMLSearchSession? {
-    if (isEnabled()) {
-      return activeSession.get()
-    }
-    return null
+    return SearchEverywhereMlFacade.isMlEnabled
   }
 
   override fun onSessionStarted(project: Project?, tabId: String) {
-    if (isEnabled()) {
-      activeSession.updateAndGet {
-        SearchEverywhereMLSearchSession.createNext(project)
-      }!!.onSessionStarted(tabId)
-    }
+    SearchEverywhereMlFacade.onSessionStarted(project, tabId, isNewSearchEverywhere = false)
   }
 
   override fun createFoundElementInfo(contributor: SearchEverywhereContributor<*>,
@@ -56,58 +36,63 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
                                       priority: Int,
                                       correction: SearchEverywhereSpellCheckResult): SearchEverywhereFoundElementInfo {
     val elementInfo = SearchEverywhereFoundElementInfo(UUID.randomUUID().toString(), element, priority, contributor, correction)
-
-    if (!isEnabled()) return elementInfo
-    val session = getCurrentSession() ?: return elementInfo
-    val state = session.getCurrentSearchState() ?: return elementInfo
-
     val searchResultAdapter = SearchResultAdapter.createAdapterFor(elementInfo)
-    val processedSearchResult = state.processSearchResult(searchResultAdapter, correction)
+
+    val processedSearchResult = SearchEverywhereMlFacade.processSearchResult(searchResultAdapter)
+                                ?: return elementInfo
 
     if (processedSearchResult.mlProbability != null) {
-      return elementInfo.withPriority(processedSearchResult.mlProbability.toWeight())
+      val weight = processedSearchResult.mlProbability.toWeight()
+      // TODO - Handle actions abbreviations!!!
+      return elementInfo.withPriority(weight)
     } else {
       return elementInfo
     }
   }
 
-  override fun onSearchRestart(
+  override fun onStateStarted(
     tabId: String,
     reason: SearchRestartReason,
     searchQuery: String,
-    searchResults: List<SearchEverywhereFoundElementInfo>,
     searchScope: ScopeDescriptor?,
-    isSearchEverywhere: Boolean
+    isSearchEverywhere: Boolean,
   ) {
-    if (!isEnabled()) return
+    SearchEverywhereMlFacade.onStateStarted(tabId, searchQuery, reason.toSearchStateChangeReason(), searchScope, isSearchEverywhere)
+  }
 
-    getCurrentSession()?.onSearchRestart(
-      SearchStateChangeReason.fromSearchRestartReason(reason), tabId, searchQuery, searchResults.toAdapter(),
-      searchScope, isSearchEverywhere
-    )
+  override fun onStateFinished(results: List<SearchEverywhereFoundElementInfo>) {
+    SearchEverywhereMlFacade.onStateFinished(results.toAdapter())
   }
 
   override fun onItemSelected(tabId: String, indexes: IntArray, selectedItems: List<Any>,
                               searchResults: List<SearchEverywhereFoundElementInfo>,
                               query: String) {
-    getCurrentSession()?.onItemSelected(indexes, selectedItems, searchResults.toAdapter())
+    val selectedItems = searchResults
+      .mapIndexed { index, info ->  index to SearchResultAdapter.createAdapterFor(info) }
+      .slice(indexes.toList())
+
+    SearchEverywhereMlFacade.onResultsSelected(selectedItems)
   }
 
-  override fun onSearchFinished(searchResults: List<SearchEverywhereFoundElementInfo>) {
-    getCurrentSession()?.onSearchFinished(searchResults.toAdapter())
+  override fun onSessionFinished() {
+    SearchEverywhereMlFacade.onSessionFinished()
   }
 
   override fun notifySearchResultsUpdated() {
-    getCurrentSession()?.notifySearchResultsUpdated()
+    // TODO - do we still need it or is state finished enough?
   }
 
   override fun onDialogClose() {
-    activeSession.updateAndGet { null }
+    SearchEverywhereMlFacade.onSessionFinished()
   }
 
-  override fun getExperimentVersion(): Int = SearchEverywhereMlExperiment.VERSION
+  override fun getExperimentVersion(): Int {
+    return SearchEverywhereMlFacade.experimentVersion
+  }
 
-  override fun getExperimentGroup(): Int = SearchEverywhereMlExperiment.experimentGroup
+  override fun getExperimentGroup(): Int {
+    return SearchEverywhereMlFacade.experimentGroup
+  }
 
   private fun List<SearchEverywhereFoundElementInfo>.toAdapter(): List<SearchResultAdapter.Raw> {
     return this.map {

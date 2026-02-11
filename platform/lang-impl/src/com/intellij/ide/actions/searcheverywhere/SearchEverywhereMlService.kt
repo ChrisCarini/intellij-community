@@ -43,19 +43,20 @@ interface SearchEverywhereMlService {
                              priority: Int,
                              correction: SearchEverywhereSpellCheckResult): SearchEverywhereFoundElementInfo
 
-  fun onSearchRestart(tabId: String,
-                      reason: SearchRestartReason,
-                      searchQuery: String,
-                      searchResults: List<SearchEverywhereFoundElementInfo>,
-                      searchScope: ScopeDescriptor?,
-                      isSearchEverywhere: Boolean)
+  fun onStateStarted(tabId: String,
+                     reason: SearchRestartReason,
+                     searchQuery: String,
+                     searchScope: ScopeDescriptor?,
+                     isSearchEverywhere: Boolean)
+
+  fun onStateFinished(results: List<SearchEverywhereFoundElementInfo>)
 
   fun onItemSelected(tabId: String,
                      indexes: IntArray, selectedItems: List<Any>,
                      searchResults: List<SearchEverywhereFoundElementInfo>,
                      query: String)
 
-  fun onSearchFinished(searchResults: List<SearchEverywhereFoundElementInfo>)
+  fun onSessionFinished()
 
   fun notifySearchResultsUpdated()
 

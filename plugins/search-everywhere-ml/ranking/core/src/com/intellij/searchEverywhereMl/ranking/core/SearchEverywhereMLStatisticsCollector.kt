@@ -26,6 +26,7 @@ import com.intellij.searchEverywhereMl.MLSE_RECORDER_ID
 import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContextFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereContributorFeaturesProvider
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereElementFeaturesProvider
@@ -41,7 +42,11 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
 
   override fun getGroup(): EventLogGroup = GROUP
 
-  internal fun onSessionStarted(project: Project?, sessionId: Int, tab: SearchEverywhereTab, sessionStartTime: Long,
+  internal fun onSessionStarted(project: Project?,
+                                sessionId: Int,
+                                tab: SearchEverywhereTab,
+                                isNewSearchEverywhere: Boolean,
+                                sessionStartTime: Long,
                                 contextFeatures: List<EventPair<*>>) {
     if (!isLoggingEnabled) return
 
@@ -53,6 +58,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
 
       add(SESSION_ID.with(sessionId))
       add(SE_TAB_ID_KEY.with(tab.tabId))
+      add(IS_NEW_SEARCH_EVERYWHERE.with(isNewSearchEverywhere))
       add(EXPERIMENT_GROUP.with(SearchEverywhereMlExperiment.experimentGroup))
       add(EXPERIMENT_VERSION.with(SearchEverywhereMlExperiment.VERSION))
       add(FORCE_EXPERIMENT_GROUP.with(SearchEverywhereMlExperiment.isForcedExperimentGroupByRegistry))
@@ -103,19 +109,20 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
       add(SE_TAB_ID_KEY.with(searchState.tab.tabId))
       add(TIME_TO_FIRST_RESULT_DATA_KEY.with(timeToFirstResult))
       add(REBUILD_REASON_KEY.with(searchState.searchStateChangeReason))
+      add(WAS_INTERRUPTED.with(searchState.wasInterrupted))
       add(SEARCH_STATE_FEATURES_DATA_KEY.with(ObjectEventData(searchState.searchStateFeatures)))
       add(COLLECTED_RESULTS_DATA_KEY.with(collectedResults))
       add(CONTRIBUTOR_FEATURES_LIST.with(contributorFeatures))
     }
   }
 
-  internal fun onItemSelected(project: Project?, sessionId: Int, searchIndex: Int, selectedIndex: Int) {
+  internal fun onItemSelected(project: Project?, sessionId: Int, searchIndex: Int, selectedResult: Pair<Int, SearchResultAdapter.Processed>) {
     if (!isLoggingEnabled) return
 
     ITEM_SELECTED.log(project) {
       add(SESSION_ID.with(sessionId))
       add(SEARCH_INDEX_DATA_KEY.with(searchIndex))
-      add(SELECTED_INDEX.with(selectedIndex))
+      add(SELECTED_INDEX.with(selectedResult.first))
     }
   }
 
@@ -175,7 +182,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
     }
   }
 
-  internal val GROUP = EventLogGroup("mlse.log", 131, MLSE_RECORDER_ID,
+  internal val GROUP = EventLogGroup("mlse.log", 132, MLSE_RECORDER_ID,
                                      "ML in Search Everywhere Log Group")
 
   // region Fields
@@ -184,6 +191,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   internal val EXPERIMENT_GROUP = EventFields.Int("experiment_group")
   internal val EXPERIMENT_VERSION = EventFields.Int("experiment_version")
   private val FORCE_EXPERIMENT_GROUP = EventFields.Boolean("is_force_experiment")
+  private val IS_NEW_SEARCH_EVERYWHERE = EventFields.Boolean("is_new_search_everywhere")
 
   @VisibleForTesting
   internal val SESSION_DURATION = EventFields.Int("session_duration", "Duration of the Search Everywhere session in ms")
@@ -199,6 +207,8 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   internal val SEARCH_INDEX_DATA_KEY = EventFields.Int("search_index")
 
   private val TOTAL_NUMBER_OF_ITEMS_DATA_KEY = EventFields.Int("total_items")
+  private val WAS_INTERRUPTED = EventFields.Boolean("was_interrupted",
+                                                    "Whether the search state was interrupted before completing (e.g., due to a new query)")
 
   internal val SELECTED_INDEX = EventFields.Int("selected_index", "Selected index (0-based) of the item")
 
@@ -258,6 +268,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
                                                                           IS_INTERNAL, SEARCH_START_TIME_KEY,
                                                                           IS_PROJECT_DISPOSED_KEY,
                                                                           FORCE_EXPERIMENT_GROUP,
+                                                                          IS_NEW_SEARCH_EVERYWHERE,
                                                                           *SearchEverywhereContextFeaturesProvider.getContextFields().toTypedArray())
 
   internal val STATE_CHANGED: VarargEventId = GROUP.registerVarargEvent("state.changed",
@@ -266,6 +277,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
                                                                         ORDER_BY_ML_GROUP,
                                                                         TOTAL_NUMBER_OF_ITEMS_DATA_KEY, SE_TAB_ID_KEY,
                                                                         TIME_TO_FIRST_RESULT_DATA_KEY, REBUILD_REASON_KEY,
+                                                                        WAS_INTERRUPTED,
                                                                         SEARCH_STATE_FEATURES_DATA_KEY, COLLECTED_RESULTS_DATA_KEY,
                                                                         CONTRIBUTOR_FEATURES_LIST)
   internal val ITEM_SELECTED: VarargEventId = GROUP.registerVarargEvent("item.selected",

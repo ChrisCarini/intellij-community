@@ -50,17 +50,7 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
   }
 
   private fun isSearchStateActive(): Boolean {
-    try {
-      val rankingService = checkNotNull(searchEverywhereMlRankingService) { "Search Everywhere Ranking Service is null" }
-      val searchSession = checkNotNull(rankingService.getCurrentSession()) { "Search Everywhere Search Session is null" }
-      checkNotNull(searchSession.getCurrentSearchState()) { "Search Everywhere Search State is null" }
-
-      // Search state is active
-      return true
-    } catch (e: IllegalStateException) {
-      thisLogger().debug(e)
-      return false
-    }
+    return SearchEverywhereMlFacade.activeSession != null && SearchEverywhereMlFacade.activeSession!!.activeState != null
   }
 
   private fun computeProbability(provider: SearchResultProviderAdapter): Float {
@@ -73,8 +63,15 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
     return proba >= TRUE_THRESHOLD
   }
 
-  internal fun getContributorEssentialPrediction(provider: SearchResultProviderAdapter,
-                                                 searchState: SearchEverywhereMLSearchSession.SearchState = getSearchState()): Float {
+  fun getContributorEssentialPrediction(provider: SearchResultProviderAdapter): Float {
+    val searchSession = checkNotNull(SearchEverywhereMlFacade.activeSession) { "Cannot get prediction without active search session "}
+    val searchState = checkNotNull(searchSession.activeState) { "Cannot get prediction without active search state" }
+
+    return getContributorEssentialPrediction(provider, searchState)
+  }
+
+  fun getContributorEssentialPrediction(provider: SearchResultProviderAdapter,
+                                        searchState: SearchEverywhereMLSearchSession.SearchState): Float {
     val cache = contributorPredictionCache.getOrPut(searchState) { hashMapOf() }
     return cache.getOrPut(provider) {
       computeProbability(provider).also { probability ->
@@ -88,23 +85,13 @@ internal class SearchEverywhereEssentialContributorMlMarker : SearchEverywhereEs
   }
 
   private fun getFeatures(provider: SearchResultProviderAdapter): List<EventPair<*>> {
-    val searchSession = getSearchSession()
-    val searchState = getSearchState()
+    val searchSession = checkNotNull(SearchEverywhereMlFacade.activeSession) { "Cannot calculate features without active search session "}
+    val searchState = checkNotNull(searchSession.activeState) { "Cannot calculate features without active search state" }
 
     val sessionContextFeatures = searchSession.cachedContextInfo.features
     val stateFeatures = searchState.searchStateFeatures
     val contributorFeatures = searchState.getContributorFeatures(provider)
 
     return sessionContextFeatures + stateFeatures + contributorFeatures
-  }
-
-  private fun getSearchSession(): SearchEverywhereMLSearchSession {
-    val rankingService = checkNotNull(searchEverywhereMlRankingService)
-    return checkNotNull(rankingService.getCurrentSession())
-  }
-
-  private fun getSearchState(): SearchEverywhereMLSearchSession.SearchState {
-    val searchSession = getSearchSession()
-    return checkNotNull(searchSession.getCurrentSearchState())
   }
 }
