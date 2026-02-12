@@ -15,6 +15,12 @@ create_kotlinc_options(
 )
 
 resourcegroup(
+  name = "fs_resources",
+  srcs = glob(["resources/**/*"]),
+  strip_prefix = "resources"
+)
+
+resourcegroup(
   name = "fs_test_resources",
   srcs = glob(["resourcesJvmTest/**/*"]),
   strip_prefix = "resourcesJvmTest"
@@ -25,6 +31,7 @@ jvm_library(
   module_name = "fleet.build.fs",
   visibility = ["//visibility:public"],
   srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  resources = [":fs_resources"],
   kotlinc_opts = ":custom_fs",
   deps = [
     "@lib//:kotlin-stdlib",

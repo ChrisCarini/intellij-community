@@ -1,6 +1,6 @@
 ### auto-generated section `build fleet.util.network` start
 load("//build:compiler-options.bzl", "create_kotlinc_options")
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_provided_library")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_provided_library", "resourcegroup")
 
 create_kotlinc_options(
   name = "custom_network",
@@ -14,6 +14,12 @@ create_kotlinc_options(
   x_lambdas = "class"
 )
 
+resourcegroup(
+  name = "network_resources",
+  srcs = glob(["resources/**/*"]),
+  strip_prefix = "resources"
+)
+
 jvm_provided_library(
   name = "fleet_util_multiplatform_provided",
   lib = "//fleet/util/multiplatform"
@@ -24,6 +30,7 @@ jvm_library(
   module_name = "fleet.util.network",
   visibility = ["//visibility:public"],
   srcs = glob(["srcCommonMain/**/*.kt", "srcCommonMain/**/*.java", "srcCommonMain/**/*.form", "srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  resources = [":network_resources"],
   kotlinc_opts = ":custom_network",
   deps = [
     "@lib//:kotlin-stdlib",
