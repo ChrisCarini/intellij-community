@@ -847,7 +847,8 @@ private fun getLibraryFiles(library: JpsLibrary, copiedFiles: MutableMap<CopiedF
   return files
 }
 
-private fun nameToJarFileName(name: String): String = "${sanitizeFileName(name.lowercase(), replacement = "-")}.jar"
+private fun nameToJarFileName(name: String): String =
+  "${sanitizeFileName(name.lowercase(), replacement = "-") { c -> c == ' '}}.jar"
 
 @Suppress("SpellCheckingInspection", "RedundantSuppression")
 private val excludedFromMergeLibs = setOf(

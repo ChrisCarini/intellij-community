@@ -229,7 +229,7 @@ abstract class KotlinPluginBuilder(val kind : KotlinPluginKind = System.getPrope
       "intellij.kotlin.formatter.minimal"
     )
 
-    private val LIBRARIES = java.util.List.of(
+    private val LIBRARIES_UNPACKED = java.util.List.of(
       "kotlinc.analysis-api-platform-interface",
       "kotlinc.analysis-api",
       "kotlinc.analysis-api-fe10",
@@ -244,6 +244,15 @@ abstract class KotlinPluginBuilder(val kind : KotlinPluginKind = System.getPrope
       "kotlinc.symbol-light-classes",
       "kotlin-metadata",
     ) + KOTLIN_SCRIPTING_LIBRARIES
+
+    private val LIBRARIES = java.util.List.of(
+      "kotlinc.kotlin-compiler-fe10",
+      "kotlinc.kotlin-compiler-ir",
+      "kotlinc.kotlin-jps-common",
+      "vavr",
+      "javax-inject",
+      "jackson-dataformat-toml",
+    )
 
     private val GRADLE_TOOLING_MODULES = java.util.List.of(
       "intellij.kotlin.base.projectModel",
@@ -283,9 +292,8 @@ abstract class KotlinPluginBuilder(val kind : KotlinPluginKind = System.getPrope
       for (moduleName in MODULES) {
         spec.withModule(moduleName)
       }
-      for (libraryName in LIBRARIES) {
-        spec.withProjectLibraryUnpackedIntoJar(libraryName, spec.mainJarName)
-      }
+
+      basePluginsAndLibraries(spec)
 
       val toolingJarName = "kotlin-gradle-tooling.jar"
       for (moduleName in GRADLE_TOOLING_MODULES) {
@@ -295,22 +303,7 @@ abstract class KotlinPluginBuilder(val kind : KotlinPluginKind = System.getPrope
         spec.withProjectLibraryUnpackedIntoJar(library, toolingJarName)
       }
 
-      for (library in COMPILER_PLUGINS) {
-        spec.withProjectLibrary(library)
-      }
-
-      withKotlincKotlinCompilerCommonLibrary(spec, MAIN_KOTLIN_PLUGIN_MODULE)
-
-      spec.withProjectLibrary("kotlinc.kotlin-compiler-fe10")
-      spec.withProjectLibrary("kotlinc.kotlin-compiler-ir")
-
       spec.withProjectLibrary("kotlinc.kotlin-jps-plugin-classpath", "jps/kotlin-jps-plugin.jar")
-      spec.withProjectLibrary("kotlinc.kotlin-jps-common")
-      //noinspection SpellCheckingInspection
-      spec.withProjectLibrary("vavr")
-      spec.withProjectLibrary("javax-inject")
-      spec.withProjectLibrary("jackson-dataformat-toml")
-
       withKotlincInPluginDirectory(spec = spec)
 
       spec.withCustomVersion(PluginVersionEvaluator { _, ideBuildVersion, _ ->
@@ -343,6 +336,34 @@ abstract class KotlinPluginBuilder(val kind : KotlinPluginKind = System.getPrope
       }
 
       addition?.invoke(spec)
+    }
+  }
+
+  /** paired with [excludeKotlinLibraries] */
+  fun basePluginsAndLibraries(spec: PluginLayout.PluginLayoutSpec) {
+    for (libraryName in LIBRARIES_UNPACKED) {
+      spec.withProjectLibraryUnpackedIntoJar(libraryName, spec.mainJarName)
+    }
+    for (library in COMPILER_PLUGINS) {
+      spec.withProjectLibrary(library)
+    }
+    withKotlincKotlinCompilerCommonLibrary(spec, spec.mainModule)
+    for (library in LIBRARIES) {
+      spec.withProjectLibrary(library)
+    }
+  }
+
+  /** paired with [basePluginsAndLibraries] */
+  fun excludeKotlinLibraries(spec: PluginLayout.PluginLayoutSpec) {
+    for (libraryName in LIBRARIES_UNPACKED) {
+      spec.excludeProjectLibrary(libraryName)
+    }
+    for (library in COMPILER_PLUGINS) {
+      spec.excludeProjectLibrary(library)
+    }
+    spec.excludeProjectLibrary("kotlinc.kotlin-compiler-common")
+    for (library in LIBRARIES) {
+      spec.excludeProjectLibrary(library)
     }
   }
 

@@ -22,6 +22,7 @@ import org.jetbrains.intellij.build.executeStep
 import org.jetbrains.intellij.build.impl.OsSpecificDistributionBuilder.Companion.suffix
 import org.jetbrains.intellij.build.impl.client.createFrontendContextForLaunchers
 import org.jetbrains.intellij.build.impl.client.getAdditionalEmbeddedClientVmOptions
+import org.jetbrains.intellij.build.impl.languageServer.generateLspServerLaunchData
 import org.jetbrains.intellij.build.impl.productInfo.PRODUCT_INFO_FILE_NAME
 import org.jetbrains.intellij.build.impl.productInfo.generateEmbeddedFrontendLaunchData
 import org.jetbrains.intellij.build.impl.productInfo.generateProductInfoJson
@@ -43,6 +44,7 @@ import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.name
 import kotlin.io.path.readText
@@ -65,13 +67,29 @@ class LinuxDistributionBuilder(
     get() = OsFamily.LINUX
 
   override suspend fun copyFilesForOsDistribution(targetPath: Path, arch: JvmArchitecture) {
-    spanBuilder("copy files for os distribution").setAttribute("os", targetOs.osName).setAttribute("arch", arch.name).setAttribute("targetLibcImpl", targetLibcImpl.name).use {
+    spanBuilder("copy files for os distribution")
+      .setAttribute("os", targetOs.osName)
+      .setAttribute("arch", arch.name)
+      .setAttribute("targetLibcImpl", targetLibcImpl.name).use {
       withContext(Dispatchers.IO) {
-        val distBinDir = targetPath.resolve("bin")
-        val sourceBinDir = context.paths.communityHomeDir.resolve("bin/linux")
+        val distBinDir = targetPath.resolve("bin").createDirectories()
+        writeVmOptions(distBinDir)
+
+        context.executeStep(spanBuilder("copy product bin files"), BuildOptions.PRODUCT_BIN_DIR_STEP) {
+          val sourceBinDir = context.paths.communityHomeDir.resolve("bin/linux")
+
+          copyFileToDir(NativeBinaryDownloader.getRestarter(context, OsFamily.LINUX, arch), distBinDir)
+          copyFileToDir(sourceBinDir.resolve("${arch.dirName}/fsnotifier"), distBinDir)
+
+          createFrontendContextForLaunchers(context)?.let { clientContext ->
+            writeLinuxVmOptions(distBinDir, clientContext)
+            generateLauncherScript(
+              distBinDir, arch, getAdditionalEmbeddedClientVmOptions(OsFamily.LINUX, context), targetLibcImpl, clientContext
+            )
+          }
+          generateScripts(distBinDir, arch, targetLibcImpl, context)
+        }
         addNativeLauncher(distBinDir, targetPath, arch, context)
-        copyFileToDir(NativeBinaryDownloader.getRestarter(context, OsFamily.LINUX, arch), distBinDir)
-        copyFileToDir(sourceBinDir.resolve("${arch.dirName}/fsnotifier"), distBinDir)
         generateBuildTxt(targetPath, context)
         copyDistFiles(targetPath, OsFamily.LINUX, arch, targetLibcImpl, context)
 
@@ -81,14 +99,6 @@ class LinuxDistributionBuilder(
 
         if (iconPngPath != null) {
           Files.copy(iconPngPath, distBinDir.resolve("${context.productProperties.baseFileName}.png"), StandardCopyOption.REPLACE_EXISTING)
-        }
-        writeVmOptions(distBinDir)
-        generateScripts(distBinDir, arch, targetLibcImpl, context)
-        createFrontendContextForLaunchers(context)?.let { clientContext ->
-          writeLinuxVmOptions(distBinDir, clientContext)
-          generateLauncherScript(
-            distBinDir, arch, getAdditionalEmbeddedClientVmOptions(OsFamily.LINUX, context), targetLibcImpl, clientContext
-          )
         }
         generateReadme(targetPath)
         generateVersionMarker(targetPath, context)
@@ -363,11 +373,6 @@ class LinuxDistributionBuilder(
   override fun isRuntimeBundled(file: Path): Boolean = !file.name.contains(NO_RUNTIME_SUFFIX)
 
   private suspend fun writeProductJsonFile(targetDir: Path, arch: JvmArchitecture, withRuntime: Boolean = true): Path {
-    val embeddedFrontendLaunchData = generateEmbeddedFrontendLaunchData(arch, OsFamily.LINUX, context) {
-      "bin/${it.productProperties.baseFileName}64.vmoptions"
-    }
-    val qodanaCustomLaunchData = generateQodanaLaunchData(context, arch, OsFamily.LINUX)
-    val stdioMcpRunnerLaunchData = generateStdioMcpRunnerLaunchData(context)
     val json = generateProductInfoJson(
       relativePathToBin = "bin",
       builtinModules = context.builtinModule,
@@ -382,7 +387,18 @@ class LinuxDistributionBuilder(
           additionalJvmArguments = context.getAdditionalJvmArguments(OsFamily.LINUX, arch),
           mainClass = context.ideMainClassName,
           startupWmClass = getLinuxFrameClass(context),
-          customCommands = listOfNotNull(embeddedFrontendLaunchData, qodanaCustomLaunchData, stdioMcpRunnerLaunchData)
+          customCommands = when {
+            context.options.isLanguageServer -> listOf(
+              generateLspServerLaunchData(context)
+            )
+            else -> listOfNotNull(
+              generateEmbeddedFrontendLaunchData(arch, OsFamily.LINUX, context) {
+                "bin/${it.productProperties.baseFileName}64.vmoptions"
+              },
+              generateQodanaLaunchData(context, arch, OsFamily.LINUX),
+              generateStdioMcpRunnerLaunchData(context)
+            )
+          }
         )
       ),
       context

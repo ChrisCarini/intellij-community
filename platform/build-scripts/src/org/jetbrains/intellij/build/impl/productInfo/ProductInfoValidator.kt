@@ -38,7 +38,9 @@ internal fun validateProductJson(jsonText: String, installationDirectories: List
   verifyJsonBySchema(jsonText, schemaPath, context.messages)
 
   val productJson = jsonEncoder.decodeFromString<ProductInfoData>(jsonText)
-  checkFileExists(productJson.svgIconPath, description = "svg icon", installationDirectories, installationArchives)
+  if (!context.options.isLanguageServer) {
+    checkFileExists(productJson.svgIconPath, description = "svg icon", installationDirectories, installationArchives)
+  }
   for (item in productJson.launch) {
     val os = item.os
     check(OsFamily.ALL.any { it.osName == os }) {

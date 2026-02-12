@@ -463,7 +463,8 @@ open class MacDistributionCustomizer {
   }
 
   open fun generateExecutableFilesPatterns(includeRuntime: Boolean, arch: JvmArchitecture, context: BuildContext): Sequence<String> {
-    val basePatterns = sequenceOf(
+    val basePatterns = if (context.options.isLanguageServer) sequenceOf("bin/${context.productProperties.baseFileName}")
+    else sequenceOf(
       "bin/*.sh",
       "plugins/**/*.sh",
       "bin/fsnotifier",
