@@ -103,6 +103,12 @@ public final class SearchEverywhereManagerImpl implements SearchEverywhereManage
     if (project == null && ALL_CONTRIBUTORS_GROUP_ID.equals(tabID)) mySearchEverywhereUI.switchToTabOrFirst(tabID);
     else mySearchEverywhereUI.switchToTab(tabID);
 
+    // Inform the ML service about start of search session (opening of SE window)
+    SearchEverywhereMlService mlService = SearchEverywhereMlService.getInstance();
+    if (mlService != null) {
+      mlService.onSessionStarted(myProject, tabID);
+    }
+
     myHistoryIterator = myHistoryList.getIterator(tabID);
     //history could be suppressed by user for some reasons (creating promo video, conference demo etc.)
     boolean suppressHistory = SystemProperties.getBooleanProperty("idea.searchEverywhere.noHistory", false);

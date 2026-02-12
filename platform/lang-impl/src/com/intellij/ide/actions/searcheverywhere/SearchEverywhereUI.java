@@ -268,10 +268,6 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
 
     myListFactory = new MixedListFactory();
 
-    if (myMlService != null) {
-      myMlService.onSessionStarted(myProject, myHeader.getSelectedTab().getID());
-    }
-
     init();
     myHintHelper = new HintHelper(mySearchField);
 
