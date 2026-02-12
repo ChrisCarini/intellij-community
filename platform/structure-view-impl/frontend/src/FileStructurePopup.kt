@@ -620,7 +620,7 @@ class FileStructurePopup(
       return unwrapTreeElement(if (path == null) null else path.lastPathComponent)
     }
 
-  private fun navigateSelectedElement(): CompletableFuture<Boolean> {
+  private fun navigateSelectedElement() {
     val selectedNode = selectedNode
     if (ApplicationManager.getApplication().isInternal()) {
       val enteredPrefix = mySpeedSearch.enteredPrefix
@@ -630,17 +630,13 @@ class FileStructurePopup(
       }
     }
 
-    val deferred = myModel.navigateTo(selectedNode?.value)
-
-    deferred.thenAccept {
+    myModel.navigateTo(selectedNode?.value).thenAccept {
       if (it) {
         cs.launch(Dispatchers.EDT) {
           myPopup!!.cancel()
         }
       }
     }
-
-    return deferred
   }
 
   private fun addCheckbox(panel: JPanel, action: CheckboxTreeAction) {

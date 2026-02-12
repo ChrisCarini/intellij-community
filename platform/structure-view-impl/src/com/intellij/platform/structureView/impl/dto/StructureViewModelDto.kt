@@ -17,7 +17,6 @@ data class StructureViewDtoId(
 @ApiStatus.Internal
 @Serializable
 data class StructureViewModelDto(
-  val id: StructureViewDtoId,
   val rootNode: StructureViewTreeElementDto,
   val nodes: RpcFlow<TreeNodesDto?>,
   val smartExpand: Boolean,

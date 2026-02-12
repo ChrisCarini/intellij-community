@@ -16,7 +16,7 @@ import org.jetbrains.annotations.TestOnly
 @Internal
 @Rpc
 interface StructureTreeApi : RemoteApi<Unit> {
-  suspend fun getStructureViewModel(fileEditorId: FileEditorId, fileId: VirtualFileId, projectId: ProjectId): StructureViewModelDto?
+  suspend fun createStructureViewModel(id: StructureViewDtoId, fileEditorId: FileEditorId, fileId: VirtualFileId, projectId: ProjectId): StructureViewModelDto?
 
   suspend fun structureViewModelDisposed(id: StructureViewDtoId)
 

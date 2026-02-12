@@ -49,7 +49,8 @@ import kotlin.collections.get
 import kotlin.collections.plus
 
 internal class StructureTreeApiImpl : StructureTreeApi {
-  override suspend fun getStructureViewModel(
+  override suspend fun createStructureViewModel(
+    id: StructureViewDtoId,
     fileEditorId: FileEditorId,
     fileId: VirtualFileId,
     projectId: ProjectId,
@@ -61,7 +62,7 @@ internal class StructureTreeApiImpl : StructureTreeApi {
     }
     val fileEditor = fileEditorId.fileEditor() ?: FileEditorManager.getInstance(project).getSelectedEditor(file) ?: return null
 
-    return getStructureTreeService().getStructureViewModel(project, fileEditor, null)
+    return getStructureTreeService().createStructureViewModel(id, project, fileEditor, null)
   }
 
   override suspend fun structureViewModelDisposed(id: StructureViewDtoId) {

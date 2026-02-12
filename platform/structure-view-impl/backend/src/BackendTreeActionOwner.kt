@@ -14,7 +14,7 @@ internal class BackendTreeActionOwner(
 ) : TreeActionsOwner, TreeActionsOwnerEx {
 
   // Stores state only for autoclicked actions (not user-initiated)
-  private val autoclickedActions = mutableMapOf<String, Boolean>()
+  private val autoclickedActions = hashMapOf<String, Boolean>()
 
   override fun setActionActive(name: String?, state: Boolean) {}
 

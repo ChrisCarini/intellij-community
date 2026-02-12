@@ -20,29 +20,27 @@ import com.intellij.platform.structureView.impl.dto.NodeProviderNodesDto
 import com.intellij.platform.structureView.impl.dto.StructureViewDtoId
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.util.containers.ContainerUtil
+import fleet.rpc.client.durable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.TestOnly
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
-@ApiStatus.Internal
+
 internal class StructureUiModelImpl : StructureUiModel {
   override var dto: StructureViewModelDto? = null
   internal val myUpdatePendingFlow: MutableStateFlow<Boolean> = MutableStateFlow(true)
 
   private val myModelListeners = ContainerUtil.createLockFreeCopyOnWriteList<StructureUiModelListener>()
 
-  @Volatile
-  private var dtoId: StructureViewDtoId? = null
-
-  @Volatile
-  private var isDisposed = false
+  private val dtoId = StructureViewDtoId(nextId.getAndIncrement())
 
   override val rootElement: StructureUiTreeElementWrapper = StructureUiTreeElementWrapper()
 
@@ -64,10 +62,13 @@ internal class StructureUiModelImpl : StructureUiModel {
   constructor(fileEditor: FileEditor, file: VirtualFile, project: Project) {
     cs = StructureViewScopeHolder.getInstance().cs.childScope("scope for ${file.name} structure view")
 
+    // the service scope is used to make sure the disposal request to the backend is sent after the dto is received
     StructureViewScopeHolder.getInstance().cs.launch {
-      val model = StructureTreeApi.getInstance().getStructureViewModel(fileEditor.rpcId(), file.rpcId(), project.projectId())
+      val dto = durable {
+        StructureTreeApi.getInstance().createStructureViewModel(dtoId, fileEditor.rpcId(), file.rpcId(), project.projectId())
+      }
 
-      if (model == null) {
+      if (dto == null) {
         logger.warn("No structure view model for $file")
         withContext(Dispatchers.UI) {
           myModelListeners.forEach { it.onTreeChanged() }
@@ -76,27 +77,17 @@ internal class StructureUiModelImpl : StructureUiModel {
         return@launch
       }
 
-      dtoId = model.id
-      if (isDisposed) {
-        StructureTreeApi.getInstance().structureViewModelDisposed(model.id)
-        return@launch
+      cs.coroutineContext.job.invokeOnCompletion {
+        StructureViewScopeHolder.getInstance().cs.launch {
+          durable {
+            StructureTreeApi.getInstance().structureViewModelDisposed(dtoId)
+          }
+        }
       }
 
       cs.launch {
-        initializeWithModel(model)
+        initializeWithModel(dto)
       }
-    }
-  }
-
-  /**
-   * Constructor that accepts a pre-created DTO (for split mode when model is sent via topic).
-   */
-  constructor(model: StructureViewModelDto, fileName: String) {
-    dtoId = model.id
-    cs = StructureViewScopeHolder.getInstance().cs.childScope("scope for $fileName structure view with id: $dtoId")
-
-    cs.launch {
-      initializeWithModel(model)
     }
   }
 
@@ -198,12 +189,10 @@ internal class StructureUiModelImpl : StructureUiModel {
     }
 
     cs.launch {
-      val id = getModelId()
+      val id = dtoId
       StructureTreeApi.getInstance().setTreeActionState(id, action.name, isEnabled, isAutoClicked)
     }
   }
-
-  private fun getModelId(): StructureViewDtoId = dtoId ?: error("No model id set")
 
   private fun applyNodesModel(
     rootDto: StructureViewTreeElementDto,
@@ -258,7 +247,7 @@ internal class StructureUiModelImpl : StructureUiModel {
     }
 
     val elementId = element.id
-    val modelId = getModelId()
+    val modelId = dtoId
 
     cs.launch {
       val succeeded = StructureTreeApi.getInstance().navigateToElement(modelId, elementId)
@@ -268,6 +257,10 @@ internal class StructureUiModelImpl : StructureUiModel {
       else {
         deferred.complete(false)
       }
+    }.invokeOnCompletion {
+      if (it != null) {
+        deferred.completeExceptionally(it)
+      }
     }
 
     return deferred
@@ -275,7 +268,7 @@ internal class StructureUiModelImpl : StructureUiModel {
 
   @TestOnly
   override suspend fun getNewSelection(): Int? {
-    return StructureTreeApi.getInstance().getNewSelection(getModelId())
+    return StructureTreeApi.getInstance().getNewSelection(dtoId)
   }
 
   override fun getUpdatePendingFlow(): StateFlow<Boolean> = myUpdatePendingFlow
@@ -285,16 +278,8 @@ internal class StructureUiModelImpl : StructureUiModel {
   }
 
   override fun dispose() {
-    isDisposed = true
-    val id = dtoId
     cs.cancel()
     myModelListeners.clear()
-
-    //the model will be disposed on receival
-    if (id == null) return
-    StructureViewScopeHolder.getInstance().cs.launch {
-      StructureTreeApi.getInstance().structureViewModelDisposed(id)
-    }
   }
 
   private fun convertNodesForProvider(
@@ -320,6 +305,7 @@ internal class StructureUiModelImpl : StructureUiModel {
   }
 
   companion object {
+    private var nextId = AtomicInteger()
     private val logger = logger<StructureUiModelImpl>()
   }
 }
