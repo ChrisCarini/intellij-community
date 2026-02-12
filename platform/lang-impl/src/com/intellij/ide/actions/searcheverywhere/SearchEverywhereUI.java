@@ -937,6 +937,11 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
 
     String tabId = myHeader.getSelectedTab().getID();
     if (myMlService != null) {
+      var searchResults = myListModel.listElements
+        .stream()
+        .filter(e -> e.element != SearchListModel.MORE_ELEMENT)
+        .toList();
+      myMlService.onStateFinished(searchResults);
       myMlService.onStateStarted(
         tabId, reason,
         namePattern,
@@ -1759,7 +1764,6 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
     @Override
     public void elementsAdded(@NotNull List<? extends SearchEverywhereFoundElementInfo> list) {
       if (myMlService != null) {
-        myMlService.onStateFinished(list);
         myMlService.notifySearchResultsUpdated();
       }
 
