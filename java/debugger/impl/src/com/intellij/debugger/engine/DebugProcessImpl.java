@@ -2470,23 +2470,36 @@ public abstract class DebugProcessImpl extends UserDataHolderBase implements Deb
                 getRequestsManager().deleteRequest(requestor);
                 // Check if the request was processed concurrently (before it was removed on a timeout) and saved the suspendContext.
                 if (evaluatableContextFuture.isDone()) {
-                  var evaluatableContext = evaluatableContextFuture.get();
-                  assert evaluatableContext != null;
-                  setSuspendContextAndCheckConsistency(evaluatableContext);
-                  DebuggerStatistics.logEvaluatablePauseSuccess(project, isDebuggerAgentAvailable());
+                  setEvaluatableContext(evaluatableContextFuture.get());
                 } else {
                   fallbackPauseWithNonEvaluatableContext();
                   DebuggerStatistics.logEvaluatablePauseFailure(project, isDebuggerAgentAvailable());
                 }
               } else {
-                var evaluatableContext = evaluatableContextFuture.get();
-                assert evaluatableContext != null;
-                setSuspendContextAndCheckConsistency(evaluatableContext);
-                DebuggerStatistics.logEvaluatablePauseSuccess(project, isDebuggerAgentAvailable());
+                setEvaluatableContext(evaluatableContextFuture.get());
               }
             }
           });
         });
+    }
+
+    private void setEvaluatableContext(SuspendContextImpl evaluatableContext) {
+      assert evaluatableContext != null;
+      setSuspendContextAndCheckConsistency(evaluatableContext);
+      DebuggerStatistics.logEvaluatablePauseSuccess(project, isDebuggerAgentAvailable());
+    }
+
+    private void fallbackPauseWithNonEvaluatableContext() {
+      var vmProxy = VirtualMachineProxyImpl.getCurrent();
+      vmProxy.suspend();
+      mySuspendManager.myExplicitlyResumedThreads.clear();
+      mySuspendManager.resumeAllSuspendAllContexts(null);
+      SuspendContextImpl suspendContext = mySuspendManager.pushSuspendContext(EventRequest.SUSPEND_ALL, 0);
+      setSuspendContextAndCheckConsistency(suspendContext);
+      forEachSafe(myDebugProcessListeners, it -> it.paused(suspendContext));
+      XDebuggerManagerImpl.getNotificationGroup()
+        .createNotification(JavaDebuggerBundle.message("evaluation.warning.cannot.evaluate.on.pause"), MessageType.WARNING)
+        .notify(getProject());
     }
 
     private void setSuspendContextAndCheckConsistency(@NotNull SuspendContextImpl suspendContext) {
@@ -2512,18 +2525,6 @@ public abstract class DebugProcessImpl extends UserDataHolderBase implements Deb
       });
     }
 
-    private void fallbackPauseWithNonEvaluatableContext() {
-      var vmProxy = VirtualMachineProxyImpl.getCurrent();
-      vmProxy.suspend();
-      mySuspendManager.myExplicitlyResumedThreads.clear();
-      mySuspendManager.resumeAllSuspendAllContexts(null);
-      SuspendContextImpl suspendContext = mySuspendManager.pushSuspendContext(EventRequest.SUSPEND_ALL, 0);
-      setSuspendContextAndCheckConsistency(suspendContext);
-      forEachSafe(myDebugProcessListeners, it -> it.paused(suspendContext));
-      XDebuggerManagerImpl.getNotificationGroup()
-        .createNotification(JavaDebuggerBundle.message("evaluation.warning.cannot.evaluate.on.pause"), MessageType.WARNING)
-        .notify(getProject());
-    }
   }
 
   private class ResumeThreadCommand extends SuspendContextCommandImpl {
