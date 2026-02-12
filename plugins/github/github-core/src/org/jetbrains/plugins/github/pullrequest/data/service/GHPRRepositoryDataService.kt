@@ -3,6 +3,7 @@ package org.jetbrains.plugins.github.pullrequest.data.service
 
 import git4idea.GitRemoteBranch
 import git4idea.remote.GitRemoteUrlCoordinates
+import kotlinx.coroutines.flow.Flow
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.plugins.github.api.GHRepositoryCoordinates
 import org.jetbrains.plugins.github.api.data.GHLabel
@@ -37,4 +38,6 @@ interface GHPRRepositoryDataService {
   fun resetData()
 
   fun getDefaultRemoteBranch(): GitRemoteBranch?
+
+  fun mentionableUsersBatchesFlow(): Flow<List<GHUser>>
 }

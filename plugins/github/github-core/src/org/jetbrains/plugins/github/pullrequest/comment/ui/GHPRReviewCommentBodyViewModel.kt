@@ -4,6 +4,7 @@ package org.jetbrains.plugins.github.pullrequest.comment.ui
 import com.intellij.collaboration.async.combineState
 import com.intellij.collaboration.async.combineStateIn
 import com.intellij.collaboration.async.launchNowIn
+import com.intellij.collaboration.async.mapState
 import com.intellij.collaboration.async.stateInNow
 import com.intellij.collaboration.ui.html.AsyncHtmlImageLoader
 import com.intellij.collaboration.util.SingleCoroutineLauncher
@@ -20,6 +21,7 @@ import com.intellij.openapi.diff.impl.patch.PatchLine
 import com.intellij.openapi.diff.impl.patch.PatchReader
 import com.intellij.openapi.diff.impl.patch.TextFilePatch
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.NlsSafe
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.platform.util.progress.indeterminateStep
@@ -40,6 +42,7 @@ import org.jetbrains.plugins.github.i18n.GithubBundle
 import org.jetbrains.plugins.github.pullrequest.comment.GHMarkdownToHtmlConverter
 import org.jetbrains.plugins.github.pullrequest.comment.GHSuggestedChange
 import org.jetbrains.plugins.github.pullrequest.comment.GHSuggestedChangeApplier
+import org.jetbrains.plugins.github.pullrequest.comment.convertToHtml
 import org.jetbrains.plugins.github.pullrequest.data.GHPRDataContext
 import org.jetbrains.plugins.github.pullrequest.data.provider.GHPRDataProvider
 import org.jetbrains.plugins.github.pullrequest.data.provider.detailsComputationFlow
@@ -64,17 +67,16 @@ class GHPRReviewCommentBodyViewModel internal constructor(
   private val taskLauncher = SingleCoroutineLauncher(cs)
 
   val htmlImageLoader: AsyncHtmlImageLoader = dataContext.htmlImageLoader
-  val server: GithubServerPath = dataContext.repositoryDataService.repositoryMapping.repository.serverPath
+  private val server: GithubServerPath = dataContext.repositoryDataService.repositoryMapping.repository.serverPath
   private val repository: GitRepository = dataContext.repositoryDataService.remoteCoordinates.repository
 
   private val vm by lazy { project.service<GHPRProjectViewModel>() }
 
   private val threadData = MutableStateFlow<ThreadData?>(null)
   private val canResolvedThread = MutableStateFlow(false)
-  val body: StateFlow<String>
+  private val body = MutableStateFlow("")
 
   init {
-    body = MutableStateFlow("")
     reviewData.threadsComputationFlow.mapNotNull { it.getOrNull() }.onEach { threads ->
       val thread = threads.find { it.id == threadId }
       threadData.value = thread?.let {
@@ -103,6 +105,9 @@ class GHPRReviewCommentBodyViewModel internal constructor(
       body.value = thread?.comments?.find { it.id == commentId }?.body.orEmpty()
     }.launchNowIn(cs)
   }
+
+  // is used for a resolved comment in a collapsed mode, in other cases blocks rendering should be used
+  val bodyHtml: StateFlow<@NlsSafe String> = body.mapState { it.convertToHtml(project, server) }
 
   val blocks: StateFlow<List<GHPRCommentBodyBlock>> = combineStateIn(cs, threadData, body) { thread, body ->
     if (thread == null) return@combineStateIn emptyList()
