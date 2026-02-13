@@ -1859,6 +1859,22 @@ public class Py3TypeCheckerInspectionTest extends PyInspectionTestCase {
                    """);
   }
 
+  // PY-63820
+  public void testVariadicGenericEmptyArgsCall() {
+    runWithLanguageLevel(LanguageLevel.getLatest(), () -> doTestByText("""
+                   from typing import TypeVarTuple
+                   
+                   Ts = TypeVarTuple('Ts')
+                   
+                   
+                   def foo(*args: *Ts) -> None:
+                       pass
+                   
+                   
+                   foo()
+                   """));
+  }
+
   // PY-53105
   public void testVariadicGenericArgumentByCallableInFunction() {
     doTestByText("""
@@ -4306,4 +4322,3 @@ public class Py3TypeCheckerInspectionTest extends PyInspectionTestCase {
                    """);
   }
 }
-
