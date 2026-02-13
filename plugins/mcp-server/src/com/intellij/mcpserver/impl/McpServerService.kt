@@ -327,7 +327,7 @@ class McpServerService(val cs: CoroutineScope) {
       filterFlowJobs.clear()
       McpToolFilterProvider.EP.extensionList.forEach { provider ->
         val job = cs.launch {
-          provider.getFilters(null).collectLatest {
+          provider.getUpdates(null, cs).collectLatest {
             mcpTools.tryEmit(getMcpTools())
           }
         }
@@ -513,7 +513,7 @@ class McpServerService(val cs: CoroutineScope) {
     }
     val filterProviders = McpToolFilterProvider.EP.extensionList
       .filter { provider -> excludeProviders.none { it.isInstance(provider) } }
-    val filters = filterProviders.flatMap { it.getFilters(null).value }
+    val filters = filterProviders.flatMap { it.getFilters(null) }
     var context = McpToolFilterProvider.McpToolFilterContext(
       disallowedTools = emptySet(),
       allowedTools = filteredByName.toSet()
@@ -566,7 +566,7 @@ class McpServerService(val cs: CoroutineScope) {
           .toSdkToolCallResult()
       }
       // handle it here because it incorrectly handled in the MCP SDK
-      catch (ce: CancellationException) {
+      catch (@Suppress("IncorrectCancellationExceptionHandling") ce: CancellationException) {
         //logger.trace { "Calling of tool '${descriptor.name}' has been cancelled: ${ce.message}" }
         return@RegisteredTool McpToolCallResult.error(errorMessage = "Calling of tool '${mcpTool.descriptor.name}' has been cancelled: ${ce.message}")
           .toSdkToolCallResult()

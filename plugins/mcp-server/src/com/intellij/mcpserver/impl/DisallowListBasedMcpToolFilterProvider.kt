@@ -13,8 +13,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
-internal class DisallowListBasedMcpToolFilterProvider(val cs: CoroutineScope) : McpToolFilterProvider {
+internal class DisallowListBasedMcpToolFilterProvider : McpToolFilterProvider {
   companion object {
     internal const val ENABLE_GIT_STATUS_TOOL_REGISTRY_KEY: String = "mcp.server.tools.enable.git.status"
     internal const val ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY: String = "mcp.server.tools.enable.apply.patch"
@@ -22,49 +24,14 @@ internal class DisallowListBasedMcpToolFilterProvider(val cs: CoroutineScope) : 
     private const val APPLY_PATCH_TOOL_NAME: String = "apply_patch"
   }
 
-  override fun getFilters(clientInfo: Implementation?): StateFlow<List<McpToolFilter>> {
+  override fun getFilters(clientInfo: Implementation?): List<McpToolFilter> {
     val settings = McpToolDisallowListSettings.getInstance()
-    return combine(
-      settings.disallowedToolNamesFlow,
-      Registry.get(ENABLE_GIT_STATUS_TOOL_REGISTRY_KEY).asBooleanFlow(),
-      Registry.get(ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY).asBooleanFlow(),
-    ) { disallowedNames, isGitStatusEnabled, isApplyPatchEnabled ->
-      listOf(
-        DisallowListMcpToolFilter(
-          withRegistryDisabledTools(
-            disallowedNames = disallowedNames,
-            isGitStatusEnabled = isGitStatusEnabled,
-            isApplyPatchEnabled = isApplyPatchEnabled,
-          )
-        )
-      )
-    }.stateIn(
-      cs,
-      SharingStarted.Lazily,
-      listOf(
-        DisallowListMcpToolFilter(
-          withRegistryDisabledTools(
-            disallowedNames = settings.disallowedToolNames,
-            isGitStatusEnabled = Registry.`is`(ENABLE_GIT_STATUS_TOOL_REGISTRY_KEY),
-            isApplyPatchEnabled = Registry.`is`(ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY),
-          )
-        )
-      )
-    )
+    return listOf(DisallowListMcpToolFilter(settings.disallowedToolNames))
   }
 
-  private fun withRegistryDisabledTools(
-    disallowedNames: Set<String>,
-    isGitStatusEnabled: Boolean,
-    isApplyPatchEnabled: Boolean,
-  ): Set<String> {
-    if (isGitStatusEnabled && isApplyPatchEnabled) return disallowedNames
-
-    return buildSet {
-      addAll(disallowedNames)
-      if (!isGitStatusEnabled) add(GIT_STATUS_TOOL_NAME)
-      if (!isApplyPatchEnabled) add(APPLY_PATCH_TOOL_NAME)
-    }
+  override fun getUpdates(clientInfo: Implementation?, scope: CoroutineScope): Flow<Unit> {
+    val settings = McpToolDisallowListSettings.getInstance()
+    return settings.disallowedToolNamesFlow.map { }
   }
 
   private class DisallowListMcpToolFilter(private val disallowedNames: Set<String>) : McpToolFilter {
