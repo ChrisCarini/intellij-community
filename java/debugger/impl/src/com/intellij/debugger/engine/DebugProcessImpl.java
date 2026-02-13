@@ -2415,6 +2415,9 @@ public abstract class DebugProcessImpl extends UserDataHolderBase implements Deb
       if (!isAttached()) {
         return;
       }
+      if (!mySuspendManager.getPausedContexts().isEmpty()) {
+        return;
+      }
       logThreads();
       if (Registry.is("debugger.evaluate.on.pause")) {
         stopOnAnyMethodEntryAndGetSuspendContext();
