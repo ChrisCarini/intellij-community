@@ -39,12 +39,10 @@ import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.UiDataProvider
 import com.intellij.openapi.actionSystem.UiDataProvider.Companion.wrapComponent
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.UI
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.debug
-import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.fileEditor.TextEditor
@@ -60,6 +58,7 @@ import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import com.intellij.openapi.ui.popup.util.PopupUtil
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.NlsContexts
+import com.intellij.openapi.util.ThrowableComputable
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.structureView.frontend.uiModel.CheckboxTreeAction
@@ -98,6 +97,7 @@ import com.intellij.util.ui.tree.TreeUtil
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -106,6 +106,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
@@ -122,7 +124,6 @@ import java.awt.event.FocusEvent
 import java.awt.event.HierarchyEvent
 import java.awt.event.HierarchyListener
 import java.awt.event.MouseEvent
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.JComponent
@@ -163,31 +164,24 @@ class FileStructurePopup(
   private val myTreeExpander: TreeExpander
   private val mySorters = mutableListOf<AnAction>()
 
-  private val cs = StructureViewScopeHolder.getInstance().cs.childScope("$this scope")
+  private val mutex = Mutex()
+
+  private val cs = StructureViewScopeHolder.getInstance(myProject).cs.childScope("$this scope")
 
   private val constructorCallTime = System.nanoTime()
   private var showTime: Long = 0
 
   private var myCanClose = true
 
-  @Volatile
-  var isDisposed: Boolean = false
-    private set
-
-
   init {
     //Stop code analyzer to speed up the EDT
     DaemonCodeAnalyzer.getInstance(myProject).disableUpdateByTimer(this)
     myTreeStructure = object : StructureViewTreeStructure(myProject, myModel) {
       override fun rebuildTree() {
-        if (!ApplicationManager.getApplication().isUnitTestMode() && isDisposed) {
-          return
-        }
-        ProgressManager.getInstance().computePrioritized<Any?, RuntimeException?> {
+        ProgressManager.getInstance().computePrioritized(ThrowableComputable {
           super.rebuildTree()
           myFilteringStructure.rebuild()
-          null
-        }
+        })
       }
 
       override fun isToBuildChildrenInBackground(element: Any): Boolean {
@@ -219,13 +213,12 @@ class FileStructurePopup(
           return
         }
 
-        cs.launch {
+        cs.launch(Dispatchers.UI) {
           rebuild(false)
 
-          if (!updaterInstalled.get()) {
+          if (updaterInstalled.compareAndSet(false, true)) {
             myProject.service<FileStructurePopupLoadingStateUpdater>()
               .installUpdater({ delayMillis -> installUpdater(delayMillis) }, myProject)
-            updaterInstalled.set(true)
           }
 
           @Suppress("TestOnlyProblems")
@@ -242,7 +235,7 @@ class FileStructurePopup(
     tree.setCellRenderer(NodeRenderer())
     myProject.getMessageBus()
       .connect(this)
-      .subscribe<UISettingsListener>(UISettingsListener.TOPIC, UISettingsListener { cs.launch { rebuild(false) } })
+      .subscribe<UISettingsListener>(UISettingsListener.TOPIC, UISettingsListener { cs.launch(Dispatchers.UI) { rebuild(false) } })
 
     tree.setTransferHandler(object : TransferHandler() {
       override fun importData(support: TransferSupport): Boolean {
@@ -314,11 +307,11 @@ class FileStructurePopup(
       return
     }
 
-    cs.launch {
+    cs.launch(Dispatchers.UI) {
       var previousFilter = ""
 
       flow {
-        while (!isDisposed) {
+        while (true) {
           val currentPrefix = mySpeedSearch.enteredPrefix ?: ""
           emit(currentPrefix)
           delay(delayMillis.toLong())
@@ -327,10 +320,6 @@ class FileStructurePopup(
         .distinctUntilChanged()
         .collectLatest { prefix ->
           withContext(Dispatchers.UI) {
-            if (isDisposed) {
-              return@withContext
-            }
-
             tree.emptyText.text = if (StringUtil.isEmpty(prefix)) {
               LangBundle.message("status.text.structure.empty")
             }
@@ -342,11 +331,8 @@ class FileStructurePopup(
               val isBackspace = prefix.length < previousFilter.length
               previousFilter = prefix
 
-              withContext(Dispatchers.Default) {
-                rebuild(true)
-              }
+              rebuild(true)
 
-              if (isDisposed) return@withContext
               TreeUtil.promiseExpandAll(tree)
               if (isBackspace && handleBackspace(prefix)) {
                 return@withContext
@@ -447,7 +433,6 @@ class FileStructurePopup(
   }
 
   override fun dispose() {
-    isDisposed = true
     cs.cancel()
     if (showTime != 0L) {
       FileStructurePopupTimeTracker.logShowTime(System.nanoTime() - showTime)
@@ -520,7 +505,7 @@ class FileStructurePopup(
 
     cs.launch(start = CoroutineStart.UNDISPATCHED) {
       treeModel.getUpdatePendingFlow().collect {
-        withContext(Dispatchers.EDT) {
+        withContext(Dispatchers.UI) {
           component.isVisible = it
         }
       }
@@ -570,13 +555,13 @@ class FileStructurePopup(
   internal class MyStructureTreeAction(action: StructureTreeAction, model: StructureUiModel) : StructureTreeActionWrapper(action, model)
 
   private fun uiDataSnapshot(sink: DataSink) {
-    sink.set<Project>(CommonDataKeys.PROJECT, myProject)
-    sink.set<FileEditor>(PlatformCoreDataKeys.FILE_EDITOR, myFileEditor)
+    sink[CommonDataKeys.PROJECT] = myProject
+    sink[PlatformCoreDataKeys.FILE_EDITOR] = myFileEditor
     if (myFileEditor is TextEditor) {
-      sink.set<Editor>(OpenFileDescriptor.NAVIGATE_IN_EDITOR, myFileEditor.getEditor())
+      sink[OpenFileDescriptor.NAVIGATE_IN_EDITOR] = myFileEditor.getEditor()
     }
-    sink.set<JBPopup>(LangDataKeys.POSITION_ADJUSTER_POPUP, myPopup)
-    sink.set<TreeExpander>(PlatformDataKeys.TREE_EXPANDER, myTreeExpander)
+    sink[LangDataKeys.POSITION_ADJUSTER_POPUP] = myPopup
+    sink[PlatformDataKeys.TREE_EXPANDER] = myTreeExpander
   }
 
   private fun createSettingsButton(): JComponent {
@@ -632,7 +617,7 @@ class FileStructurePopup(
 
     myModel.navigateTo(selectedNode?.value).thenAccept {
       if (it) {
-        cs.launch(Dispatchers.EDT) {
+        cs.launch(Dispatchers.UI) {
           myPopup!!.cancel()
         }
       }
@@ -655,12 +640,10 @@ class FileStructurePopup(
     checkBox.addActionListener {
       val state = checkBox.isSelected
       myModel.setActionEnabled(action, isRevertedStructureFilter != state, myAutoClicked.contains(checkBox))
-      cs.launch {
+      cs.launch(Dispatchers.UI) {
         rebuild(false)
-        withContext(Dispatchers.EDT) {
-          if (mySpeedSearch.isPopupActive) {
-            mySpeedSearch.refreshSelection()
-          }
+        if (mySpeedSearch.isPopupActive) {
+          mySpeedSearch.refreshSelection()
         }
       }
     }
@@ -679,12 +662,20 @@ class FileStructurePopup(
   }
 
   private suspend fun rebuild(refilterOnly: Boolean) {
-    val selection = tree.getSelectionPaths()?.firstNotNullOf { unwrapTreeElement(it.lastPathComponent) } ?: myModel.editorSelection.value
-    rebuildAndSelect(refilterOnly, selection, null)
+    withContext(Dispatchers.UI) {
+      val selection = tree.getSelectionPaths()?.firstNotNullOf { unwrapTreeElement(it.lastPathComponent) } ?: myModel.editorSelection.value
+      withContext(Dispatchers.Default) {
+        mutex.withLock {
+          rebuildAndSelect(refilterOnly, selection, null)
+        }
+      }
+    }
   }
 
   @RequiresBackgroundThread
   private suspend fun rebuildAndSelect(refilterOnly: Boolean, selection: Any?, rebuildStartTime: Long?): TreePath? {
+    check(mutex.isLocked)
+
     var rebuildStartTime = rebuildStartTime
     if (rebuildStartTime == null) {
       rebuildStartTime = System.nanoTime()
@@ -692,59 +683,63 @@ class FileStructurePopup(
 
     val finalLastRebuildStartTime = rebuildStartTime
 
-    return suspendCancellableCoroutine { continuation ->
-      myStructureTreeModel.invoker.invoke {
-        if (refilterOnly) {
-          myFilteringStructure.rebuild()
-          myFilteringStructure.refilter()
-          myStructureTreeModel.invalidateAsync().thenRun {
-            cs.launch {
-              try {
-                val result = when (selection) {
-                  is StructureViewTreeElement -> select(selection)
-                  is StructureUiTreeElement -> select(selection)
-                  else -> {
-                    myAsyncTreeModel.accept { TreeVisitor.Action.CONTINUE }.asDeferred().await()
-                    null
+    val treePath = coroutineScope {
+      suspendCancellableCoroutine { continuation ->
+        myStructureTreeModel.invoker.invoke {
+          if (refilterOnly) {
+            myFilteringStructure.rebuild()
+            myFilteringStructure.refilter()
+            myStructureTreeModel.invalidateAsync().thenRun {
+              launch {
+                try {
+                  val result = when (selection) {
+                    is StructureViewTreeElement -> select(selection)
+                    is StructureUiTreeElement -> select(selection)
+                    else -> {
+                      myAsyncTreeModel.accept { TreeVisitor.Action.CONTINUE }.asDeferred().await()
+                      null
+                    }
                   }
+                  withContext(Dispatchers.UI) {
+                    TreeUtil.expand(this@FileStructurePopup.tree, myModel.minimumAutoExpandDepth)
+                    TreeUtil.ensureSelection(this@FileStructurePopup.tree)
+                    mySpeedSearch.refreshSelection()
+                    LOG.debug {
+                      val time = (System.nanoTime() - showTime).nanoseconds
+                      "rebuild time: $time ns, ${time.inWholeMilliseconds} ms"
+                    }
+                    FileStructurePopupTimeTracker.logRebuildTime(System.nanoTime() - finalLastRebuildStartTime)
+                  }
+                  continuation.resume(result)
                 }
-                withContext(Dispatchers.UI) {
-                  TreeUtil.expand(this@FileStructurePopup.tree, myModel.minimumAutoExpandDepth)
-                  TreeUtil.ensureSelection(this@FileStructurePopup.tree)
+                catch (e: Exception) {
                   mySpeedSearch.refreshSelection()
-                  LOG.debug {
-                    val time = (System.nanoTime() - showTime).nanoseconds
-                    "rebuild time: $time ns, ${time.inWholeMilliseconds} ms"
-                  }
-                  FileStructurePopupTimeTracker.logRebuildTime(System.nanoTime() - finalLastRebuildStartTime)
+                  continuation.resumeWithException(e)
                 }
-                continuation.resume(result)
-              }
-              catch (e: Exception) {
-                mySpeedSearch.refreshSelection()
-                continuation.resumeWithException(e)
               }
             }
           }
-        }
-        else {
-          myTreeStructure.rebuildTree()
-          myStructureTreeModel.invalidateAsync().thenRun {
-            cs.launch {
-              try {
-                val result = rebuildAndSelect(true, selection ?: myModel.editorSelection.value, finalLastRebuildStartTime)
-                continuation.resume(result)
-              }
-              catch (e: Exception) {
-                continuation.resumeWithException(e)
+          else {
+            myTreeStructure.rebuildTree()
+            myStructureTreeModel.invalidateAsync().thenRun {
+              launch {
+                try {
+                  val result = rebuildAndSelect(true, selection ?: myModel.editorSelection.value, finalLastRebuildStartTime)
+                  continuation.resume(result)
+                }
+                catch (e: Exception) {
+                  continuation.resumeWithException(e)
+                }
               }
             }
           }
+        }.onError {
+          continuation.resumeWithException(it)
         }
-      }.onError {
-        continuation.resumeWithException(RuntimeException(it))
       }
     }
+
+    return treePath
   }
 
   override fun setTitle(title: @NlsContexts.PopupTitle String) {
@@ -1005,7 +1000,7 @@ class FileStructurePopup(
     override fun setSelected(e: AnActionEvent, state: Boolean) {
       PropertiesComponent.getInstance().setValue(NARROW_DOWN_PROPERTY_KEY, state.toString())
       if (mySpeedSearch.isPopupActive && !StringUtil.isEmpty(mySpeedSearch.enteredPrefix)) {
-        cs.launch {
+        cs.launch(Dispatchers.UI) {
           rebuild(true)
         }
       }

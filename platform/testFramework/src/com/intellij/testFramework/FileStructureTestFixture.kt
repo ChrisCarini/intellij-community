@@ -5,6 +5,7 @@ import com.intellij.ide.actions.ViewStructureAction
 import com.intellij.ide.structureView.newStructureView.StructurePopupTestExt
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider.Companion.getInstance
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.platform.structureView.impl.StructureViewScopeHolder
 import com.intellij.platform.util.coroutines.childScope
@@ -32,7 +33,7 @@ class FileStructureTestFixture(private val myFixture: CodeInsightTestFixture) : 
         if (popup is com.intellij.ide.util.FileStructurePopup) {
             PlatformTestUtil.waitForPromise(popup.select(popup.getCurrentElement()))
         } else if (popup is com.intellij.platform.structureView.frontend.FileStructurePopup) {
-          val cs = StructureViewScopeHolder.getInstance().cs.childScope("test scope")
+          val cs = StructureViewScopeHolder.getInstance(myFixture.project).cs.childScope("test scope")
           cs.launch {
             popup.selectCurrent()
           }
@@ -44,7 +45,7 @@ class FileStructureTestFixture(private val myFixture: CodeInsightTestFixture) : 
 
     fun update() {
         val popup = this.popup
-        update(popup)
+        update(popup, myFixture.project)
     }
 
     val tree: Tree
@@ -71,7 +72,7 @@ class FileStructureTestFixture(private val myFixture: CodeInsightTestFixture) : 
                 myPopup!!.initUi()
 
                 if (myPopup is com.intellij.platform.structureView.frontend.FileStructurePopup) {
-                  val cs = StructureViewScopeHolder.getInstance().cs.childScope("test scope")
+                  val cs = StructureViewScopeHolder.getInstance(myFixture.project).cs.childScope("test scope")
                   cs.launch {
                     (myPopup as com.intellij.platform.structureView.frontend.FileStructurePopup).waitUpdateFinished()
                   }
@@ -87,11 +88,11 @@ class FileStructureTestFixture(private val myFixture: CodeInsightTestFixture) : 
     }
 
     companion object {
-        fun update(popup: StructurePopupTestExt?, doRebuild: Boolean = true) {
+        fun update(popup: StructurePopupTestExt?, project: Project, doRebuild: Boolean = true) {
             if (doRebuild && popup is com.intellij.ide.util.FileStructurePopup) {
                 PlatformTestUtil.waitForPromise(popup.rebuildAndUpdate())
             } else if (popup is com.intellij.platform.structureView.frontend.FileStructurePopup) {
-              val cs = StructureViewScopeHolder.getInstance().cs.childScope("test scope")
+              val cs = StructureViewScopeHolder.getInstance(project).cs.childScope("test scope")
               cs.launch {
                 popup.waitUpdateFinished()
                 if (doRebuild) popup.rebuildAndUpdate()

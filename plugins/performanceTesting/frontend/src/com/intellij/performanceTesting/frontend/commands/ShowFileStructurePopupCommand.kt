@@ -53,7 +53,7 @@ class ShowFileStructurePopupCommand(text: String, line: Int) : AbstractCommand(t
               spanShow.end()
             }
             is com.intellij.platform.structureView.frontend.FileStructurePopup -> {
-              val cs = StructureViewScopeHolder.getInstance().cs.childScope("$this scope")
+              val cs = StructureViewScopeHolder.getInstance(project).cs.childScope("$this scope")
               val spanShow = PerformanceTestSpan.TRACER.spanBuilder("$SPAN_NAME#Show").startSpan()
               val spanFill = PerformanceTestSpan.TRACER.spanBuilder("$SPAN_NAME#Fill").startSpan()
               popup.show()

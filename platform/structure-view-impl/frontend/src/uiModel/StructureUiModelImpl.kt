@@ -60,10 +60,10 @@ internal class StructureUiModelImpl : StructureUiModel {
    * Constructor that fetches DTO via RPC (for monolith mode or when called from frontend).
    */
   constructor(fileEditor: FileEditor, file: VirtualFile, project: Project) {
-    cs = StructureViewScopeHolder.getInstance().cs.childScope("scope for ${file.name} structure view")
+    cs = StructureViewScopeHolder.getInstance(project).cs.childScope("scope for ${file.name} structure view")
 
     // the service scope is used to make sure the disposal request to the backend is sent after the dto is received
-    StructureViewScopeHolder.getInstance().cs.launch {
+    StructureViewScopeHolder.getInstance(project).cs.launch {
       val dto = durable {
         StructureTreeApi.getInstance().createStructureViewModel(dtoId, fileEditor.rpcId(), file.rpcId(), project.projectId())
       }
@@ -78,7 +78,7 @@ internal class StructureUiModelImpl : StructureUiModel {
       }
 
       cs.coroutineContext.job.invokeOnCompletion {
-        StructureViewScopeHolder.getInstance().cs.launch {
+        StructureViewScopeHolder.getInstance(project).cs.launch {
           durable {
             StructureTreeApi.getInstance().structureViewModelDisposed(dtoId)
           }

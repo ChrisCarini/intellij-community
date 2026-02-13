@@ -122,7 +122,11 @@ internal class BackendStructureTreeService(private val session: ClientAppSession
         (treeModel as? PlaceHolder)?.setPlace(TreeStructureUtil.PLACE)
 
         val backendActionOwner = BackendTreeActionOwner(allNodeProvidersActive = false)
-        val wrapper = object : SmartTreeStructure(project, TreeModelWrapper(treeModel, backendActionOwner)) {
+        val treeModelWrapper = TreeModelWrapper(treeModel, backendActionOwner)
+
+        Disposer.register(disposable, treeModelWrapper)
+
+        val wrapper = object : SmartTreeStructure(project, treeModelWrapper) {
           override fun rebuildTree() {
             if (!structureViews.containsKey(id.id)) return
             super.rebuildTree()
@@ -150,17 +154,14 @@ internal class BackendStructureTreeService(private val session: ClientAppSession
                                        project,
                                        navigationCallback)
 
-        // modification of nodeToId here outside of invoker is okay since when
-        // the myStructureTreeModel has been disposed, it's not possible to use its invoker anymore
-        Disposer.register(myStructureTreeModel, Disposable {
-          entry.nodeToId.clear()
+        Disposer.register(disposable, Disposable {
           structureViews.remove(id.id)
         })
 
         structureViews[id.id] = entry
 
-        val job = StructureViewScopeHolder.getInstance().cs.launch(CoroutineName("StructureView event processor for id: $id"),
-                                                                   start = CoroutineStart.UNDISPATCHED) {
+        val job = StructureViewScopeHolder.getInstance(project).cs.launch(CoroutineName("StructureView event processor for id: $id"),
+                                                                          start = CoroutineStart.UNDISPATCHED) {
           entry.requestFlow
             .onCompletion {
               nodesFlow.emit(null)
@@ -345,12 +346,10 @@ internal class BackendStructureTreeService(private val session: ClientAppSession
             logger.debug { "computeNodes: Tree traversal for deferred nodes completed" }
             deferredNodeProviders.complete(allProviderNodes)
           }.onError {
-            logger.error("Error computing provider nodes", it)
             deferredNodeProviders.completeExceptionally(it)
           }
         }
       }.onError {
-        logger.error("Error computing provider nodes", it)
         deferredNodeProviders.completeExceptionally(it)
       }
     }
@@ -479,7 +478,7 @@ internal class BackendStructureTreeService(private val session: ClientAppSession
     val project: Project,
     val navigationCallback: ((AbstractTreeNode<*>) -> Unit)?,
     val idRef: IntRef = IntRef(1), // should only be accessed at StructureTreeModel.invoker
-    val nodeToId: MutableMap<Any, Int> = mutableMapOf(), // should only be accessed at StructureTreeModel.invoker
+    val nodeToId: MutableMap<Any, Int> = hashMapOf(), // should only be accessed at StructureTreeModel.invoker
   )
 
   companion object {

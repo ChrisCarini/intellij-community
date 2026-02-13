@@ -24,7 +24,7 @@ fun showFileStructurePopup(
   callback: (AbstractTreeNode<*>) -> Unit
 ) {
   if (Registry.`is`("frontend.structure.popup")) {
-    StructureViewScopeHolder.getInstance().cs.launch {
+    StructureViewScopeHolder.getInstance(project).cs.launch {
       val request = ShowStructurePopupRequest(
         fileEditor.rpcId(),
         virtualFile.rpcId(),

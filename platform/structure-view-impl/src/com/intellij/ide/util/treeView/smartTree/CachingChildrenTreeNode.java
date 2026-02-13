@@ -12,6 +12,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.pom.Navigatable;
 import com.intellij.util.containers.CollectionFactory;
 import com.intellij.util.containers.JBIterable;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -183,6 +184,7 @@ public abstract class CachingChildrenTreeNode <Value> extends AbstractTreeNode<V
     }
   }
 
+  @ApiStatus.Internal
   protected @NotNull TreeElementWrapper createChildNode(@NotNull TreeElement child, @Nullable NodeProvider<?> provider) {
     return new TreeElementWrapper(getProject(), child, myTreeModel, provider);
   }

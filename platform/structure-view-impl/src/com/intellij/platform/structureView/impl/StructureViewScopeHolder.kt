@@ -3,13 +3,14 @@ package com.intellij.platform.structureView.impl
 
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CoroutineScope
 import org.jetbrains.annotations.ApiStatus
 
 @ApiStatus.Internal
-@Service(Service.Level.APP)
+@Service(Service.Level.PROJECT)
 class StructureViewScopeHolder(val cs: CoroutineScope) {
   companion object {
-    fun getInstance(): StructureViewScopeHolder = service<StructureViewScopeHolder>()
+    fun getInstance(project: Project): StructureViewScopeHolder = project.service<StructureViewScopeHolder>()
   }
 }

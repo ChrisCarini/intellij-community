@@ -96,7 +96,6 @@ a:com.intellij.ide.util.treeView.smartTree.CachingChildrenTreeNode
 - canNavigateToSource():Z
 - p:clearChildren():V
 - pa:copyFromNewInstance(com.intellij.ide.util.treeView.smartTree.CachingChildrenTreeNode):V
-- p:createChildNode(com.intellij.ide.util.treeView.smartTree.TreeElement,com.intellij.ide.util.treeView.smartTree.NodeProvider):com.intellij.ide.util.treeView.smartTree.TreeElementWrapper
 - p:createGroupWrapper(com.intellij.openapi.project.Project,com.intellij.ide.util.treeView.smartTree.Group,com.intellij.ide.util.treeView.smartTree.TreeModel):com.intellij.ide.util.treeView.smartTree.GroupWrapper
 - p:filterChildren(com.intellij.ide.util.treeView.smartTree.Filter[]):V
 - getChildren():java.util.Collection
