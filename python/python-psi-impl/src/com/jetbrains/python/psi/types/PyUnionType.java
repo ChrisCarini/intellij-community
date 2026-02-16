@@ -28,7 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
-public class PyUnionType implements PyUnionLikeType {
+public class PyUnionType implements PyComposedType {
 
   @ApiStatus.Internal
   public static boolean isStrictSemanticsEnabled() {

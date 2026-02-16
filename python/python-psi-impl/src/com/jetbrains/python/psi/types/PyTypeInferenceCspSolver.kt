@@ -663,7 +663,7 @@ private object ConstraintReducer {
 
   private fun reduceComposedType(
     left: PyType?,
-    right: PyCompoundType, // COMPOSED TYPE
+    right: PyComposedType, // COMPOSED TYPE
     variance: Variance,
     cp: ConstraintProblem,
   ) {
