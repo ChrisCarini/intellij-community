@@ -40,15 +40,19 @@ public abstract class PyTypeVisitorExt<T> extends PyTypeVisitor<T> {
   }
 
   public T visitPyUnionType(@NotNull PyUnionType unionType) {
-    return visitPyType(unionType);
+    return visitPyComposedType(unionType);
   }
 
   public T visitPyUnsafeUnionType(@NotNull PyUnsafeUnionType unsafeUnionType) {
-    return visitPyType(unsafeUnionType);
+    return visitPyComposedType(unsafeUnionType);
   }
 
   public T visitPyIntersectionType(@NotNull PyIntersectionType intersectionType) {
-    return visitPyType(intersectionType);
+    return visitPyComposedType(intersectionType);
+  }
+
+  public T visitPyComposedType(@NotNull PyComposedType composedType) {
+    return visitPyType(composedType);
   }
 
   public T visitPyTypingNewType(@NotNull PyTypingNewType typingNewType) {

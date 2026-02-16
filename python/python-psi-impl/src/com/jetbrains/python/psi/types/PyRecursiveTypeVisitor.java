@@ -184,18 +184,8 @@ public final class PyRecursiveTypeVisitor extends PyTypeVisitorExt<PyRecursiveTy
     }
 
     @Override
-    public @NotNull List<@Nullable PyType> visitPyUnionType(@NotNull PyUnionType unionType) {
-      return Collections.unmodifiableList(new ArrayList<>(unionType.getMembers()));
-    }
-
-    @Override
-    public @NotNull List<@Nullable PyType> visitPyUnsafeUnionType(@NotNull PyUnsafeUnionType unsafeUnionType) {
-      return Collections.unmodifiableList(new ArrayList<>(unsafeUnionType.getMembers()));
-    }
-
-    @Override
-    public @NotNull List<@Nullable PyType> visitPyIntersectionType(@NotNull PyIntersectionType intersectionType) {
-      return Collections.unmodifiableList(new ArrayList<>(intersectionType.getMembers()));
+    public @NotNull List<@Nullable PyType> visitPyComposedType(@NotNull PyComposedType composedType) {
+      return Collections.unmodifiableList(new ArrayList<>(composedType.getMembers()));
     }
 
     @Override

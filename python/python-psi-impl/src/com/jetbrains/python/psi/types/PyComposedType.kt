@@ -14,4 +14,11 @@ import org.jetbrains.annotations.ApiStatus
 @ApiStatus.Experimental
 interface PyComposedType : PyType {
   val members: Collection<PyType?>
+
+  override fun <T> acceptTypeVisitor(visitor: PyTypeVisitor<T>): T? {
+    if (visitor is PyTypeVisitorExt<T>) {
+      return visitor.visitPyComposedType(this)
+    }
+    return visitor.visitPyType(this)
+  }
 }
