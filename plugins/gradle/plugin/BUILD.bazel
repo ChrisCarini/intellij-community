@@ -11,8 +11,7 @@ jvm_library(
   name = "plugin",
   visibility = ["//visibility:public"],
   srcs = glob([], allow_empty = True),
-  resources = [":plugin_resources"],
-  runtime_deps = ["//libraries/jspecify"]
+  resources = [":plugin_resources"]
 )
 
 jvm_library(

@@ -137,7 +137,6 @@
   modules:
   - name: intellij.gradle.plugin
   - name: intellij.gradle.common
-  - name: intellij.gradle.toolingProxy
   contentModules:
   - name: intellij.gradle
 - name: lib/gradle-tooling-extension-api.jar
@@ -158,3 +157,6 @@
 - name: lib/modules/intellij.gradle.toml.jar
   contentModules:
   - name: intellij.gradle.toml
+- name: lib/modules/intellij.gradle.toolingProxy.jar
+  contentModules:
+  - name: intellij.gradle.toolingProxy

@@ -28,7 +28,6 @@ jvm_library(
     "@lib//:kotlin-stdlib",
     "//platform/core-api:core",
     "//platform/util",
-    "//plugins/toml",
     "//platform/analysis-api:analysis",
     "//plugins/toml/core",
     "//plugins/repository-search/common",
