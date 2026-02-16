@@ -80,7 +80,7 @@
     <vetoRenameCondition implementation="com.intellij.openapi.paths.WebReferenceVetoRenameCondition"/>
 
 
-    <registryKey key="frontend.structure.popup" defaultValue="true"
+    <registryKey key="frontend.structure.popup" defaultValue="false"
                  description="Enables frontend side file structure popup" />
   </extensions>
 </idea-plugin>
