@@ -9,6 +9,7 @@ import com.intellij.diff.impl.DiffRequestPanelImpl
 import com.intellij.diff.impl.DiffWindow
 import com.intellij.diff.merge.BinaryMergeTool
 import com.intellij.diff.merge.MergeRequest
+import com.intellij.diff.merge.MergeRequestHandler
 import com.intellij.diff.merge.MergeRequestProducer
 import com.intellij.diff.merge.MergeTool
 import com.intellij.diff.merge.MergeWindow.ForProducer
@@ -19,6 +20,7 @@ import com.intellij.diff.merge.external.AutomaticExternalMergeTool
 import com.intellij.diff.requests.DiffRequest
 import com.intellij.diff.tools.binary.BinaryDiffTool
 import com.intellij.diff.tools.dir.DirDiffTool
+import com.intellij.diff.tools.external.ExternalDiffSettings
 import com.intellij.diff.tools.external.ExternalDiffSettings.Companion.findMergeTool
 import com.intellij.diff.tools.external.ExternalDiffTool
 import com.intellij.diff.tools.external.ExternalDiffTool.showIfNeeded
@@ -33,7 +35,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.WindowWrapper
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.util.registry.Registry.Companion.`is`
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.util.concurrency.annotations.RequiresEdt
 import org.jetbrains.annotations.ApiStatus
@@ -70,7 +72,7 @@ open class DiffManagerImpl : DiffManagerEx() {
   override fun showDiffBuiltin(project: Project?, requests: DiffRequestChain, hints: DiffDialogHints) {
     val diffEditorTabFilesManager = if (project != null) getInstance(project) else null
     if (diffEditorTabFilesManager != null &&
-        !`is`("show.diff.as.frame") &&
+        !Registry.`is`("show.diff.as.frame") &&
         DiffUtil.getWindowMode(hints) == WindowWrapper.Mode.FRAME &&
         !isFromDialog(project) &&
         hints.windowConsumer == null
@@ -102,27 +104,33 @@ open class DiffManagerImpl : DiffManagerEx() {
     add(BinaryMergeTool.INSTANCE)
   }
 
-  @RequiresEdt
-  override fun showMerge(project: Project?, request: MergeRequest) {
+  @ApiStatus.Internal
+  override fun getHandler(project: Project?, request: MergeRequest): MergeRequestHandler {
     // plugin may provide a better tool for this MergeRequest
-    val tool = AutomaticExternalMergeTool.EP_NAME.findFirstSafe { mergeTool -> mergeTool.canShow(project, request) }
-    if (tool != null) {
-      tool.show(project, request)
-      return
-    }
+    val plugin = AutomaticExternalMergeTool.EP_NAME.findFirstSafe { mergeTool -> mergeTool.canShow(project, request) }
+    if (plugin != null) return MergeRequestHandler.ExtensionBasedHandler(plugin)
 
     if (request is ThreesideMergeRequest) {
       val fileType = request.getOutputContent().getContentType()
       if (fileType != null && ExternalMergeTool.isEnabled()) {
         val mergeTool = findMergeTool(fileType)
-        if (mergeTool != null) {
-          show(project, mergeTool, request)
-          return
+        if (mergeTool != null && ExternalMergeTool.canShow(request)) {
+          return MergeRequestHandler.UserConfiguredExternalToolHandler(mergeTool)
         }
       }
     }
+    return MergeRequestHandler.BuiltInHandler
+  }
 
-    showMergeBuiltin(project, request)
+  @RequiresEdt
+  override fun showMerge(project: Project?, request: MergeRequest) {
+    when (val handler = getHandler(project, request)) {
+      MergeRequestHandler.BuiltInHandler -> showMergeBuiltin(project, request)
+      is MergeRequestHandler.UserConfiguredExternalToolHandler -> show(project,
+                                                                       handler.tool as ExternalDiffSettings.ExternalTool,
+                                                                       request as ThreesideMergeRequest)
+      is MergeRequestHandler.ExtensionBasedHandler -> handler.plugin.show(project, request)
+    }
   }
 
   @RequiresEdt
