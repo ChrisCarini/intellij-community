@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -30,7 +29,7 @@ import org.jetbrains.annotations.ApiStatus
  * * existing values are updated via [update] if it was supplied
  * * values for missing items are removed and their scope is cancelled
  *
- * Order of the values in the resulting map is the same as in the source iterable
+ * Order of the values in the resulting list is the same as in the source iterable
  * All [CoroutineScope]'s of values are only active while the resulting flow is being collected
  *
  * **Returned flow never completes**
@@ -40,12 +39,12 @@ fun <T, K, V> Flow<Iterable<T>>.associateCachingBy(
   hashingStrategy: HashingStrategy<K>,
   valueExtractor: CoroutineScope.(T) -> V,
   update: (suspend V.(T) -> Unit)? = null,
-): Flow<Map<K, V>> = flow {
+): Flow<List<V>> = flow {
   coroutineScope {
     val container = MappingScopedItemsContainer(this, keyExtractor, hashingStrategy, valueExtractor, update)
     collect {
       container.update(it)
-      emit(container.mappingState.value)
+      emit(container.mappedState.value)
     }
     awaitCancellation()
   }
@@ -58,7 +57,7 @@ fun <T, R> Flow<Iterable<T>>.associateCachingWith(
   hashingStrategy: HashingStrategy<T>,
   mapper: CoroutineScope.(T) -> R,
   update: (suspend R.(T) -> Unit)? = null,
-): Flow<Map<T, R>> {
+): Flow<List<R>> {
   return associateCachingBy({ it }, hashingStrategy, { mapper(it) }, update)
 }
 
@@ -71,13 +70,13 @@ fun <T, R> Flow<Iterable<T>>.mapDataToModel(
   mapper: CoroutineScope.(T) -> R,
   update: (suspend R.(T) -> Unit),
 ): Flow<List<R>> =
-  associateCachingWith(HashingUtil.mappingStrategy(sourceIdentifier), mapper, update).map { it.values.toList() }
+  associateCachingWith(HashingUtil.mappingStrategy(sourceIdentifier), mapper, update)
 
 /**
  * Creates a list of stateful objects from other stateful objects, comparing the original objects by identity
  */
 fun <T, R> Flow<Iterable<T>>.mapStatefulToStateful(mapper: CoroutineScope.(T) -> R): Flow<List<R>> =
-  associateCachingWith(HashingStrategy.identity(), mapper).map { it.values.toList() }
+  associateCachingWith(HashingStrategy.identity(), mapper)
 
 /**
  * Allows mapping a collection of items [T] to scoped (coroutine scope bound) values [V]
@@ -87,7 +86,6 @@ fun <T, R> Flow<Iterable<T>>.mapStatefulToStateful(mapper: CoroutineScope.(T) ->
  * @param keyExtractor should be a quick-to-run function extracting a key from item
  * @param hashingStrategy strategy used to compare keys
  * @param mapper factory function to create a value from item
- * @param destroy destructor function to destroy a value
  * @param update function used to update value if a new item is supplied for the existing key
  */
 @ApiStatus.Internal
@@ -98,14 +96,14 @@ class MappingScopedItemsContainer<T, K, V> internal constructor(
   private val mapper: CoroutineScope.(T) -> V,
   private val update: (suspend V.(T) -> Unit)? = null,
 ) {
-  private val _mappingState = MutableStateFlow<Map<K, ScopingWrapper<V>>>(emptyMap())
-  val mappingState: StateFlow<Map<K, V>> = _mappingState.mapState { it.mapValues { (_, value) -> value.value } }
+  private val _mappingState = MutableStateFlow(MappingState(hashingStrategy))
+  val mappedState: StateFlow<List<V>> = _mappingState.mapState { it.values.map { v -> v.value } }
   private val mapGuard = Mutex()
 
   suspend fun update(items: Iterable<T>): Unit = mapGuard.withLock {
     withContext(NonCancellable) {
       val currentMap = _mappingState.value
-      val resultMap = createLinkedMap<K, ScopingWrapper<V>>(hashingStrategy)
+      val resultMap = MappingState(hashingStrategy)
 
       // add everything to the new mapping
       for (item in items) {
@@ -124,15 +122,13 @@ class MappingScopedItemsContainer<T, K, V> internal constructor(
       }
 
       // cancel scopes that are no longer included in the list
-      val deletedKeys = currentMap.keys - resultMap.keys
+      val deletedKeys = currentMap.keys.toSet() - resultMap.keys.toSet()
       for (key in deletedKeys) {
         val scopedValue = currentMap[key] ?: continue
         scopedValue.cancel()
       }
 
-      if (currentMap.size != resultMap.size || deletedKeys.isNotEmpty()) {
-        _mappingState.value = resultMap
-      }
+      _mappingState.value = resultMap
     }
   }
 
@@ -140,9 +136,11 @@ class MappingScopedItemsContainer<T, K, V> internal constructor(
     withContext(NonCancellable) {
       val key = keyExtractor(item)
       _mappingState.value[key]?.value ?: _mappingState.updateAndGet {
+        val newWrapper = it.copy()
         val valueScope = cs.childScope("item=$key")
         val newValue = ScopingWrapper(valueScope, mapper(valueScope, item))
-        it + (key to newValue)
+        newWrapper[key] = newValue
+        newWrapper
       }[key]!!.value
     }
   }
@@ -154,10 +152,39 @@ class MappingScopedItemsContainer<T, K, V> internal constructor(
     fun <T, V> byEquality(cs: CoroutineScope, mapper: CoroutineScope.(T) -> V): MappingScopedItemsContainer<T, T?, V> =
       MappingScopedItemsContainer(cs, { it }, HashingStrategy.canonical(), mapper, {})
   }
-}
 
-private fun <T, R> createLinkedMap(hashingStrategy: HashingStrategy<T>): MutableMap<T, R> =
-  CollectionFactory.createLinkedCustomHashingStrategyMap(hashingStrategy)
+  private inner class MappingState(private val hashingStrategy: HashingStrategy<K>) {
+    private val _map: MutableMap<K, ScopingWrapper<V>> = CollectionFactory.createLinkedCustomHashingStrategyMap(hashingStrategy)
+    val keys: List<K> get() = _map.keys.toList()
+    val values: List<ScopingWrapper<V>> get() = _map.values.toList()
+
+    operator fun get(key: K): ScopingWrapper<V>? = _map[key]
+
+    operator fun set(key: K, value: ScopingWrapper<V>) {
+      _map[key] = value
+    }
+
+    fun copy(): MappingState =
+      MappingState(hashingStrategy).also { copy ->
+        copy._map.putAll(_map)
+      }
+
+    override fun equals(other: Any?): Boolean {
+      if (this === other) return true
+      if (other !is MappingScopedItemsContainer<*, *, *>.MappingState) return false
+      if (keys != other.keys) return false
+      return keys.all { _map[it] == other._map[it] }
+    }
+
+    override fun hashCode(): Int {
+      var result = keys.hashCode()
+      for (key in keys) {
+        result = 31 * result + (_map[key].hashCode())
+      }
+      return result
+    }
+  }
+}
 
 private data class ScopingWrapper<T>(val scope: CoroutineScope, val value: T) {
   suspend fun cancel() = scope.cancelAndJoinSilently()

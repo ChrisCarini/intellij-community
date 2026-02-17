@@ -92,9 +92,8 @@ private class PreLoadingCodeReviewAsyncDiffViewModelDelegateImpl<D : Any, C : An
               vmsContainer.update(processedList)
               lastList = changesState.selectedChanges.list
             }
-            val mappingState = vmsContainer.mappingState.value
-            val vms = mappingState.values.toList()
-            val selectedVmIdx = mappingState.keys.indexOf(changesState.selectedChanges.selectedItem)
+            val vms = vmsContainer.mappedState.value
+            val selectedVmIdx = processedList.indexOf(changesState.selectedChanges.selectedItem)
             val newState = ViewModelsState(ListSelection.createAt(vms, selectedVmIdx), changesState.scrollRequests)
             emit(ComputedResult.success(newState))
           }
