@@ -123,6 +123,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
       add(SESSION_ID.with(sessionId))
       add(SEARCH_INDEX_DATA_KEY.with(searchIndex))
       add(SELECTED_INDEX.with(selectedResult.first))
+      selectedResult.second.sessionWideId?.let { add(SELECTED_RESULT_ID.with(it.value)) }
     }
   }
 
@@ -182,7 +183,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
     }
   }
 
-  internal val GROUP = EventLogGroup("mlse.log", 132, MLSE_RECORDER_ID,
+  internal val GROUP = EventLogGroup("mlse.log", 133, MLSE_RECORDER_ID,
                                      "ML in Search Everywhere Log Group")
 
   // region Fields
@@ -211,6 +212,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
                                                     "Whether the search state was interrupted before completing (e.g., due to a new query)")
 
   internal val SELECTED_INDEX = EventFields.Int("selected_index", "Selected index (0-based) of the item")
+  internal val SELECTED_RESULT_ID = EventFields.Int("result_id", "Session-wide ID of the selected result")
 
   @VisibleForTesting
   val SELECTED_ELEMENTS_DATA_KEY: IntListEventField = EventFields.IntList("selected_ids")
@@ -283,7 +285,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   internal val ITEM_SELECTED: VarargEventId = GROUP.registerVarargEvent("item.selected",
                                                                         "An event denoting selection of an item from search results",
                                                                         SESSION_ID, SEARCH_INDEX_DATA_KEY,
-                                                                        SELECTED_INDEX)
+                                                                        SELECTED_INDEX, SELECTED_RESULT_ID)
 
   @VisibleForTesting
   val SESSION_FINISHED: VarargEventId = GROUP.registerVarargEvent("session.finished",
