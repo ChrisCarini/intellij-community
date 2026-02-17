@@ -162,7 +162,7 @@ object PyTypeUtil {
    */
   @JvmStatic
   fun PyType?.toStream(): StreamEx<PyType?> =
-    if (this is PyComposedType)
+    if (this is PyCompositeType)
       StreamEx.of(this.members)
     else
       StreamEx.of(this)
@@ -256,11 +256,11 @@ object PyTypeUtil {
 
   val PyType?.components: List<PyType?>
     @ApiStatus.Experimental
-    get() = if (this is PyComposedType) members.toList() else listOf(this)
+    get() = if (this is PyCompositeType) members.toList() else listOf(this)
 
   val PyType?.componentSequence: Sequence<PyType?>
     @ApiStatus.Experimental
-    get() = if (this is PyComposedType) members.asSequence() else sequenceOf(this)
+    get() = if (this is PyCompositeType) members.asSequence() else sequenceOf(this)
 
   private fun toUnion(unionFactory: (List<PyType?>) -> PyType?): Collector<PyType?, *, PyType?> {
     return Collectors.collectingAndThen(Collectors.toList(), unionFactory)

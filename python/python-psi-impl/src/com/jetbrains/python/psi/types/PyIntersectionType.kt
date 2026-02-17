@@ -12,7 +12,7 @@ import org.jetbrains.annotations.ApiStatus
 import java.util.Collections
 
 @ApiStatus.Experimental
-class PyIntersectionType private constructor(members: Collection<PyType?>) : PyComposedType {
+class PyIntersectionType private constructor(members: Collection<PyType?>) : PyCompositeType {
   override val members: Set<PyType?> = Collections.unmodifiableSet<PyType?>(LinkedHashSet(members))
 
   override fun resolveMember(

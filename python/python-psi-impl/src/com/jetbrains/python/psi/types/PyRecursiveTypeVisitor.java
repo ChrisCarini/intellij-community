@@ -184,8 +184,8 @@ public final class PyRecursiveTypeVisitor extends PyTypeVisitorExt<PyRecursiveTy
     }
 
     @Override
-    public @NotNull List<@Nullable PyType> visitPyComposedType(@NotNull PyComposedType composedType) {
-      return Collections.unmodifiableList(new ArrayList<>(composedType.getMembers()));
+    public @NotNull List<@Nullable PyType> visitPyCompositeType(@NotNull PyCompositeType compositeType) {
+      return Collections.unmodifiableList(new ArrayList<>(compositeType.getMembers()));
     }
 
     @Override
