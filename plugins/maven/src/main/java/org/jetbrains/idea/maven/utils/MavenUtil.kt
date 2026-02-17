@@ -1855,25 +1855,47 @@ object MavenUtil {
       if (res != null && res.getSdkType() is JavaSdkType) {
         return res
       }
-      return JavaAwareProjectJdkTableImpl.getInstanceEx().getInternalJdk()
+      if (project.getEelDescriptor() != LocalEelDescriptor) {
+        return resolveJavaHomeSdk(project)
+      }
+      else {
+        return JavaAwareProjectJdkTableImpl.getInstanceEx().getInternalJdk()
+      }
     }
 
     if (name == MavenRunnerSettings.USE_JAVA_HOME) {
-      val javaHome = ExternalSystemJdkUtil.getJavaHome()
-      if (StringUtil.isEmptyOrSpaces(javaHome)) {
-        throw InvalidJavaHomeException(javaHome)
-      }
-      try {
-        return JavaSdk.getInstance().createJdk("", javaHome!!)
-      }
-      catch (e: IllegalArgumentException) {
-        throw InvalidJavaHomeException(javaHome)
-      }
+      return resolveJavaHomeSdk(project)
     }
 
     val projectJdk: Sdk? = getSdkByExactName(name)
     if (projectJdk != null) return projectJdk
     throw InvalidSdkException(name)
+  }
+
+  /**
+   * Resolves JAVA_HOME for the project's environment (local or remote via EEL).
+   */
+  private fun resolveJavaHome(project: Project): String? {
+    val eelDescriptor = project.getEelDescriptor()
+    if (eelDescriptor == LocalEelDescriptor) {
+      return ExternalSystemJdkUtil.getJavaHome()
+    }
+    val eel = eelDescriptor.toEelApiBlocking()
+    val remoteJavaHome = eel.exec.fetchLoginShellEnvVariablesBlocking()[ExternalSystemJdkUtil.JAVA_HOME]
+    return remoteJavaHome?.let(eel.fs::getPath)?.asNioPath().toString()
+  }
+
+  private fun resolveJavaHomeSdk(project: Project): Sdk {
+    val javaHome = resolveJavaHome(project)
+    if (javaHome.isNullOrBlank()) {
+      throw InvalidJavaHomeException(javaHome)
+    }
+    try {
+      return JavaSdk.getInstance().createJdk("", javaHome)
+    }
+    catch (_: IllegalArgumentException) {
+      throw InvalidJavaHomeException(javaHome)
+    }
   }
 
   private fun getSdkByExactName(name: String): Sdk? {
