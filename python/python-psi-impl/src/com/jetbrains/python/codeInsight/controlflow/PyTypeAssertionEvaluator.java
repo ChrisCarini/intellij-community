@@ -103,26 +103,47 @@ public class PyTypeAssertionEvaluator extends PyRecursiveElementVisitor {
   }
 
   private static boolean isSafeForNegativeAssertion(@NotNull PyExpression expression, @NotNull TypeEvalContext context) {
-    expression = PyPsiUtils.flattenParens(expression);
+    final List<PyExpression> elements = expandClassInfoExpressions(expression);
+    if (elements.isEmpty()) return false;
+    for (PyExpression element : elements) {
+      if (!isSafeClassInfoReference(element, context)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @NotNull
+  @ApiStatus.Internal
+  public static List<PyExpression> expandClassInfoExpressions(@NotNull PyExpression expression) {
+    final PyExpression flattened = PyPsiUtils.flattenParens(expression);
+    if (flattened == null) return List.of();
+    if (flattened instanceof PyTupleExpression tuple) {
+      final List<PyExpression> result = new ArrayList<>();
+      for (PyExpression element : tuple.getElements()) {
+        result.addAll(expandClassInfoExpressions(element));
+      }
+      return result;
+    }
+    // Keep in mind that `isinstance` will only accept `A | B` expression if all operands are classinfo, so no parameterized generics
+    if (flattened instanceof PyBinaryExpression binary && binary.getOperator() == PyTokenTypes.OR) {
+      final PyExpression left = binary.getLeftExpression();
+      final PyExpression right = binary.getRightExpression();
+      final List<PyExpression> result = new ArrayList<>(expandClassInfoExpressions(left));
+      if (right != null) {
+        result.addAll(expandClassInfoExpressions(right));
+      }
+      return result;
+    }
+    return List.of(flattened);
+  }
+
+  private static boolean isSafeClassInfoReference(@NotNull PyExpression expression, @NotNull TypeEvalContext context) {
     if (expression instanceof PyReferenceExpression ref) {
-      // Here we check that the reference resolves to a class, not a target in assignment or function parameter. 
+      // Here we check that the reference resolves to a class, not a target in assignment or function parameter.
       // This is done to avoid cases like Py3TypeTest.testIsInstanceNegativeNarrowing
       final List<@Nullable PsiElement> resolvedElements = PyUtil.multiResolveTopPriority(ref, PyResolveContext.defaultContext(context));
       return ContainerUtil.getOnlyItem(resolvedElements) instanceof PyClass;
-    }
-    if (expression instanceof PyTupleExpression tuple) {
-      for (PyExpression element : tuple.getElements()) {
-        if (!isSafeForNegativeAssertion(element, context)) {
-          return false;
-        }
-      }
-      return true;
-    }
-    // Keep in mind that `isinstance` will only accept `A | B` expression if all operands are classinfo, so no parameterized generics
-    if (expression instanceof PyBinaryExpression binary && binary.getOperator() == PyTokenTypes.OR) {
-      final PyExpression left = binary.getLeftExpression();
-      final PyExpression right = binary.getRightExpression();
-      return isSafeForNegativeAssertion(left, context) && right != null && isSafeForNegativeAssertion(right, context);
     }
     return false;
   }
