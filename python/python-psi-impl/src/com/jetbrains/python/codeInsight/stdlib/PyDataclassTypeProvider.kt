@@ -74,7 +74,7 @@ class PyDataclassTypeProvider : PyTypeProviderBase() {
       else -> null
     }
 
-    return result.notNullToRef
+    return result.notNullToRef()
   }
 
   override fun getParameterType(param: PyNamedParameter, func: PyFunction, context: TypeEvalContext): Ref<PyType>? {
