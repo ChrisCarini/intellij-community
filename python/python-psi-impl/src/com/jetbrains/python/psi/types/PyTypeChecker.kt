@@ -16,6 +16,7 @@ import com.jetbrains.python.PythonRuntimeService
 import com.jetbrains.python.ast.PyAstFunction
 import com.jetbrains.python.codeInsight.dataflow.scope.ScopeUtil
 import com.jetbrains.python.codeInsight.typing.PyTypingTypeProvider
+import com.jetbrains.python.codeInsight.typing.getProtocolMembers
 import com.jetbrains.python.codeInsight.typing.inspectProtocolSubclass
 import com.jetbrains.python.codeInsight.typing.isProtocol
 import com.jetbrains.python.psi.AccessDirection
@@ -932,11 +933,19 @@ object PyTypeChecker {
 
     val context = matchContext.context
 
-    if (expected is PyClassLikeType && !isCallableProtocol(expected, context)) {
-      return if (PyTypingTypeProvider.CALLABLE == expected.classQName)
-        Optional.of(actual.isCallable)
-      else
-        Optional.empty()
+    if (expected is PyClassLikeType) {
+      if (isCallableProtocol(expected, context)) {
+        val protocolMembers = expected.getProtocolMembers(context)
+        if (protocolMembers.size != 1 || protocolMembers[0].name != "__call__") {
+          return Optional.of(false)
+        }
+      }
+      else {
+        return if (PyTypingTypeProvider.CALLABLE == expected.classQName)
+          Optional.of(actual.isCallable)
+        else
+          Optional.empty()
+      }
     }
 
     if (expected.isCallable && actual.isCallable) {

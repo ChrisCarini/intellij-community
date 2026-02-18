@@ -4306,6 +4306,25 @@ public class Py3TypeCheckerInspectionTest extends PyInspectionTestCase {
                    """);
   }
 
+  // PY-87802
+  public void testCallableProtocolWithAdditionalAttributeAssignment() {
+    doTestByText("""
+                   from typing import Protocol
+                   
+                   class Proto(Protocol):
+                       other_attribute: int
+                   
+                       def __call__(self, x: int) -> None:
+                           pass
+                   
+                   
+                   def f(x: int) -> None:
+                       pass
+                   
+                   
+                   v: Proto = <warning descr="Expected type 'Proto', got '(x: int) -> None' instead">f</warning>""");
+  }
+
   public void testWildcardSignatures() {
     doTestByText("""
                    from typing import Protocol
