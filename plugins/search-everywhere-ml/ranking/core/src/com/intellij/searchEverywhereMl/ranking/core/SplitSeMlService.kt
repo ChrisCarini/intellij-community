@@ -61,7 +61,7 @@ internal class SplitSeMlService : SeMlService {
   override fun onStateStarted(tabId: String, searchParams: SeParams) {
     val activeSession = checkNotNull(SearchEverywhereMlFacade.activeSession) { "Cannot call onStateStarted without active search session" }
     val project = activeSession.project
-    val previousState = activeSession.previousSearchState
+    val previousState = activeSession.activeState ?: activeSession.previousSearchState
 
     val scopeDescriptor = searchParams.getScopeDescriptorIfExists(currentOrDefaultProject(project))
     val isSearchEverywhere = searchParams.isSearchEverywhere()
