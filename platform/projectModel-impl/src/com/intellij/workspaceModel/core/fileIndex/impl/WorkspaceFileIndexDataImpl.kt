@@ -246,7 +246,12 @@ internal class WorkspaceFileIndexDataImpl(
           fileIdWithoutFileSets.set(fileId)
         }
       }
-      current = current.parent
+      val parent = current.parent
+      current = if (parent != current) {
+        parent
+      } else {
+        null // thin-client files may return the directory itself as a parent
+      }
     }
     if (originalAcceptedKindMask != acceptedKindsMask) {
       return@addMeasuredTime WorkspaceFileInternalInfo.NonWorkspace.EXCLUDED
