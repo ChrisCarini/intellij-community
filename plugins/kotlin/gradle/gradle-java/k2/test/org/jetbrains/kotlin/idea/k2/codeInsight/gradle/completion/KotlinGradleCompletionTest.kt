@@ -272,7 +272,7 @@ class KotlinGradleCompletionTest : AbstractGradleCodeInsightTest() {
      * KTIJ-34791
      */
     @ParameterizedTest
-    @GradleTestSource("8.14.3")
+    @GradleTestSource("8.14.4")
     @TestMetadata("buildSrcDir/suggestionsInsideLambdaInBuildGradleKtsInBuildSrc.test")
     fun testSuggestionsInsideLambdaInBuildGradleKtsInBuildSrc(gradleVersion: GradleVersion) {
         verifyCompletion(gradleVersion)
