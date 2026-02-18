@@ -15,7 +15,9 @@ import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
 import com.intellij.ide.actions.searcheverywhere.SemanticSearchEverywhereContributor
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.openapi.project.Project
+import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
+import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason
 import com.intellij.searchEverywhereMl.ranking.core.adapters.toSearchStateChangeReason
 import org.jetbrains.annotations.ApiStatus
 import java.util.*
@@ -57,7 +59,26 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     searchScope: ScopeDescriptor?,
     isSearchEverywhere: Boolean,
   ) {
-    SearchEverywhereMlFacade.onStateStarted(tabId, searchQuery, reason.toSearchStateChangeReason(), searchScope, isSearchEverywhere)
+    val changeReason = if (reason == SearchRestartReason.SCOPE_CHANGED) {
+      inferReasonForOldSE(tabId, searchQuery)
+    }
+    else {
+      reason.toSearchStateChangeReason()
+    }
+    SearchEverywhereMlFacade.onStateStarted(tabId, searchQuery, changeReason, searchScope, isSearchEverywhere)
+  }
+
+  private fun inferReasonForOldSE(tabId: String, searchQuery: String): SearchStateChangeReason {
+    val activeSession = SearchEverywhereMlFacade.activeSession ?: return SearchStateChangeReason.SCOPE_CHANGE
+    val previousState = activeSession.activeState ?: activeSession.previousSearchState
+                        ?: return SearchStateChangeReason.SEARCH_START
+
+    val tab = SearchEverywhereTab.getById(tabId)
+    return when {
+      searchQuery != previousState.query -> SearchStateChangeReason.QUERY_CHANGE
+      tab != previousState.tab -> SearchStateChangeReason.TAB_CHANGE
+      else -> SearchStateChangeReason.QUERY_CHANGE // In old SE, scope-only changes are auto-escalation
+    }
   }
 
   override fun onStateFinished(results: List<SearchEverywhereFoundElementInfo>) {
