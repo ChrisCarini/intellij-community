@@ -32,8 +32,6 @@ import com.intellij.openapi.editor.markup.MarkupModel;
 import com.intellij.openapi.editor.markup.RangeHighlighter;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.TextEditor;
-import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider;
 import com.intellij.openapi.fileTypes.PlainTextFileType;
 import com.intellij.openapi.fileTypes.PlainTextLanguage;
 import com.intellij.openapi.project.Project;
@@ -57,7 +55,6 @@ import com.intellij.psi.PsiPlainText;
 import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.SkipSlowTestLocally;
 import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl;
-import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.TestTimeOut;
 import com.intellij.util.ThrowableRunnable;
 import com.intellij.util.TimeoutUtil;
@@ -186,8 +183,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
     ExternalLanguageAnnotators.INSTANCE.addExplicitExtension(JavaLanguage.INSTANCE, annotator, getTestRootDisposable());
 
     long start = System.currentTimeMillis();
-    List<HighlightInfo> errors = filter(CodeInsightTestFixtureImpl.instantiateAndRun(getFile(), getEditor(), new int[0], false),
-                                        HighlightSeverity.ERROR);
+    List<HighlightInfo> errors = myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
     long elapsed = System.currentTimeMillis() - start;
 
     assertSize(0, errors);
@@ -214,12 +210,12 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
       assertEquals(getFile().getTextRange(), editor.calculateVisibleRange());
 
       assertEquals("XXX", assertOneElement(
-        DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING)).getDescription());
+        myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING)).getDescription());
 
       for (int i = 0; i < 100; i++) {
         myDaemonCodeAnalyzer.restart(getTestName(false)+ " "+i);
         List<HighlightInfo> infos =
-          DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING);
+          myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING);
         assertEquals("XXX", assertOneElement(infos).getDescription());
       }
     });
@@ -405,11 +401,10 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
       }
     };
     CodeInsightTestFixtureImpl.ensureIndexesUpToDate(getProject());
-    TextEditor textEditor = TextEditorProvider.getInstance().getTextEditor(getEditor());
     PsiDocumentManager.getInstance(myProject).commitAllDocuments();
     long start = System.currentTimeMillis();
     try {
-      myTestDaemonCodeAnalyzer.runPasses(getFile(), getEditor().getDocument(), textEditor, ArrayUtilRt.EMPTY_INT_ARRAY, false, true, checkHighlighted);
+      myTestDaemonCodeAnalyzer.waitForDaemonToFinish(getProject(), getEditor().getDocument(), checkHighlighted);
     }
     catch (Exception e) {
       throw new RuntimeException(e);
@@ -512,7 +507,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
                           String ql = "<value>1</value>";
                           }""");
 
-        DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
+        myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
         assertTrue("File already has to be java annotated", annotated.get());
         assertTrue("File already has to annotate xml injection", injectedAnnotated.get());
         assertTrue("File already has to run inspections", inspected.get());
@@ -534,7 +529,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
   }
   public void testTypingMustRescheduleDaemonBackByReparseDelayMillis() {
     EmptyAnnotator emptyAnnotator = new EmptyAnnotator();
-    DaemonRespondToChangesTest.runWithReparseDelay(2000, () -> useAnnotatorsIn(JavaLanguage.INSTANCE, new MyRecordingAnnotator[]{emptyAnnotator}, () -> {
+    TestDaemonCodeAnalyzerImpl.runWithReparseDelay(2000, () -> useAnnotatorsIn(JavaLanguage.INSTANCE, new MyRecordingAnnotator[]{emptyAnnotator}, () -> {
             @Language("JAVA")
             String text = "class X {\n}";
             configureByText(JavaFileType.INSTANCE, text);
@@ -542,7 +537,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
       @NotNull Editor editor = getEditor();
       assertEquals(getFile().getTextRange(), editor.calculateVisibleRange());
             CodeInsightTestFixtureImpl.ensureIndexesUpToDate(getProject());
-      DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
+      myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
       MyRecordingAnnotator.clearAll();
             type(" import java.lang.*;\n");
             long start = System.currentTimeMillis();
@@ -590,7 +585,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
       """;
     configureByText(JavaFileType.INSTANCE, text);
 
-    DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
+    myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
 
     DaemonCodeAnalyzer.DaemonListener.AnnotatorStatistics stat = firstStatistics.get();
     assertNotNull(stat);
@@ -635,12 +630,12 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
     useAnnotatorsIn(PlainTextLanguage.INSTANCE, new MyRecordingAnnotator[]{new MiddleOfTextAnnotator()}, ()->{
       MiddleOfTextAnnotator.doAnnotate = true;
       List<HighlightInfo> infos =
-        DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
+        myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
       HighlightInfo info = assertOneElement(infos);
       assertEquals("warning", info.getDescription());
       MiddleOfTextAnnotator.doAnnotate = false;
       myDaemonCodeAnalyzer.restart(getTestName(false));
-      assertEmpty(DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION));
+      assertEmpty(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION));
     });
   }
 
@@ -672,12 +667,12 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
     myDaemonCodeAnalyzer.restart(getTestName(false));
     expectedVisibleRange = visibleRange;
     useAnnotatorsIn(PlainTextLanguage.INSTANCE, new MyRecordingAnnotator[]{new CheckVisibleRangeAnnotator()}, ()-> assertEmpty(
-      DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION)));
+      myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION)));
     DaemonRespondToChangesTest.makeWholeEditorWindowVisible(editor);
     myDaemonCodeAnalyzer.restart(getTestName(false));
     expectedVisibleRange = new TextRange(0, editor.getDocument().getTextLength());
     useAnnotatorsIn(PlainTextLanguage.INSTANCE, new MyRecordingAnnotator[]{new CheckVisibleRangeAnnotator()}, ()-> assertEmpty(
-      DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION)));
+      myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION)));
   }
 
   // highlight each field, stall every other element
@@ -743,7 +738,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
     // both annos should produce their results
     useAnnotatorsIn(annotatorsByLanguage, () -> {
       List<HighlightInfo> infos =
-        DaemonRespondToChangesTest.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING);
+        myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING);
       assertTrue(infos.toString(), ContainerUtil.exists(infos, i -> i.getDescription().equals(MyFieldSlowAnnotator.fieldWarningText.get())));
       assertTrue(infos.toString(), ContainerUtil.exists(infos, i -> i.getDescription().equals(MyCommentFastAnnotator.fastToolText)));
       RangeHighlighter[] markers = model.getAllHighlighters();
@@ -762,13 +757,13 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
     useAnnotatorsIn(annotatorsByLanguage, () -> {
       // now when the highlighting is restarted, we should get back our anno result very fast, despite very slow processing of every other element
       TestTimeOut t= TestTimeOut.setTimeout(10_000, TimeUnit.MILLISECONDS);
-      while (!DaemonRespondToChangesTest.daemonIsWorkingOrPending(myProject, myEditor.getDocument())) {
+      while (!myTestDaemonCodeAnalyzer.daemonIsWorkingOrPending(myProject, myEditor.getDocument())) {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
         t.assertNoTimeout("daemon to start");
       }
       try {
         boolean fastToolFinishedFaster = false;
-        while (DaemonRespondToChangesTest.daemonIsWorkingOrPending(myProject, myEditor.getDocument())) {
+        while (myTestDaemonCodeAnalyzer.daemonIsWorkingOrPending(myProject, myEditor.getDocument())) {
           t.assertNoTimeout("daemon to finish");
           PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
           if (MyCommentFastAnnotator.finished.get() && !MyFieldSlowAnnotator.finished.get()) {
@@ -855,7 +850,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
     useAnnotatorsIn(annotatorsByLanguage, () -> {
       TestTimeOut t = TestTimeOut.setTimeout(20_000, TimeUnit.MILLISECONDS);
       TestTimeOut t2 = TestTimeOut.setTimeout(20_000+10_000, TimeUnit.MILLISECONDS);
-      while (!DaemonRespondToChangesTest.daemonIsWorkingOrPending(myProject, myEditor.getDocument())) {
+      while (!myTestDaemonCodeAnalyzer.daemonIsWorkingOrPending(myProject, myEditor.getDocument())) {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
         t.assertNoTimeout("daemon to start");
       }
@@ -873,7 +868,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
       }
       MyComment1Annotator.stall1.set(false);
       MyComment2Annotator.stall2.set(false);
-      while (DaemonRespondToChangesTest.daemonIsWorkingOrPending(myProject, myEditor.getDocument())) {
+      while (myTestDaemonCodeAnalyzer.daemonIsWorkingOrPending(myProject, myEditor.getDocument())) {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
         t2.assertNoTimeout("daemon finish after annotators completed: "+"; stall1="+MyComment1Annotator.stall1+"; stall2="+MyComment2Annotator.stall2);
         Thread.yield();
@@ -900,7 +895,8 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
   public void testCloseReopenDoesNotDuplicateWarnings() {
     useAnnotatorsIn(PlainTextLanguage.INSTANCE, new MyRecordingAnnotator[]{new MyTextAnnotator()}, () -> {
       configureByText(PlainTextFileType.INSTANCE, "sssxxxsss");
-      HighlightInfo info = assertOneElement(highlightErrors());
+      HighlightInfo info = assertOneElement(
+        myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR));
       assertEquals(MyTextAnnotator.SWEARING, info.getDescription());
 
       Document document = myFile.getFileDocument();
@@ -910,7 +906,8 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
 
       configureByExistingFile(virtualFile);
       assertSame(document, getEditor().getDocument());
-      HighlightInfo info2 = assertOneElement(highlightErrors());
+      HighlightInfo info2 = assertOneElement(
+        myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR));
       assertEquals(MyTextAnnotator.SWEARING, info2.getDescription());
     });
   }
@@ -932,12 +929,14 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
 
     useAnnotatorsIn(PlainTextLanguage.INSTANCE, new MyRecordingAnnotator[]{new MyFileLevelAnnotator()}, () -> {
       for (int i=0; i<100; i++) {
-        assertEquals(MyFileLevelAnnotator.MSG, assertOneElement(highlightErrors()).getDescription());
+        assertEquals(MyFileLevelAnnotator.MSG, assertOneElement(
+          myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR)).getDescription());
         HighlightInfo info = assertOneElement(myDaemonCodeAnalyzer.getFileLevelHighlights(getProject(), getFile()));
         assertEquals(MyFileLevelAnnotator.MSG, info.getDescription());
 
         type('2');
-        assertEquals(MyFileLevelAnnotator.MSG, assertOneElement(highlightErrors()).getDescription());
+        assertEquals(MyFileLevelAnnotator.MSG, assertOneElement(
+          myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR)).getDescription());
         info = assertOneElement(myDaemonCodeAnalyzer.getFileLevelHighlights(getProject(), getFile()));
         assertEquals(MyFileLevelAnnotator.MSG, info.getDescription());
 
@@ -967,12 +966,16 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
 
     useAnnotatorsIn(PlainTextLanguage.INSTANCE, new MyRecordingAnnotator[]{new MyFileLevelAnnotatorWithConstantlyChangingDescription()}, () -> {
       for (int i=0; i<100; i++) {
-        assertTrue(MyFileLevelAnnotatorWithConstantlyChangingDescription.isMine(assertOneElement(highlightErrors())));
+        assertTrue(MyFileLevelAnnotatorWithConstantlyChangingDescription.isMine(assertOneElement(
+          myTestDaemonCodeAnalyzer.waitHighlighting(getProject(),
+                                                      getEditor().getDocument(), HighlightSeverity.ERROR))));
         HighlightInfo info = assertOneElement(myDaemonCodeAnalyzer.getFileLevelHighlights(getProject(), getFile()));
         assertTrue(MyFileLevelAnnotatorWithConstantlyChangingDescription.isMine(info));
 
         type('2');
-        assertTrue(MyFileLevelAnnotatorWithConstantlyChangingDescription.isMine(assertOneElement(highlightErrors())));
+        assertTrue(MyFileLevelAnnotatorWithConstantlyChangingDescription.isMine(assertOneElement(
+          myTestDaemonCodeAnalyzer.waitHighlighting(getProject(),
+                                                      getEditor().getDocument(), HighlightSeverity.ERROR))));
         info = assertOneElement(myDaemonCodeAnalyzer.getFileLevelHighlights(getProject(), getFile()));
         assertTrue(MyFileLevelAnnotatorWithConstantlyChangingDescription.isMine(info));
 

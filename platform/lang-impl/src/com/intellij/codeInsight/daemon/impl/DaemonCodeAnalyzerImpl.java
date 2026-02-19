@@ -1187,6 +1187,17 @@ public final class DaemonCodeAnalyzerImpl extends DaemonCodeAnalyzerEx
         LOG.debug("runUpdate activeEditors: ("+activeEditors.size()+"): "+ContainerUtil.map(activeEditors, e->e+"("+e.getClass()+") for file "+e.getFile()));
       }
       for (FileEditor fileEditor : activeEditors) {
+        DaemonProgressIndicator existingProgress;
+        synchronized (this) {
+          existingProgress = myUpdateProgress.get(fileEditor);
+          if (existingProgress != null && !existingProgress.isCanceled()) {
+            if (PassExecutorService.LOG.isDebugEnabled()) {
+              PassExecutorService.log(existingProgress, null, "found already running progress, will continue running it ", fileEditor);
+            }
+            submitted = true; // there's existing running progress already; since nobody's canceled it, it can continue. Let's pretend we submitted stuff successfully
+            continue;
+          }
+        }
         if (fileEditor instanceof TextEditor textEditor && !textEditor.isEditorLoaded()) {
           // make sure the highlighting is restarted when the editor is finally loaded, because otherwise some crazy things happen,
           // for instance, `FileEditor.getBackgroundHighlighter()` returning null, essentially stopping highlighting silently
@@ -1535,8 +1546,9 @@ public final class DaemonCodeAnalyzerImpl extends DaemonCodeAnalyzerEx
     }
 
     // tests usually care about just one explicitly configured editor
-    if (!ApplicationManager.getApplication().isUnitTestMode()) {
-      for (FileEditor tabEditor : getFileEditorManager().getSelectedEditorWithRemotes()) {
+    if (!ApplicationManager.getApplication().isUnitTestMode() || activeTextEditors.isEmpty()) {
+      Collection<FileEditor> selectedEditors = getFileEditorManager().getSelectedEditorWithRemotes();
+      for (FileEditor tabEditor : selectedEditors) {
         if (!isValidEditor(tabEditor)) continue;
 
         if (tabEditor instanceof FileEditorWithTextEditors delegate) {
