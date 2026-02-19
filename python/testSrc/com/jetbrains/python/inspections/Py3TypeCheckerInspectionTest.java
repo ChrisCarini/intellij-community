@@ -4325,6 +4325,90 @@ public class Py3TypeCheckerInspectionTest extends PyInspectionTestCase {
                    v: Proto = <warning descr="Expected type 'Proto', got '(x: int) -> None' instead">f</warning>""");
   }
 
+  // PY-87801
+  public void testCallableProtocolWithOverloadsFunctionAssignment() {
+    doTestByText("""
+                   from typing import Protocol, overload, Any
+                   
+                   class Proto(Protocol):
+                       @overload
+                       def __call__(self, x: int) -> int:
+                           ...
+                   
+                       @overload
+                       def __call__(self, x: str) -> str:
+                           ...
+                   
+                       def __call__(self, x: Any) -> Any:
+                           ...
+                   
+                   def f(x: int) -> Any:
+                       return x
+                   
+                   cb: Proto = <warning descr="Expected type 'Proto', got '(x: int) -> Any' instead">f</warning>""");
+  }
+
+  // PY-87801
+  public void testCallableProtocolWithOverloadsFunctionWithOverloadsAssignment() {
+    doTestByText("""
+                   from typing import Protocol, overload, Any
+                   
+                   class Proto(Protocol):
+                       @overload
+                       def __call__(self, x: int) -> int:
+                           ...
+                   
+                       @overload
+                       def __call__(self, x: str) -> str:
+                           ...
+                   
+                       def __call__(self, x: Any) -> Any:
+                           ...
+                   
+                   @overload
+                   def f(x: str) -> str: ...
+                   
+                   @overload
+                   def f(x: int) -> int: ...
+                   
+                   def f(x: Any) -> Any:
+                       return x
+                   
+                   cb: Proto = f""");
+  }
+
+  // PY-87801
+  public void testCallableProtocolWithOverloadsFunctionWithOverloadsNotMatchingAssignment() {
+    doTestByText("""
+                   from typing import Protocol, overload, Any
+                   
+                   class Proto(Protocol):
+                       @overload
+                       def __call__(self, x: int) -> int:
+                           ...
+                   
+                       @overload
+                       def __call__(self, x: str) -> str:
+                           ...
+                   
+                       def __call__(self, x: Any) -> Any:
+                           ...
+                   
+                   class A:
+                       pass
+                   
+                   @overload
+                   def f(x: str) -> str: ...
+                   
+                   @overload
+                   def f(x: A) -> A: ...
+                   
+                   def f(x: Any) -> Any:
+                       return x
+                   
+                   cb: Proto = <warning descr="Expected type 'Proto', got '(x: Any) -> Any' instead">f</warning>""");
+  }
+
   public void testWildcardSignatures() {
     doTestByText("""
                    from typing import Protocol

@@ -45,6 +45,7 @@ import com.jetbrains.python.psi.types.PyTypeChecker.match
 import com.jetbrains.python.psi.types.PyTypeUtil.getEffectiveBound
 import com.jetbrains.python.psi.types.PyTypeUtil.toStream
 import com.jetbrains.python.pyi.PyiFile
+import com.jetbrains.python.pyi.PyiUtil
 import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import org.jetbrains.annotations.ApiStatus
 import java.util.Collections
@@ -946,6 +947,24 @@ object PyTypeChecker {
         else
           Optional.empty()
       }
+    }
+
+    if (expected is PyClassType && actual is PyFunctionType && isCallableProtocol(expected, context)) {
+      val expectedOverloads = expected.findMember(PyNames.CALL, PyResolveContext.defaultContext(context)).map { it.type }
+      val actualCallable = actual.callable
+      val actualOverloads = if (actualCallable is PyFunction) {
+        PyiUtil.getOverloads(actualCallable, context)
+          .map { context.getType(it) }
+          .takeIf { it.isNotEmpty() } ?: listOf(actual)
+      }
+      else {
+        listOf(actual)
+      }
+      return Optional.of(expectedOverloads.all { expectedCall ->
+        actualOverloads.any { actualCall ->
+          match(dropSelfIfNeeded(expected, expectedCall, context), actualCall, matchContext).orElse(true)
+        }
+      })
     }
 
     if (expected.isCallable && actual.isCallable) {
