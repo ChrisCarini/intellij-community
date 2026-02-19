@@ -10,6 +10,7 @@ plugins {
   alias(libs.plugins.dokka)
   // GRADLE_PLUGINS__MARKER_START
   id("fleet-module")
+  alias(jps.plugins.kotlin.serialization)
   // GRADLE_PLUGINS__MARKER_END
 }
 

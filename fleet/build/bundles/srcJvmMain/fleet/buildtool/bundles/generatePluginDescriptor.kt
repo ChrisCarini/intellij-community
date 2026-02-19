@@ -145,8 +145,8 @@ fun generatePluginDescriptor(
     it.createDirectories()
   }
   val documentationResources = outputModuleJarsByLayer.mapNotNull { (layerSelector, jars) ->
-    readDocumentationResourcesContent(jars)?.let {
-      packResourcesToZip(it.asSequence(),
+    readDocumentationResourcesContent(jars)?.let { docs ->
+      packResourcesToZip(docs.asSequence().map { (name, bytes) -> name to bytes.inputStream() },
                          documentationZipsDirectory,
                          layerSelector.selector)
     }
@@ -160,7 +160,7 @@ fun generatePluginDescriptor(
   }
 
   val parts = PluginParts(layers = outputModuleJarsByLayer.map { (layerSelector, moduleJars) ->
-    val resourceFileToMetadata = resources.filter { it.layerSelector == layerSelector.selector }.flatMap { resource ->
+    val resourceFileToMetadata = resources.filter { it.layer == layerSelector.selector }.flatMap { resource ->
       val metadata = when (val p = resource.platforms) {
         null -> emptyMap()
         else -> mapOf(KnownCoordinatesMeta.Platforms to Json.encodeToString(ListSerializer(CoordinatesPlatform.serializer()), p))
@@ -206,24 +206,25 @@ fun generatePluginDescriptor(
   val iconCoordinates = defaultIcon?.toCoordinates(pluginName, pluginVersion, marketplaceUrl, remoteName = defaultIcon.name)?.coordinates
   val iconDarkCoordinates = darkIcon?.toCoordinates(pluginName, pluginVersion, marketplaceUrl, remoteName = darkIcon.name)?.coordinates
 
-  val plugin = PluginDescriptor(formatVersion = 0,
-                                name = pluginName,
-                                version = pluginVersion,
-                                compatibleShipVersionRange = compatibleShipVersionRange,
-                                deps = dependencies,
-                                meta = metadata + listOfNotNull(
-                                  KnownMeta.PartsCoordinates to Json.encodeToString(Coordinates.serializer(), partsCoordinates),
-                                  iconCoordinates?.let {
-                                    KnownMeta.DefaultIconCoordinates to Json.encodeToString(Coordinates.serializer(),
-                                                                                            it)
-                                  },
-                                  iconDarkCoordinates?.let {
-                                    KnownMeta.DarkIconCoordinates to Json.encodeToString(Coordinates.serializer(),
-                                                                                         it)
-                                  },
-                                  KnownMeta.SupportedProducts to supportedProducts.joinToString(","),
-                                ).toMap(),
-                                signature = null)
+  val plugin = PluginDescriptor(
+    formatVersion = 0,
+    name = pluginName,
+    version = pluginVersion,
+    compatibleShipVersionRange = compatibleShipVersionRange,
+    deps = dependencies,
+    meta = metadata + listOfNotNull(
+      KnownMeta.PartsCoordinates to Json.encodeToString(Coordinates.serializer(), partsCoordinates),
+      iconCoordinates?.let {
+        KnownMeta.DefaultIconCoordinates to Json.encodeToString(Coordinates.serializer(),
+                                                                it)
+      },
+      iconDarkCoordinates?.let {
+        KnownMeta.DarkIconCoordinates to Json.encodeToString(Coordinates.serializer(),
+                                                             it)
+      },
+      KnownMeta.SupportedProducts to supportedProducts.joinToString(","),
+    ).toMap(),
+    signature = null)
   val tmpSigningDir = createTempDirectory("plugin-descriptor-signing")
   val id = conventionalId(pluginName.name, pluginVersion)
   val signingResult = signer.gpgSign(
@@ -255,15 +256,20 @@ private fun packResourcesToZip(
 ): FleetResource {
   val zipFileName = zipsDirectory.resolve("${layer}.zip")
   zip(zipFileName, resources)
+  resources.forEach { (_, stream) -> stream.close() }
   return FleetResource(setOf(zipFileName), layer, null)
 }
 
-private fun readDocumentationResourcesContent(jars: Collection<Path>): List<Pair<String, InputStream>>? = jars.map { ZipFile(it.toFile()) }
-  .flatMap { zip -> // TODO: this is a hack, in theory we should not pack the documentation json files in the jars, but we don't want to repack for performance reasons, instead this resource zip building should ideally be moved at module packaging level and exposes to other subprojects via consumable configuration
-    zip.entries().asSequence().filter { it.name.endsWith(JSON_DOCUMENTATION_FILENAME_EXTENSION) }
-      // Zip entries are required to have '/' as a file separator on any platform (see. 4.4.17.1 in a spec: https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT)
-      .onEach { require(!it.name.contains('/')) { "Documentation should be located in a root of a module" } }
-      .map { entry -> entry.name to zip.getInputStream(entry) }
+private fun readDocumentationResourcesContent(jars: Collection<Path>): List<Pair<String, ByteArray>>? = jars.flatMap { jar ->
+    // TODO: this is a hack, in theory we should not pack the documentation json files in the jars, but we don't want to repack for performance reasons, instead this resource zip building should ideally be moved at module packaging level and exposes to other subprojects via consumable configuration
+    ZipFile(jar.toFile()).use { zip ->
+      zip.entries().asSequence()
+        .filter { it.name.endsWith(JSON_DOCUMENTATION_FILENAME_EXTENSION) }
+        // Zip entries are required to have '/' as a file separator on any platform (see. 4.4.17.1 in a spec: https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT)
+        .onEach { require(!it.name.contains('/')) { "Documentation should be located in a root of a module" } }
+        .map { entry -> entry.name to zip.getInputStream(entry).readBytes() }
+        .toList()
+    }
   }.takeIf { it.isNotEmpty() }
 
 private fun Path.toCoordinates(
@@ -336,7 +342,7 @@ private fun filterConflictingJars(
   return filteredJars.toSet()
 }
 
-private const val entityDescriptorFileHeuristic: String = "META-INF/com.jetbrains.rhizomedb.impl.EntityTypeProvider.txt"
+private const val entityDescriptorFileHeuristic: String = "entityTypes.txt"
 
 /**
  * Returns [true] if [jar]'s module is "relevant" to Fleet's runtime, it could be:
@@ -351,8 +357,9 @@ private fun moduleIsRelevantToFleetRuntime(jar: Path): Boolean {
   val descriptor = findModuleDescriptor(jar)
   return when { // modules that the Fleet runtime have interest upon, which are:
     descriptor.provides().any { it.service() == FLEET_KERNEL_PLUGIN_SERVICE } -> true // modules that provides fleet.kernel.plugins.Plugin
-    ZipFile(jar.toFile()).entries().asSequence()
-      .any { it.isDocumentationEntry() || it.isRhizomeEntry() } -> true /* modules of jar that exposes documentation, or that exposes some RhizomeDB entities */
+    ZipFile(jar.toFile()).use { zip ->
+      zip.entries().asSequence().any { it.isDocumentationEntry() || it.isRhizomeEntry() }
+    } -> true /* modules of jar that exposes documentation, or that exposes some RhizomeDB entities */
     else -> false
   }
 }
@@ -396,7 +403,7 @@ private fun isEmptyJar(jar: Path): Boolean {
   ZipInputStream(jar.inputStream().buffered()).use { zipInputStream ->
     while (true) {
       val entry = zipInputStream.nextEntry ?: break
-      if (!entry.isDirectory && emptyJarContents.none { entry.name.endsWith(it) }) {
+      if (!entry.isDirectory && emptyJarContents.none { entry.name.endsWith(it, ignoreCase = true) }) {
         return false // Found real content - return fast
       }
     }
@@ -404,12 +411,6 @@ private fun isEmptyJar(jar: Path): Boolean {
   }
 }
 
-
-class FleetResource(
-  val files: Set<Path>,
-  val layerSelector: String,
-  val platforms: List<CoordinatesPlatform>?,
-)
 
 private fun conventionalId(pluginId: String, pluginVersion: String) = conventionalId(pluginId, PluginVersion.fromString(pluginVersion))
 private fun conventionalId(pluginId: String, pluginVersion: PluginVersion) = "${pluginId}-${pluginVersion.versionString}"
