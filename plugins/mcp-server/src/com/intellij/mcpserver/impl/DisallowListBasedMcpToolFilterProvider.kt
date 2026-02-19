@@ -24,12 +24,12 @@ internal class DisallowListBasedMcpToolFilterProvider : McpToolFilterProvider {
     private const val APPLY_PATCH_TOOL_NAME: String = "apply_patch"
   }
 
-  override fun getFilters(clientInfo: Implementation?): List<McpToolFilter> {
+  override fun getFilters(clientInfo: Implementation?, sessionOptions: McpServerService.McpSessionOptions?): List<McpToolFilter> {
     val settings = McpToolDisallowListSettings.getInstance()
     return listOf(DisallowListMcpToolFilter(settings.disallowedToolNames))
   }
 
-  override fun getUpdates(clientInfo: Implementation?, scope: CoroutineScope): Flow<Unit> {
+  override fun getUpdates(clientInfo: Implementation?, scope: CoroutineScope, sessionOptions: McpServerService.McpSessionOptions?): Flow<Unit> {
     val settings = McpToolDisallowListSettings.getInstance()
     return settings.disallowedToolNamesFlow.map { }
   }

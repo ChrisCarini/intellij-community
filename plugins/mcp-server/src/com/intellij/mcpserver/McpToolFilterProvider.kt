@@ -1,5 +1,6 @@
 package com.intellij.mcpserver
 
+import com.intellij.mcpserver.impl.McpServerService
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.util.PatternUtil
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
@@ -69,7 +70,7 @@ interface McpToolFilterProvider {
     val EP: ExtensionPointName<McpToolFilterProvider> = ExtensionPointName.create<McpToolFilterProvider>("com.intellij.mcpServer.mcpToolFilterProvider")
   }
 
-  fun getFilters(clientInfo: Implementation?): List<McpToolFilter>
+  fun getFilters(clientInfo: Implementation?, sessionOptions: McpServerService.McpSessionOptions? = null): List<McpToolFilter>
 
-  fun getUpdates(clientInfo: Implementation?, scope: CoroutineScope): Flow<Unit>
+  fun getUpdates(clientInfo: Implementation?, scope: CoroutineScope, sessionOptions: McpServerService.McpSessionOptions? = null): Flow<Unit>
 }

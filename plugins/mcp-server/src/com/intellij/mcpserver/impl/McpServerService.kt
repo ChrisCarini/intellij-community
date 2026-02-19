@@ -146,7 +146,9 @@ class McpServerService(val cs: CoroutineScope) {
   }
   class McpSessionOptions(
     val commandExecutionMode: AskCommandExecutionMode,
-    val toolFilter: McpToolFilter = McpToolFilter.AllowAll
+    val toolFilter: McpToolFilter = McpToolFilter.AllowAll,
+    val advancedMcpToolFilter: String? = null,
+    val localAgentId: String? = null,
   )
 
   companion object {
@@ -302,36 +304,37 @@ class McpServerService(val cs: CoroutineScope) {
     val freePort = findFirstFreePort(desiredPort)
 
     val clientInfo = MutableStateFlow<Implementation?>(null)
-    val mcpTools = MutableStateFlow(getMcpTools(clientInfo = null))
+    val currentSessionOptions = MutableStateFlow<McpSessionOptions?>(null)
+    val mcpTools = MutableStateFlow(getMcpTools(clientInfo = null, sessionOptions = null))
 
     McpToolsProvider.EP.addExtensionPointListener(cs, object : ExtensionPointListener<McpToolsProvider> {
       override fun extensionAdded(extension: McpToolsProvider, pluginDescriptor: PluginDescriptor) {
-        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value))
+        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value, sessionOptions = currentSessionOptions.value))
       }
 
       override fun extensionRemoved(extension: McpToolsProvider, pluginDescriptor: PluginDescriptor) {
-        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value))
+        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value, sessionOptions = currentSessionOptions.value))
       }
     })
 
     McpToolset.EP.addExtensionPointListener(cs, object : ExtensionPointListener<McpToolset> {
       override fun extensionAdded(extension: McpToolset, pluginDescriptor: PluginDescriptor) {
-        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value))
+        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value, sessionOptions = currentSessionOptions.value))
       }
 
       override fun extensionRemoved(extension: McpToolset, pluginDescriptor: PluginDescriptor) {
-        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value))
+        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value, sessionOptions = currentSessionOptions.value))
       }
     })
 
     val filterProvidersScope = AtomicReference<CoroutineScope?>(null)
-    fun subscribeToFilterProviders(clientInfoValue: Implementation?) {
+    fun subscribeToFilterProviders(clientInfoValue: Implementation?, sessionOptionsValue: McpSessionOptions?) {
       filterProvidersScope.getAndSet(cs.childScope("subscribeToFilterProviders"))?.cancel()
       val currentScope = filterProvidersScope.get() ?: return
       McpToolFilterProvider.EP.extensionList.forEach { provider ->
         currentScope.launch {
-          provider.getUpdates(clientInfoValue, currentScope).collectLatest {
-            mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value))
+          provider.getUpdates(clientInfoValue, currentScope, sessionOptionsValue).collectLatest {
+            mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value, sessionOptions = currentSessionOptions.value))
           }
         }
       }
@@ -339,13 +342,13 @@ class McpServerService(val cs: CoroutineScope) {
 
     McpToolFilterProvider.EP.addExtensionPointListener(cs, object : ExtensionPointListener<McpToolFilterProvider> {
       override fun extensionAdded(extension: McpToolFilterProvider, pluginDescriptor: PluginDescriptor) {
-        subscribeToFilterProviders(clientInfo.value)
-        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value))
+        subscribeToFilterProviders(clientInfo.value, currentSessionOptions.value)
+        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value, sessionOptions = currentSessionOptions.value))
       }
 
       override fun extensionRemoved(extension: McpToolFilterProvider, pluginDescriptor: PluginDescriptor) {
-        subscribeToFilterProviders(clientInfo.value)
-        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value))
+        subscribeToFilterProviders(clientInfo.value, currentSessionOptions.value)
+        mcpTools.tryEmit(getMcpTools(clientInfo = clientInfo.value, sessionOptions = currentSessionOptions.value))
       }
     })
 
@@ -404,7 +407,7 @@ class McpServerService(val cs: CoroutineScope) {
         //  return@setRequestHandler EmptyRequestResult()
         //}
         launch {
-          subscribeToFilterProviders(clientInfo.value)
+          subscribeToFilterProviders(clientInfo.value, currentSessionOptions.value)
 
           var previousTools: List<McpTool>? = null
           mcpTools.collectLatest { updatedTools ->
@@ -424,12 +427,14 @@ class McpServerService(val cs: CoroutineScope) {
         session.onInitialized {
           // Update clientInfo when session is initialized
           val clientVersion = session.clientVersion
+          // Update sessionOptions when session is initialized
+          currentSessionOptions.value = sessionOptions
           if (clientVersion != null) {
             clientInfo.value = clientVersion
-            // Re-subscribe to filter providers with the new clientInfo
-            subscribeToFilterProviders(clientVersion)
-            // Re-fetch MCP tools with the new clientInfo
-            mcpTools.tryEmit(getMcpTools(clientInfo = clientVersion))
+            // Re-subscribe to filter providers with the new clientInfo and sessionOptions
+            subscribeToFilterProviders(clientVersion, sessionOptions)
+            // Re-fetch MCP tools with the new clientInfo and sessionOptions
+            mcpTools.tryEmit(getMcpTools(clientInfo = clientVersion, sessionOptions = sessionOptions))
           }
 
           val clientCapabilities = session.clientCapabilities
@@ -496,8 +501,8 @@ class McpServerService(val cs: CoroutineScope) {
     return newTools
   }
 
-  internal fun getMcpTools(filter: McpToolFilter = McpToolFilter.AllowAll, useFiltersFromEP: Boolean = true, clientInfo: Implementation? = null): List<McpTool> {
-    return getMcpToolsFiltered(filter, useFiltersFromEP, excludeProviders = emptySet(), clientInfo = clientInfo)
+  internal fun getMcpTools(filter: McpToolFilter = McpToolFilter.AllowAll, useFiltersFromEP: Boolean = true, clientInfo: Implementation? = null, sessionOptions: McpSessionOptions? = null): List<McpTool> {
+    return getMcpToolsFiltered(filter, useFiltersFromEP, excludeProviders = emptySet(), clientInfo = clientInfo, sessionOptions = sessionOptions)
   }
 
   /**
@@ -509,7 +514,8 @@ class McpServerService(val cs: CoroutineScope) {
     filter: McpToolFilter = McpToolFilter.AllowAll,
     useFiltersFromEP: Boolean = true,
     excludeProviders: Set<Class<out McpToolFilterProvider>>,
-    clientInfo: Implementation? = null
+    clientInfo: Implementation? = null,
+    sessionOptions: McpSessionOptions? = null,
   ): List<McpTool> {
     val allTools = McpToolsProvider.EP.extensionList.flatMap {
       try {
@@ -526,7 +532,7 @@ class McpServerService(val cs: CoroutineScope) {
     }
     val filterProviders = McpToolFilterProvider.EP.extensionList
       .filter { provider -> excludeProviders.none { it.isInstance(provider) } }
-    val filters = filterProviders.flatMap { it.getFilters(clientInfo) }
+    val filters = filterProviders.flatMap { it.getFilters(clientInfo, sessionOptions) }
     var context = McpToolFilterProvider.McpToolFilterContext(
       disallowedTools = emptySet(),
       allowedTools = filteredByName.toSet()

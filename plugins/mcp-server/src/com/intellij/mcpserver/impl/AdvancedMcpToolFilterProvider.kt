@@ -2,20 +2,23 @@ package com.intellij.mcpserver.impl
 
 import com.intellij.mcpserver.McpToolFilterProvider
 import com.intellij.mcpserver.McpToolFilterProvider.MaskBasedMcpToolFilter.Companion.getMaskFilters
-import com.intellij.mcpserver.settings.McpToolFilterSettings
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.emptyFlow
 
-internal class SettingsBasedMcpToolFilterProvider : McpToolFilterProvider {
+/**
+ * Filter provider that uses advancedMcpToolFilter from McpSessionOptions.
+ * This allows session-specific tool filtering based on filter strings passed during session creation.
+ */
+internal class AdvancedMcpToolFilterProvider : McpToolFilterProvider {
   override fun getFilters(clientInfo: Implementation?, sessionOptions: McpServerService.McpSessionOptions?): List<McpToolFilterProvider.McpToolFilter> {
-    val settings = McpToolFilterSettings.getInstance()
-    return getMaskFilters(settings.toolsFilter)
+    val filterString = sessionOptions?.advancedMcpToolFilter ?: return emptyList()
+    return getMaskFilters(filterString)
   }
 
   override fun getUpdates(clientInfo: Implementation?, scope: CoroutineScope, sessionOptions: McpServerService.McpSessionOptions?): Flow<Unit> {
-    val settings = McpToolFilterSettings.getInstance()
-    return settings.toolsFilterFlow.map { }
+    // Filter never changes during session - it's set at session creation time
+    return emptyFlow()
   }
 }
