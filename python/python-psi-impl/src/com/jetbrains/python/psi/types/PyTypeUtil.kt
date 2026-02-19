@@ -290,7 +290,7 @@ object PyTypeUtil {
   }
 
   @JvmStatic
-  fun PyType.inheritsAny(context: TypeEvalContext): Boolean {
+  fun PyType?.inheritsAny(context: TypeEvalContext): Boolean {
     return this is PyClassLikeType && this.getAncestorTypes(context).contains(null)
   }
 
