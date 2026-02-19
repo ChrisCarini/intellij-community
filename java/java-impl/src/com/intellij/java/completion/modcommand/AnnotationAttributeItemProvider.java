@@ -5,6 +5,7 @@ import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.completion.JavaCompletionContributor;
 import com.intellij.codeInsight.lookup.EqTailType;
 import com.intellij.java.syntax.parser.JavaKeywords;
+import com.intellij.modcompletion.CommonCompletionItem;
 import com.intellij.modcompletion.ModCompletionItem;
 import com.intellij.modcompletion.ModCompletionItemPresentation;
 import com.intellij.openapi.editor.Document;

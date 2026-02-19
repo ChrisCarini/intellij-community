@@ -2,6 +2,7 @@
 package com.intellij.java.completion.modcommand;
 
 import com.intellij.codeInsight.ModNavigatorTailType;
+import com.intellij.modcompletion.CommonCompletionItem;
 import com.intellij.modcompletion.ModCompletionItem;
 import com.intellij.psi.PsiIdentifier;
 import com.intellij.psi.impl.source.PsiLabelReference;

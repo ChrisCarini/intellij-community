@@ -1,13 +1,11 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.java.completion.modcommand;
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.modcompletion;
 
 import com.intellij.codeInsight.ModNavigatorTailType;
 import com.intellij.codeInsight.TailTypes;
 import com.intellij.codeInsight.lookup.AutoCompletionPolicy;
 import com.intellij.modcommand.ActionContext;
 import com.intellij.modcommand.ModPsiUpdater;
-import com.intellij.modcompletion.ModCompletionItemPresentation;
-import com.intellij.modcompletion.PsiUpdateCompletionItem;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.NlsSafe;
@@ -15,10 +13,11 @@ import com.intellij.openapi.util.text.MarkupText;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.codeStyle.CodeStyleManager;
-import one.util.streamex.StreamEx;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A simple completion item to insert text with an optional tail.
@@ -137,7 +136,8 @@ public final class CommonCompletionItem extends PsiUpdateCompletionItem<Object> 
    * @return new CommonCompletionItem with the given additional lookup string (previously added strings are not removed)
    */
   public CommonCompletionItem addLookupString(String string) {
-    return new CommonCompletionItem(mainLookupString(), StreamEx.of(myAdditionalStrings).append(string).toSet(), contextObject(), myPresentation, myTail,
+    Set<String> additionalStrings = Stream.concat(myAdditionalStrings.stream(), Stream.of(string)).collect(Collectors.toUnmodifiableSet());
+    return new CommonCompletionItem(mainLookupString(), additionalStrings, contextObject(), myPresentation, myTail,
                                     myPriority, myAdditionalUpdater, myPolicy);
   }
 

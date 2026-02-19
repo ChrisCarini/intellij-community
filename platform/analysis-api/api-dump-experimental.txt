@@ -266,6 +266,30 @@ com.intellij.modcommand.ModPsiUpdater
 - f:hashCode():I
 - newValue():java.lang.Object
 - oldValue():java.lang.Object
+*f:com.intellij.modcompletion.CommonCompletionItem
+- com.intellij.modcompletion.PsiUpdateCompletionItem
+- <init>(java.lang.String):V
+- addLookupString(java.lang.String):com.intellij.modcompletion.CommonCompletionItem
+- adjustIndent():com.intellij.modcompletion.CommonCompletionItem
+- autoCompletionPolicy():com.intellij.codeInsight.lookup.AutoCompletionPolicy
+- isValid():Z
+- presentation():com.intellij.modcompletion.ModCompletionItemPresentation
+- priority():D
+- update(com.intellij.modcommand.ActionContext,com.intellij.modcompletion.ModCompletionItem$InsertionContext,com.intellij.modcommand.ModPsiUpdater):V
+- withAdditionalUpdater(com.intellij.modcompletion.CommonCompletionItem$InsertionAwareUpdateHandler):com.intellij.modcompletion.CommonCompletionItem
+- withAdditionalUpdater(com.intellij.modcompletion.CommonCompletionItem$UpdateHandler):com.intellij.modcompletion.CommonCompletionItem
+- withAutoCompletionPolicy(com.intellij.codeInsight.lookup.AutoCompletionPolicy):com.intellij.modcompletion.CommonCompletionItem
+- withObject(java.lang.Object):com.intellij.modcompletion.CommonCompletionItem
+- withPresentation(com.intellij.modcompletion.ModCompletionItemPresentation):com.intellij.modcompletion.CommonCompletionItem
+- withPresentation(com.intellij.openapi.util.text.MarkupText):com.intellij.modcompletion.CommonCompletionItem
+- withPriority(D):com.intellij.modcompletion.CommonCompletionItem
+- withTail(com.intellij.codeInsight.ModNavigatorTailType):com.intellij.modcompletion.CommonCompletionItem
+*:com.intellij.modcompletion.CommonCompletionItem$InsertionAwareUpdateHandler
+- a:update(I,com.intellij.modcommand.ModPsiUpdater,com.intellij.modcompletion.ModCompletionItem$InsertionContext):V
+*:com.intellij.modcompletion.CommonCompletionItem$UpdateHandler
+- com.intellij.modcompletion.CommonCompletionItem$InsertionAwareUpdateHandler
+- a:update(I,com.intellij.modcommand.ModPsiUpdater):V
+- update(I,com.intellij.modcommand.ModPsiUpdater,com.intellij.modcompletion.ModCompletionItem$InsertionContext):V
 *:com.intellij.modcompletion.ModCompletionItem
 - sf:DEFAULT_INSERTION_CONTEXT:com.intellij.modcompletion.ModCompletionItem$InsertionContext
 - additionalLookupStrings():java.util.Set

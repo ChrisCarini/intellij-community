@@ -14,6 +14,7 @@ import com.intellij.codeInsight.generation.PsiGenerationInfo;
 import com.intellij.codeInsight.generation.TemplateGenerationInfo;
 import com.intellij.icons.AllIcons;
 import com.intellij.modcommand.ModPsiUpdater;
+import com.intellij.modcompletion.CommonCompletionItem;
 import com.intellij.modcompletion.ModCompletionItem;
 import com.intellij.modcompletion.ModCompletionItemPresentation;
 import com.intellij.openapi.editor.Document;
