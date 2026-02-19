@@ -30,6 +30,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
 import java.io.Closeable
 import java.nio.file.Path
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.measureTime
 
 class LocalIDEProcess : IDEProcess {
@@ -137,6 +138,11 @@ class LocalIDEProcess : IDEProcess {
                                                                                                                        ?: ""))
           }
         }
+      }
+      catch (ce: CancellationException) {
+        isRunSuccessful = false
+        logOutput("Local ide process was cancelled", ce)
+        throw ce
       }
       catch (exception: Throwable) {
         isRunSuccessful = false
