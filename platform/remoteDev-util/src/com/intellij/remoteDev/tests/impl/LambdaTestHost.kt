@@ -219,10 +219,11 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
           }
         }
 
-        var ideContext = getLambdaIdeContext()
+        var ideContext: LambdaIdeContextClass? = null
 
         session.beforeAll.setSuspend(sessionBgtDispatcher) { _, testClassName ->
           LOG.info("========================= Test class '$testClassName' started ==========================")
+          assert(ideContext == null) { "Lambda task coroutine context should not be defined" }
         }
 
         session.beforeEach.setSuspend(sessionBgtDispatcher) { _, testName ->
@@ -239,16 +240,17 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
         }
 
         session.afterEach.setSuspend(sessionBgtDispatcher) { _, testName ->
-          ideContext.runAfterEachCleanup()
-          runLogged("Cancelling scopes in after each") {
-            ideContext.coroutineContext.job.cancelAndJoin()
-          }
           LOG.info("------------------------- Test '$testName' finished -------------------------")
+          assert(ideContext?.coroutineContext?.isActive == true) { "Lambda task coroutine context should be active" }
+
+          ideContext!!.runAfterEachCleanup()
+
+          ideContext = null
         }
 
         session.afterAll.setSuspend(sessionBgtDispatcher) { _, testClassName ->
-          ideContext.runAfterAllCleanup()
           LOG.info("========================= Test class '$testClassName' finished =========================")
+          assert(ideContext == null) { "Lambda task coroutine context should not be defined" }
         }
         // Advice for processing events
         session.runLambda.setSuspend(sessionBgtDispatcher) { _, parameters ->
@@ -259,7 +261,9 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
           }
           try {
             val lambdaReference = parameters.reference
-            val namedLambdas = findLambdaClasses(lambdaReference, testModuleDescriptor!!, ideContext)
+            assert(ideContext?.coroutineContext?.isActive == true) { "Lambda task coroutine context should be active" }
+
+            val namedLambdas = findLambdaClasses(lambdaReference, testModuleDescriptor!!, ideContext!!)
 
             val ideAction = namedLambdas.singleOrNull { it.name() == lambdaReference } ?: run {
               val text = "There is no Action with reference '${lambdaReference}', something went terribly wrong, " +
@@ -305,8 +309,8 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
             getLambdaIdeContext()
           }
           else {
-            assert(ideContext.coroutineContext.isActive) { "Lambda task coroutine context should be active" }
-            ideContext
+            assert(ideContext?.coroutineContext?.isActive == true) { "Lambda task coroutine context should be active" }
+            ideContext!!
           }
 
           withContext(scopeToUse.coroutineContext + Dispatchers.Default + CoroutineName("Lambda task: ${lambda.stepName}") + clientIdContextToRunLambda()) {
