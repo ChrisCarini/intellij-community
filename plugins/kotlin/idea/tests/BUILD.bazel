@@ -341,8 +341,6 @@ jvm_library(
     "//platform/projectModel-api:projectModel_test_lib",
     "//plugins/kotlin/kotlin.ide",
     "//plugins/kotlin/kotlin.ide:kotlin.ide_test_lib",
-    "//plugins/kotlin/bundled-compiler-plugins-support:compilerPlugins-support-bundled",
-    "//plugins/kotlin/bundled-compiler-plugins-support:compilerPlugins-support-bundled_test_lib",
     "//platform/navbar/testFramework",
     "//platform/navbar/testFramework:testFramework_test_lib",
     "//platform/execution.dashboard",
