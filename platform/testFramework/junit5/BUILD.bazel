@@ -107,6 +107,7 @@ jvm_library(
     "//jps/model-api:model",
     "//jps/model-api:model_test_lib",
     "//platform/main/intellij.platform.monolith.main:monolith-main",
+    "//platform/main/intellij.platform.monolith.main:monolith-main_test_lib",
     "//platform/projectModel-api:projectModel",
     "//platform/projectModel-api:projectModel_test_lib",
     "//platform/projectModel-impl",
