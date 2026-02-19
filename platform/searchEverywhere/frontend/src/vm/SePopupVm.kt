@@ -18,6 +18,7 @@ import com.intellij.ide.vfs.virtualFile
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.UI
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAwareAction
@@ -35,6 +36,7 @@ import com.intellij.platform.searchEverywhere.frontend.SeTabsCustomizer
 import com.intellij.platform.searchEverywhere.frontend.tabs.actions.SeActionsTab
 import com.intellij.platform.searchEverywhere.frontend.withPrevious
 import com.intellij.platform.searchEverywhere.providers.SeLegacyContributors
+import com.intellij.platform.searchEverywhere.providers.SeLog
 import com.intellij.platform.searchEverywhere.toProviderId
 import com.intellij.platform.searchEverywhere.utils.SuspendLazyProperty
 import com.intellij.psi.PsiManager
@@ -42,6 +44,7 @@ import com.intellij.usageView.UsageInfo
 import com.intellij.util.SystemProperties
 import com.intellij.util.asDisposable
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -134,6 +137,10 @@ class SePopupVm(
       prev?.setActive(false)
       next.setActive(true)
       next
+    }
+
+    coroutineScope.launch(Dispatchers.UI) {
+      _searchPattern.collect { pattern -> SeLog.log(SeLog.PATTERN) { "SePopupVm: received pattern ['$pattern']" } }
     }
 
     _searchPattern.value = initialSearchPattern ?: run {
@@ -298,6 +305,7 @@ class SePopupVm(
   }
 
   fun setSearchText(text: String) {
+    SeLog.log(SeLog.PATTERN) { "SePopupVm: setting text: ['$text']" }
     _searchPattern.value = text
   }
 
