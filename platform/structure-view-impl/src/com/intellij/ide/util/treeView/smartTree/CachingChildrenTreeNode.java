@@ -26,6 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
+@ApiStatus.NonExtendable
 public abstract class CachingChildrenTreeNode <Value> extends AbstractTreeNode<Value> {
   private static final Logger LOG = Logger.getInstance(CachingChildrenTreeNode.class);
   private List<CachingChildrenTreeNode<?>> myChildren;
@@ -184,7 +185,6 @@ public abstract class CachingChildrenTreeNode <Value> extends AbstractTreeNode<V
     }
   }
 
-  @ApiStatus.Internal
   protected @NotNull TreeElementWrapper createChildNode(@NotNull TreeElement child, @Nullable NodeProvider<?> provider) {
     return new TreeElementWrapper(getProject(), child, myTreeModel, provider);
   }

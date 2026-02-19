@@ -7,12 +7,14 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.IndexNotReadyException;
 import com.intellij.openapi.project.Project;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
 
+@ApiStatus.NonExtendable
 public class TreeElementWrapper extends CachingChildrenTreeNode<TreeElement> {
   private static final Logger LOG = Logger.getInstance(TreeElementWrapper.class);
 
