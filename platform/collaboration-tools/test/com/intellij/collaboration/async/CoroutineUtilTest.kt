@@ -4,7 +4,6 @@ package com.intellij.collaboration.async
 import app.cash.turbine.test
 import com.intellij.collaboration.async.ComputedListChange.Insert
 import com.intellij.collaboration.async.ComputedListChange.Remove
-import com.intellij.util.containers.HashingStrategy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -188,13 +187,9 @@ class CoroutineUtilTest {
   }
 
   @Test
-  fun `associateCachingBy preserves order`() = runTest {
+  fun `mapStatefulToStateful preserves order`() = runTest {
     val inputFlow = MutableStateFlow(listOf<Int>())
-    val outputFlow = inputFlow.associateCachingBy(
-      keyExtractor = { it },
-      hashingStrategy = HashingStrategy.canonical(),
-      valueExtractor = { it }
-    )
+    val outputFlow = inputFlow.mapStatefulToStateful(mapper = { it })
 
     outputFlow.test {
       assertThat(awaitItem()).isEmpty()
@@ -218,12 +213,11 @@ class CoroutineUtilTest {
   }
 
   @Test
-  fun `associateCachingBy updates existing values`() = runTest {
+  fun `mapDataToModel updates existing values`() = runTest {
     val inputFlow = MutableStateFlow(listOf<UpdatableValue<String>>())
-    val outputFlow = inputFlow.associateCachingBy(
-      keyExtractor = { it.key },
-      hashingStrategy = HashingStrategy.canonical(),
-      valueExtractor = { this to it },
+    val outputFlow = inputFlow.mapDataToModel(
+      sourceIdentifier = { it.key },
+      mapper = { this to it },
       update = { this.second.value = it.value }
     )
 
@@ -251,13 +245,9 @@ class CoroutineUtilTest {
   }
 
   @Test
-  fun `associateCachingBy cancels deleted scopes`() = runTest {
+  fun `mapStatefulToStateful cancels deleted scopes`() = runTest {
     val inputFlow = MutableStateFlow(listOf<Int>())
-    val outputFlow = inputFlow.associateCachingBy(
-      keyExtractor = { it },
-      hashingStrategy = HashingStrategy.canonical(),
-      valueExtractor = { this to it },
-    )
+    val outputFlow = inputFlow.mapStatefulToStateful(mapper = { this to it })
 
     outputFlow.test {
       assertThat(awaitItem()).isEmpty()
@@ -277,13 +267,9 @@ class CoroutineUtilTest {
   }
 
   @Test
-  fun `associateCachingBy does not give two items the same scope`() = runTest {
+  fun `mapStatefulToStateful does not give two items the same scope`() = runTest {
     val inputFlow = MutableStateFlow(listOf<Int>())
-    val outputFlow = inputFlow.associateCachingBy(
-      keyExtractor = { it },
-      hashingStrategy = HashingStrategy.canonical(),
-      valueExtractor = { this to it },
-    )
+    val outputFlow = inputFlow.mapStatefulToStateful(mapper = { this to it })
 
     outputFlow.test {
       assertThat(awaitItem()).isEmpty()
@@ -298,24 +284,20 @@ class CoroutineUtilTest {
   }
 
   @Test
-  fun `associateCachingBy distinguishes between reordered items`() = runTest {
+  fun `mapDataToModel distinguishes between reordered items`() = runTest {
     val inputFlow = MutableStateFlow(listOf(2, 1))
-    val outputFlow = inputFlow.associateCachingBy(
-      keyExtractor = { it },
-      hashingStrategy = HashingStrategy.canonical(),
-      valueExtractor = { this to it },
-    )
+    val outputFlow = inputFlow.mapStatefulToStateful(mapper = { it })
 
     outputFlow.test {
-      assertThat(awaitItem().map { it.second }).isEqualTo(listOf(2, 1))
+      assertThat(awaitItem()).isEqualTo(listOf(2, 1))
       inputFlow.value = listOf(1, 2)
-      assertThat(awaitItem().map { it.second }).isEqualTo(listOf(1, 2))
+      assertThat(awaitItem()).isEqualTo(listOf(1, 2))
     }
   }
 
   @Test
   fun `MappingScopedItemsContainer addIfAbsent works properly`() = runTest {
-    val container = MappingScopedItemsContainer.byEquality<Int, Int>(backgroundScope) { it }
+    val container = MappingScopedItemsContainer.byEquality<Int, Int>(backgroundScope, mapper = { it })
     container.addIfAbsent(1)
     assertThat(container.mappedState.value[0]).isEqualTo(1)
     container.addIfAbsent(1)
