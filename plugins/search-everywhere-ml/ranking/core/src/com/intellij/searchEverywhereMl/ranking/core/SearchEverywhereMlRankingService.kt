@@ -99,7 +99,7 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
   }
 
   override fun notifySearchResultsUpdated() {
-    // TODO - do we still need it or is state finished enough?
+    SearchEverywhereMlFacade.notifySearchResultsUpdated()
   }
 
   override fun onDialogClose() {

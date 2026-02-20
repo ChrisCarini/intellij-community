@@ -43,6 +43,10 @@ internal object SearchEverywhereMlFacade {
     _activeSession.get()?.onItemsSelected(selectedResults)
   }
 
+  fun notifySearchResultsUpdated() {
+    _activeSession.get()?.notifySearchResultsUpdated()
+  }
+
   fun onSessionFinished() {
     val finishedSession = _activeSession.getAndSet(null)
     finishedSession?.onSessionFinished()

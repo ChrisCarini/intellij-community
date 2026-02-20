@@ -32,6 +32,11 @@ interface SeMlService {
   fun applyMlWeight(seItemData: SeItemData): SeItemData
 
   /**
+   * Notifies the service that the UI list has received updated search results.
+   */
+  fun notifySearchResultsUpdated()
+
+  /**
    * Notifies the ML service that the search state has changed.
    * The reason for the change may be:
    *   - Tab change

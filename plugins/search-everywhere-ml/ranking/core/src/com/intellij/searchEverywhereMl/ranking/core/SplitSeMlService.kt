@@ -59,6 +59,10 @@ internal class SplitSeMlService : SeMlService {
     }
   }
 
+  override fun notifySearchResultsUpdated() {
+    SearchEverywhereMlFacade.notifySearchResultsUpdated()
+  }
+
   override fun onStateStarted(tabId: String, searchParams: SeParams) {
     val activeSession = checkNotNull(SearchEverywhereMlFacade.activeSession) { "Cannot call onStateStarted without active search session" }
     val project = activeSession.project

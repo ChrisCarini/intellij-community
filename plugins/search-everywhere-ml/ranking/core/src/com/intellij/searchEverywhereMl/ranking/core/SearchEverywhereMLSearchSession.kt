@@ -105,6 +105,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
     LOG.trace("Session $sessionId: State started: stateIndex=$nextSearchIndex, tab=$tab, query='$query', reason=$stateChangeReason, scope=$scopeDescriptor, everywhere=$isSearchEverywhere")
     _activeState.set(newSearchState)
+    performanceTracker.start()
   }
 
   fun onStateFinished(results: List<SearchResultAdapter.Raw>) {
@@ -120,7 +121,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
     val processedResults = getProcessedResults(results)
 
-    SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, finishedState, processedResults, -1)
+    SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, finishedState, processedResults, performanceTracker.timeElapsed)
   }
 
   fun onItemsSelected(selectedItems: List<Pair<Int, SearchResultAdapter.Raw>>) {
@@ -178,12 +179,14 @@ internal class SearchEverywhereMLSearchSession private constructor(
     val cachedResults = unfinishedState.getCachedResults()
     LOG.trace("Session $sessionId: Finishing interrupted state ${unfinishedState.index} before starting new state, cachedResultsCount=${cachedResults.size}")
     stateHistory.add(unfinishedState)
-    SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, unfinishedState, cachedResults, -1)
+    SearchEverywhereMLStatisticsCollector.onSearchRestarted(project, this, unfinishedState, cachedResults, performanceTracker.timeElapsed)
   }
 
 
   fun notifySearchResultsUpdated() {
-    performanceTracker.stop()
+    if (activeState != null) {
+      performanceTracker.stop()
+    }
   }
 
   fun getSearchQueryEmbedding(searchQuery: String, split: Boolean): FloatTextEmbedding? {

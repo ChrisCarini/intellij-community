@@ -4,6 +4,9 @@
 package com.intellij.platform.searchEverywhere.frontend.ui
 
 import com.intellij.icons.AllIcons
+import com.intellij.ide.rpc.ThrottledAccumulatedItems
+import com.intellij.ide.rpc.ThrottledItems
+import com.intellij.ide.rpc.ThrottledOneItem
 import com.intellij.ide.DataManager
 import com.intellij.ide.actions.searcheverywhere.ExtendedInfo
 import com.intellij.ide.actions.searcheverywhere.HintHelper
@@ -45,6 +48,9 @@ import com.intellij.openapi.util.SystemInfoRt
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.platform.searchEverywhere.SeItemData
 import com.intellij.platform.searchEverywhere.SeProviderId
+import com.intellij.platform.searchEverywhere.SeResultAddedEvent
+import com.intellij.platform.searchEverywhere.SeResultEvent
+import com.intellij.platform.searchEverywhere.SeResultReplacedEvent
 import com.intellij.platform.searchEverywhere.data.SeDataKeys
 import com.intellij.platform.searchEverywhere.frontend.AutoToggleAction
 import com.intellij.platform.searchEverywhere.frontend.SeSearchStatePublisher
@@ -375,6 +381,9 @@ class SePopupContentPane(
               val wasFrozen = resultListModel.freezer.isEnabled
 
               resultListModel.addFromThrottledEvent(searchContext, event)
+              if (event.hasResultsUpdates()) {
+                SeMlService.getInstanceIfEnabled()?.notifySearchResultsUpdated()
+              }
               semanticWarning.value = resultListModel.isValidAndHasOnlySemantic
 
               // Freeze back if it was frozen before
@@ -1187,3 +1196,9 @@ class SePopupContentPane(
     const val DEFAULT_FREEZING_DELAY_MS: Long = 800
   }
 }
+
+private fun ThrottledItems<SeResultEvent>.hasResultsUpdates(): Boolean =
+  when (this) {
+    is ThrottledOneItem<SeResultEvent> -> item is SeResultAddedEvent || item is SeResultReplacedEvent
+    is ThrottledAccumulatedItems<SeResultEvent> -> items.any { it is SeResultAddedEvent || it is SeResultReplacedEvent }
+  }
