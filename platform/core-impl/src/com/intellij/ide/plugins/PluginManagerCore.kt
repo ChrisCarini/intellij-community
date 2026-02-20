@@ -329,7 +329,6 @@ object PluginManagerCore {
   private fun preparePluginErrors(
     pluginNonLoadReasons: Map<PluginId, PluginNonLoadReason>,
     descriptorLoadingErrors: List<PluginDescriptorLoadingError>,
-    duplicateModuleMap: Map<PluginId, List<PluginMainDescriptor>>,
     cycleErrors: List<PluginLoadingError>,
     initContext: PluginInitializationContext,
   ): List<PluginLoadingError> {
@@ -346,17 +345,6 @@ object PluginManagerCore {
                                               PluginUtils.pluginPathToUserString(descriptorLoadingError.path)))
           },
           error = descriptorLoadingError.error,
-        ))
-      }
-      for ((key, value) in duplicateModuleMap) {
-        add(PluginLoadingError(
-          reason = null,
-          htmlMessageSupplier = Supplier {
-            HtmlChunk.text(CoreBundle.message("plugin.loading.error.module.declared.by.multiple.plugins",
-                                              key,
-                                              value.joinToString(separator = ("\n  ")) { it.toString() }))
-          },
-          error = null,
         ))
       }
       addAll(cycleErrors)
@@ -632,7 +620,6 @@ object PluginManagerCore {
     pluginsState.setErrorsForNotificationReporterAndLogger(preparePluginErrors(
       pluginNonLoadReasons = pluginNonLoadReasons,
       descriptorLoadingErrors = descriptorLoadingErrors,
-      duplicateModuleMap = emptyMap(),
       cycleErrors = cycleErrors,
       initContext = initContext,
     ))
