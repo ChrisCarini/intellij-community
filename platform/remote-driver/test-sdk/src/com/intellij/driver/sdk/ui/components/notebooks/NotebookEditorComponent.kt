@@ -446,7 +446,7 @@ fun Driver.withNotebookEditor(testBody: NotebookEditorUiComponent.() -> Unit): I
 }
 
 fun Driver.openNotebookWithProjectPanel(fileName: String): IdeaFrameUI = ideFrame {
-  leftToolWindowToolbar.projectButton.open()
+  openLeftToolWindow("Project")
   projectView {
     projectViewTree.run {
       waitOneText(fileName).doubleClick()
