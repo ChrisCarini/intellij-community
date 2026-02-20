@@ -351,7 +351,6 @@ fun Driver.createNewNotebookWithMouse(name: String = "New Notebook", type: Noteb
 
     val newFileButton = x { byAccessibleName("New File or Directory…") }
 
-
     should("New notebook button should be pressed", timeout = 1.minutes) {
       should(message = "new file popup should present and focused", timeout = 30.seconds) {
         newFileButton.strictClick()
@@ -455,6 +454,5 @@ fun Driver.openNotebookWithProjectPanel(fileName: String): IdeaFrameUI = ideFram
   }
   waitFor("the editor is present", timeout = 30.seconds) {
     notebookEditor().present()
-
   }
 }
