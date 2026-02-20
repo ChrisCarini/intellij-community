@@ -132,7 +132,7 @@ data class NewExecutionStackGroupsEvent(val groups: List<XExecutionStackGroupDto
 data class XExecutionStackDto(
   val executionStackId: XExecutionStackId,
   val displayName: @Nls String,
-  val icon: IconId?,
+  val iconFlow: RpcFlow<IconId?>,
   @Serializable(with = DeferredSerializer::class) val descriptor: Deferred<XDescriptor>?,
   @Serializable(with = DeferredSerializer::class) val topFrame: Deferred<XStackFrameDto?>,
 )
