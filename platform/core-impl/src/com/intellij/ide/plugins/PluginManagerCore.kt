@@ -574,16 +574,15 @@ object PluginManagerCore {
     }
     val ambiguousPluginSet = AmbiguousPluginSet.build(pluginsToLoad.plugins + incompletePlugins.values)
     val pluginNonLoadReasons = incompletePlugins.values.associateByTo(mutableMapOf(), { it.pluginId }, { excludedFromLoading[it]!! })
-    val idMap = pluginsToLoad.buildFullPluginIdMapping()
     val fullIdMap = ambiguousPluginSet.buildFullPluginIdMapping().mapValues { it.value.first() }
     val fullContentModuleIdMap = ambiguousPluginSet.buildFullContentModuleIdMapping().mapValues { it.value.first() }
 
-    if (initContext.checkEssentialPlugins && !idMap.containsKey(CORE_ID)) {
+    if (initContext.checkEssentialPlugins && pluginsToLoad.resolvePluginId(CORE_ID) == null) {
       throw EssentialPluginMissingException(listOf("$CORE_ID (platform prefix: ${System.getProperty(PlatformUtils.PLATFORM_PREFIX_KEY)})"))
         .apply { (pluginNonLoadReasons.get(CORE_ID))?.let { addSuppressed(Exception(it.logMessage)) } }
     }
 
-    checkThirdPartyPluginsPrivacyConsent(parentActivity, idMap)
+    checkThirdPartyPluginsPrivacyConsent(parentActivity, pluginsToLoad)
 
     val pluginSetBuilder = PluginSetBuilder(pluginsToLoad.plugins.toSet())
     val cycleErrors = pluginSetBuilder.checkPluginCycles()
@@ -602,6 +601,7 @@ object PluginManagerCore {
       }
     }
 
+    val idMap = pluginsToLoad.buildFullPluginIdMapping()
     val additionalErrors = pluginSetBuilder.computeEnabledModuleMap(
       incompletePlugins = incompletePlugins.values.toList(),
       initContext = initContext,
@@ -656,9 +656,9 @@ object PluginManagerCore {
    * processes postponed consent check from the previous run (e.g., when the previous run was headless)
    * see usages of [ThirdPartyPluginsWithoutConsentFile.appendAliens]
    */
-  private fun checkThirdPartyPluginsPrivacyConsent(parentActivity: Activity?, idMap: Map<PluginId, IdeaPluginDescriptorImpl>) {
+  private fun checkThirdPartyPluginsPrivacyConsent(parentActivity: Activity?, idMap: UnambiguousPluginSet) {
     val activity = parentActivity?.startChild("3rd-party plugins consent")
-    val aliens = ThirdPartyPluginsWithoutConsentFile.consumeAliensFile().mapNotNull { idMap.get(it) }
+    val aliens = ThirdPartyPluginsWithoutConsentFile.consumeAliensFile().mapNotNull { idMap.resolvePluginId(it)?.getMainDescriptor() }
     if (!aliens.isEmpty()) {
       checkThirdPartyPluginsPrivacyConsent(aliens)
     }
