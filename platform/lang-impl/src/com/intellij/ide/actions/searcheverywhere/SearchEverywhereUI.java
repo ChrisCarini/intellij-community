@@ -372,6 +372,11 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
     return myListFactory.createList(myListModel);
   }
 
+  @ApiStatus.Internal
+  public @NotNull SearchEverywhereMixedListInfo getMixedListInfo() {
+    return new SearchEverywhereMixedListInfo(myListFactory);
+  }
+
   private void addPreviewDataListener(@NotNull AbstractListModel<Object> model) {
     model.addListDataListener(new ListDataListener() {
       @Override

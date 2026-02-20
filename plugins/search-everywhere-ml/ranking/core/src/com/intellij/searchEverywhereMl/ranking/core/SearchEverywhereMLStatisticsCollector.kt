@@ -47,7 +47,8 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
                                 tab: SearchEverywhereTab,
                                 isNewSearchEverywhere: Boolean,
                                 sessionStartTime: Long,
-                                contextFeatures: List<EventPair<*>>) {
+                                contextFeatures: List<EventPair<*>>,
+                                isMixedList: Boolean) {
     if (!isLoggingEnabled) return
 
     SESSION_STARTED.log(project) {
@@ -64,6 +65,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
       add(FORCE_EXPERIMENT_GROUP.with(SearchEverywhereMlExperiment.isForcedExperimentGroupByRegistry))
       add(IS_INTERNAL.with(ApplicationManager.getApplication().isInternal))
       add(SEARCH_START_TIME_KEY.with(sessionStartTime))
+      add(IS_MIXED_LIST.with(isMixedList))
 
       addAll(contextFeatures)
     }
@@ -90,7 +92,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
 
     val contributorFeatures = contributors
       .map { contributor ->
-        val contributorFeatures = SearchEverywhereContributorFeaturesProvider.getFeatures(contributor, searchSession.sessionStartTime)
+        val contributorFeatures = searchState.getContributorFeatures(contributor)
         val essentialnessFeatures = SearchEverywhereContributorFeaturesProvider.getEssentialContributorFeatures(searchState, contributor)
 
         val allFeatures = contributorFeatures + essentialnessFeatures
@@ -183,7 +185,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
     }
   }
 
-  internal val GROUP = EventLogGroup("mlse.log", 133, MLSE_RECORDER_ID,
+  internal val GROUP = EventLogGroup("mlse.log", 134, MLSE_RECORDER_ID,
                                      "ML in Search Everywhere Log Group")
 
   // region Fields
@@ -201,6 +203,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
   // context allFields
   private val IS_PROJECT_OPEN = EventFields.Boolean("is_project_open")
   private val IS_PROJECT_DISPOSED_KEY = EventFields.Boolean("project_disposed")
+  private val IS_MIXED_LIST = EventFields.Boolean("is_mixed_list")
   internal val SE_TAB_ID_KEY = EventFields.String("se_tab_id", ALLOWED_CONTRIBUTOR_ID_LIST)
   internal val SEARCH_START_TIME_KEY = EventFields.Long("start_time")
   internal val REBUILD_REASON_KEY = EventFields.Enum<SearchStateChangeReason>("rebuild_reason")
@@ -270,6 +273,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
                                                                           IS_INTERNAL, SEARCH_START_TIME_KEY,
                                                                           IS_PROJECT_DISPOSED_KEY,
                                                                           FORCE_EXPERIMENT_GROUP,
+                                                                          IS_MIXED_LIST,
                                                                           IS_NEW_SEARCH_EVERYWHERE,
                                                                           *SearchEverywhereContextFeaturesProvider.getContextFields().toTypedArray())
 

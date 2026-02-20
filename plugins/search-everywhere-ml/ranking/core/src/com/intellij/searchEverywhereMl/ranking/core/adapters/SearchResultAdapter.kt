@@ -5,6 +5,7 @@ import com.intellij.ide.actions.searcheverywhere.SemanticSearchEverywhereContrib
 import com.intellij.ide.util.gotoByName.GotoActionModel
 import com.intellij.internal.statistic.eventLog.events.EventPair
 import com.intellij.platform.searchEverywhere.SeItemData
+import com.intellij.platform.searchEverywhere.SeItemDataKeys
 import com.intellij.platform.searchEverywhere.isSemantic
 
 @JvmInline
@@ -24,6 +25,8 @@ sealed interface SearchResultAdapter {
   val provider: SearchResultProviderAdapter
 
   val originalWeight: Int
+
+  val providerWeight: Int?
 
   val isSemantic: Boolean
 
@@ -96,6 +99,7 @@ private class SeItemDataAdapter(private val seItemData: SeItemData) : SearchResu
 
   override val provider: SearchResultProviderAdapter = SearchResultProviderAdapter.createAdapterFor(seItemData.providerId.value)
   override val originalWeight: Int = seItemData.weight
+  override val providerWeight: Int? = seItemData.additionalInfo[SeItemDataKeys.PROVIDER_SORT_WEIGHT]?.toIntOrNull()
   override val isSemantic: Boolean = seItemData.isSemantic
   override val stateLocalId: StateLocalId
     get() = StateLocalId(requireNotNull(seItemData.uuid) { "UUID cannot be null for ${seItemData.javaClass.simpleName}" })
@@ -108,6 +112,9 @@ private class LegacyFoundElementInfoAdapter(private val foundElementInfo: Search
 
   override val originalWeight: Int
     get() = foundElementInfo.priority
+
+  override val providerWeight: Int
+    get() = foundElementInfo.contributor.sortWeight
 
   override val isSemantic: Boolean
     get() = (foundElementInfo.contributor as? SemanticSearchEverywhereContributor)?.isElementSemantic(foundElementInfo.element) ?: false

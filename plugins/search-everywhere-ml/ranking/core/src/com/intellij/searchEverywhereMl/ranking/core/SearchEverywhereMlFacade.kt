@@ -20,9 +20,10 @@ internal object SearchEverywhereMlFacade {
              || SearchEverywhereMlExperiment.isAllowed
     }
 
-  fun onSessionStarted(project: Project?, tabId: String, isNewSearchEverywhere: Boolean) {
+  fun onSessionStarted(project: Project?, tabId: String, isNewSearchEverywhere: Boolean,
+                       providersInfo: SearchResultProvidersInfo = SearchResultProvidersInfo.EMPTY) {
     if (isMlEnabled) {
-      val newSession = SearchEverywhereMLSearchSession.createNext(project).also {
+      val newSession = SearchEverywhereMLSearchSession.createNext(project, providersInfo).also {
         it.onSessionStarted(tabId, isNewSearchEverywhere)
       }
       _activeSession.set(newSession)
@@ -47,9 +48,9 @@ internal object SearchEverywhereMlFacade {
     finishedSession?.onSessionFinished()
   }
 
-  fun processSearchResult(result: SearchResultAdapter.Raw): SearchResultAdapter.Processed {
-    val currentSession = checkNotNull(activeSession) { "No active search session found - cannot calculate ML properties" }
-    val currentState = checkNotNull(currentSession.activeState) { "No active search state found - cannot calculate ML properties" }
+  fun processSearchResult(result: SearchResultAdapter.Raw): SearchResultAdapter.Processed? {
+    val currentSession = activeSession ?: return null
+    val currentState = currentSession.activeState ?: return null
 
     return currentState.processSearchResult(result)
   }

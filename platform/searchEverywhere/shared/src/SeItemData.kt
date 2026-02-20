@@ -45,6 +45,8 @@ class SeItemDataFactory {
     val additionalInfo = additionalInfo.toMutableMap()
 
     if (item is SeLegacyItem) {
+      additionalInfo[SeItemDataKeys.PROVIDER_SORT_WEIGHT] = item.contributor.sortWeight.toString()
+
       computeCatchingOrNull(true, { e -> "Couldn't add language info (${providerId.value}): $e" }) {
         PSIPresentationBgRendererWrapper.toPsi(item.rawObject)?.let {
           readAction {

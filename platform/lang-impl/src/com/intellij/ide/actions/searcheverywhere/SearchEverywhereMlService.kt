@@ -35,7 +35,7 @@ interface SearchEverywhereMlService {
    */
   fun isEnabled(): Boolean
 
-  fun onSessionStarted(project: Project?, tabId: String)
+  fun onSessionStarted(project: Project?, tabId: String, mixedListInfo: SearchEverywhereMixedListInfo)
 
   @Contract("_, _, _ -> new")
   fun createFoundElementInfo(contributor: SearchEverywhereContributor<*>,

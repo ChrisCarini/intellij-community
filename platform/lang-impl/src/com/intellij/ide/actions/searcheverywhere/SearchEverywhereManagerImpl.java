@@ -106,7 +106,7 @@ public final class SearchEverywhereManagerImpl implements SearchEverywhereManage
     // Inform the ML service about start of search session (opening of SE window)
     SearchEverywhereMlService mlService = SearchEverywhereMlService.getInstance();
     if (mlService != null) {
-      mlService.onSessionStarted(myProject, tabID);
+      mlService.onSessionStarted(myProject, tabID, mySearchEverywhereUI.getMixedListInfo());
     }
 
     myHistoryIterator = myHistoryList.getIterator(tabID);

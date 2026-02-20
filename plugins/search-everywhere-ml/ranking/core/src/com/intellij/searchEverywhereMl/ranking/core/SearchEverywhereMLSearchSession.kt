@@ -19,6 +19,7 @@ import com.intellij.searchEverywhereMl.isLoggingEnabled
 import com.intellij.searchEverywhereMl.isTabWithMlRanking
 import com.intellij.searchEverywhereMl.ranking.core.adapters.MlProbability
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
+import com.intellij.searchEverywhereMl.ranking.core.adapters.LegacyContributorAdapter
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SessionWideId
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultProviderAdapter
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason
@@ -41,13 +42,17 @@ import java.util.concurrent.atomic.AtomicReference
 internal class SearchEverywhereMLSearchSession private constructor(
   val project: Project?,
   val sessionId: Int,
+  private val providersInfo: SearchResultProvidersInfo,
 ) {
   companion object {
     private val LOG = logger<SearchEverywhereMLSearchSession>()
     private val sessionIdCounter: AtomicInteger = AtomicInteger(0)
 
-    fun createNext(project: Project?): SearchEverywhereMLSearchSession {
-      val session = SearchEverywhereMLSearchSession(project, sessionIdCounter.incrementAndGet())
+    fun createNext(
+      project: Project?,
+      providersInfo: SearchResultProvidersInfo = SearchResultProvidersInfo.EMPTY,
+    ): SearchEverywhereMLSearchSession {
+      val session = SearchEverywhereMLSearchSession(project, sessionIdCounter.incrementAndGet(), providersInfo)
       LOG.trace("Session created: sessionId=${session.sessionId}, project=$project")
       return session
     }
@@ -82,7 +87,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     val tab = SearchEverywhereTab.getById(tabId)
     LOG.trace("Session started: sessionId=$sessionId, tab=$tab, isNew=$isNewSearchEverywhere")
     SearchEverywhereMLStatisticsCollector.onSessionStarted(project, sessionId, tab, isNewSearchEverywhere,
-                                                           sessionStartTime, cachedContextInfo.features)
+                                                           sessionStartTime, cachedContextInfo.features, providersInfo.isMixedList)
   }
 
   fun onStateStarted(
@@ -259,6 +264,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
     private val model: SearchEverywhereRankingModel by lazy { modelProviderWithCache.getModel(tab as SearchEverywhereTab.TabWithMlRanking) }
 
     private val searchResultCache: MutableMap<StateLocalId, SearchResultAdapter.Processed> = mutableMapOf()
+    private val providerWeightsById: MutableMap<String, Int> = mutableMapOf()
 
     /**
      * Processes a raw search result to transform it into a processed search result,
@@ -276,6 +282,10 @@ internal class SearchEverywhereMLSearchSession private constructor(
       searchResult: SearchResultAdapter.Raw,
       correction: SearchEverywhereSpellCheckResult = SearchEverywhereSpellCheckResult.NoCorrection,
     ): SearchResultAdapter.Processed {
+      searchResult.providerWeight?.let {
+        providerWeightsById.putIfAbsent(searchResult.provider.id, it)
+      }
+
       val processed = searchResult
         .toProcessed()
         .computeMlFeatures(correction)
@@ -334,8 +344,12 @@ internal class SearchEverywhereMLSearchSession private constructor(
     }
 
 
-    fun getContributorFeatures(provider: SearchResultProviderAdapter): List<EventPair<*>> {
-      return SearchEverywhereContributorFeaturesProvider.getFeatures(provider, sessionStartTime)
+    fun getContributorFeatures(provider: SearchResultProviderAdapter, providerWeight: Int? = null): List<EventPair<*>> {
+      val priority = providersInfo.providerPriorities[provider.id]
+      val weight = providerWeight
+                   ?: providerWeightsById[provider.id]
+                   ?: (provider as? LegacyContributorAdapter)?.contributor?.sortWeight
+      return SearchEverywhereContributorFeaturesProvider.getFeatures(provider, sessionStartTime, priority, weight)
     }
 
     private fun SearchResultAdapter.Raw.toProcessed(): SearchResultAdapter.Processed {
@@ -344,6 +358,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
     private fun SearchResultAdapter.Processed.computeMlFeatures(correction: SearchEverywhereSpellCheckResult = SearchEverywhereSpellCheckResult.NoCorrection): SearchResultAdapter.Processed {
       if (rawItem == null) return this // We cannot comput ML features when the rawItem does not exist
+      val providerWeight = this.providerWeight
 
       val mlFeatures = SearchEverywhereElementFeaturesProvider.getFeatureProvidersForContributor(provider.id)
         .flatMap { featuresProvider ->
@@ -355,7 +370,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
                                               correction)
         }
         .applyIf(tab == SearchEverywhereTab.All) {
-          val contributorFeatures = getContributorFeatures(provider)
+          val contributorFeatures = getContributorFeatures(provider, providerWeight)
           val mlScore = getElementMLScoreForAllTab(provider.id, cachedContextInfo.features, this, contributorFeatures)
           if (mlScore == null) {
             return@applyIf this
@@ -403,7 +418,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
       val features = getAllFeatures(cachedContextInfo.features,
                                     mlFeatures,
-                                    getContributorFeatures(provider))
+                                    getContributorFeatures(provider, this.providerWeight))
       val probability = model.predict(features)
       return this.copy(mlProbability = MlProbability(probability))
     }

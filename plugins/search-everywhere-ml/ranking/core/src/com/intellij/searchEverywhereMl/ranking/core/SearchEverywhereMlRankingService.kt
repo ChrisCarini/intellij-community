@@ -29,8 +29,9 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     return SearchEverywhereMlFacade.isMlEnabled
   }
 
-  override fun onSessionStarted(project: Project?, tabId: String) {
-    SearchEverywhereMlFacade.onSessionStarted(project, tabId, isNewSearchEverywhere = false)
+  override fun onSessionStarted(project: Project?, tabId: String, mixedListInfo: SearchEverywhereMixedListInfo) {
+    SearchEverywhereMlFacade.onSessionStarted(project, tabId, isNewSearchEverywhere = false,
+                                              providersInfo = SearchResultProvidersInfo.fromMixedListInfo(mixedListInfo))
   }
 
   override fun createFoundElementInfo(contributor: SearchEverywhereContributor<*>,

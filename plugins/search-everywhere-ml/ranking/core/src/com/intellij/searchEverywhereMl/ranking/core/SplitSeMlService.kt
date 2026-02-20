@@ -42,12 +42,14 @@ internal class SplitSeMlService : SeMlService {
 
 
   override fun onSessionStarted(project: Project?, tabId: String) {
-    SearchEverywhereMlFacade.onSessionStarted(project, tabId, isNewSearchEverywhere = true)
+    val tab = SearchEverywhereTab.getById(tabId)
+    SearchEverywhereMlFacade.onSessionStarted(project, tabId, isNewSearchEverywhere = true,
+                                              providersInfo = SearchResultProvidersInfo.forSplitTab(tab))
   }
 
   override fun applyMlWeight(seItemData: SeItemData): SeItemData {
     val adapter = SearchResultAdapter.createAdapterFor(seItemData)
-    val processedSearchResult = SearchEverywhereMlFacade.processSearchResult(adapter)
+    val processedSearchResult = SearchEverywhereMlFacade.processSearchResult(adapter) ?: return seItemData
 
     if (processedSearchResult.mlProbability != null) {
       return seItemData.withWeight(processedSearchResult.finalPriority)
