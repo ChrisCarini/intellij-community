@@ -2,6 +2,7 @@ package com.intellij.searchEverywhereMl.ranking.core.adapters
 
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereFoundElementInfo
 import com.intellij.ide.actions.searcheverywhere.SemanticSearchEverywhereContributor
+import com.intellij.ide.util.gotoByName.GotoActionModel
 import com.intellij.internal.statistic.eventLog.events.EventPair
 import com.intellij.platform.searchEverywhere.SeItemData
 import com.intellij.platform.searchEverywhere.isSemantic
@@ -55,6 +56,11 @@ sealed interface SearchResultAdapter {
     val mlFeatures: List<EventPair<*>>?,
     val mlProbability: MlProbability?,
   ) : SearchResultAdapter by adapter {
+    companion object {
+      private const val MAX_ELEMENT_WEIGHT = 10_000
+      private const val ML_PRIORITY_MULTIPLIER = 100_000
+    }
+
     override fun toString(): String {
       return "Processed(" +
              "stateLocalId=${stateLocalId.value}}" +
@@ -74,7 +80,14 @@ sealed interface SearchResultAdapter {
      * is used as a fallback.
      */
     val finalPriority: Int
-      get() = mlProbability?.toWeight() ?: adapter.originalWeight
+      get() {
+        val effectiveMlWeight = mlProbability?.value?.let {
+          if (rawItem is GotoActionModel.MatchedValue && rawItem.type == GotoActionModel.MatchedValueType.ABBREVIATION) 1.0
+          else it
+        } ?: return adapter.originalWeight
+
+        return (effectiveMlWeight * MAX_ELEMENT_WEIGHT).toInt() * ML_PRIORITY_MULTIPLIER + adapter.originalWeight
+      }
   }
 }
 

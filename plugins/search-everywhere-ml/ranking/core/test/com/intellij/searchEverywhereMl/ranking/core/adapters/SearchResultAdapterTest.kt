@@ -1,7 +1,12 @@
 package com.intellij.searchEverywhereMl.ranking.core.adapters
 
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereFoundElementInfo
+import com.intellij.ide.util.gotoByName.GotoActionModel
+import com.intellij.ide.util.gotoByName.MatchMode
 import com.intellij.internal.statistic.eventLog.events.EventPair
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.searchEverywhereMl.ranking.core.MockSearchEverywhereContributor
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -30,6 +35,37 @@ class SearchResultAdapterTest {
   @Test
   fun `MlProbability toWeight handles small values`() {
     assertEquals(1, MlProbability(0.0001).toWeight())
+  }
+
+  @Test
+  fun `finalPriority uses legacy formula for non abbreviation`() {
+    val contributor = MockSearchEverywhereContributor("id")
+    val info = SearchEverywhereFoundElementInfo("uuid-1", "element", 123, contributor)
+    val adapter = SearchResultAdapter.createAdapterFor(info)
+    val processed = SearchResultAdapter.Processed(adapter, "element", null, null, MlProbability(0.2))
+
+    assertEquals(200_000_123, processed.finalPriority)
+  }
+
+  @Test
+  fun `finalPriority boosts action abbreviations to max ml weight`() {
+    val contributor = MockSearchEverywhereContributor("id")
+    val info = SearchEverywhereFoundElementInfo("uuid-1", "element", 123, contributor)
+    val adapter = SearchResultAdapter.createAdapterFor(info)
+    val abbreviationItem = createMatchedValue(GotoActionModel.MatchedValueType.ABBREVIATION)
+    val processed = SearchResultAdapter.Processed(adapter, abbreviationItem, null, null, MlProbability(0.2))
+
+    assertEquals(1_000_000_123, processed.finalPriority)
+  }
+
+  @Test
+  fun `finalPriority falls back to original weight when mlProbability is absent`() {
+    val contributor = MockSearchEverywhereContributor("id")
+    val info = SearchEverywhereFoundElementInfo("uuid-1", "element", 321, contributor)
+    val adapter = SearchResultAdapter.createAdapterFor(info)
+    val processed = SearchResultAdapter.Processed(adapter, "element", null, null, null)
+
+    assertEquals(321, processed.finalPriority)
   }
 
   @Test
@@ -146,5 +182,14 @@ class SearchResultAdapterTest {
     assertNotNull(processed.mlFeatures)
     assertTrue(processed.mlFeatures!!.isEmpty())
     assertEquals(mlProbability.value, processed.mlProbability?.value)
+  }
+
+  private fun createMatchedValue(type: GotoActionModel.MatchedValueType): GotoActionModel.MatchedValue {
+    val action = object : AnAction() {
+      override fun actionPerformed(e: AnActionEvent) {
+      }
+    }
+    val wrapper = GotoActionModel.ActionWrapper(action, null, MatchMode.NAME, Presentation())
+    return GotoActionModel.MatchedValue(wrapper, "q", type)
   }
 }

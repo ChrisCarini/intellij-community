@@ -44,9 +44,7 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
                                 ?: return elementInfo
 
     if (processedSearchResult.mlProbability != null) {
-      val weight = processedSearchResult.mlProbability.toWeight()
-      // TODO - Handle actions abbreviations!!!
-      return elementInfo.withPriority(weight)
+      return elementInfo.withPriority(processedSearchResult.finalPriority)
     } else {
       return elementInfo
     }
