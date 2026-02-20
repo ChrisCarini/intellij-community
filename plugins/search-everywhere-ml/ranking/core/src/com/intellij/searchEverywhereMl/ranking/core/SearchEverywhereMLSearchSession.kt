@@ -13,6 +13,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.IntellijInternalApi
+import com.intellij.platform.searchEverywhere.SeFilterState
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.TextEmbeddingProvider
 import com.intellij.searchEverywhereMl.isLoggingEnabled
@@ -92,7 +93,7 @@ internal class SearchEverywhereMLSearchSession private constructor(
 
   fun onStateStarted(
     tabId: String, query: String, reason: SearchStateChangeReason, scopeDescriptor: ScopeDescriptor?,
-    isSearchEverywhere: Boolean,
+    isSearchEverywhere: Boolean, searchFilter: SeFilterState? = null, isDumbMode: Boolean = false,
   ) {
     val tab = SearchEverywhereTab.getById(tabId)
 
@@ -101,7 +102,8 @@ internal class SearchEverywhereMLSearchSession private constructor(
     val previousState = stateHistory.lastOrNull()
     val stateChangeReason = if (previousState == null) SearchStateChangeReason.SEARCH_START else reason
     val nextSearchIndex = (previousState?.index ?: 0) + 1
-    val newSearchState = SearchState(nextSearchIndex, tab, scopeDescriptor, isSearchEverywhere, stateChangeReason, query)
+    val newSearchState = SearchState(nextSearchIndex, tab, scopeDescriptor, isSearchEverywhere, stateChangeReason, query,
+                                     searchFilter, isDumbMode)
 
     LOG.trace("Session $sessionId: State started: stateIndex=$nextSearchIndex, tab=$tab, query='$query', reason=$stateChangeReason, scope=$scopeDescriptor, everywhere=$isSearchEverywhere")
     _activeState.set(newSearchState)
@@ -213,6 +215,8 @@ internal class SearchEverywhereMLSearchSession private constructor(
     val isSearchEverywhere: Boolean,
     val searchStateChangeReason: SearchStateChangeReason,
     val query: String,
+    val searchFilter: SeFilterState? = null,
+    val isDumbMode: Boolean = false,
   ) {
     var isFinished: Boolean = false
       private set

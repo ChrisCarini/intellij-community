@@ -2,7 +2,7 @@ package com.intellij.searchEverywhereMl.ranking.core
 
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.ide.util.scopeChooser.ScopesStateService
-import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.currentOrDefaultProject
 import com.intellij.platform.searchEverywhere.SeItemData
@@ -11,40 +11,17 @@ import com.intellij.platform.searchEverywhere.frontend.ml.SeMlService
 import com.intellij.platform.searchEverywhere.providers.SeEverywhereFilter
 import com.intellij.platform.searchEverywhere.providers.target.SeTargetsFilter
 import com.intellij.platform.searchEverywhere.withWeight
-import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason
 
 internal class SplitSeMlService : SeMlService {
-  internal companion object {
-    fun inferStateChangeReason(
-      previousState: SearchEverywhereMLSearchSession.SearchState?,
-      tabId: String,
-      inputQuery: String,
-      scopeDescriptor: ScopeDescriptor?,
-    ): SearchStateChangeReason {
-      if (previousState == null) {
-        return SearchStateChangeReason.SEARCH_START
-      }
-
-      val tab = SearchEverywhereTab.getById(tabId)
-
-      return when {
-        inputQuery != previousState.query -> SearchStateChangeReason.QUERY_CHANGE
-        scopeDescriptor != previousState.searchScope -> SearchStateChangeReason.SCOPE_CHANGE
-        tab != previousState.tab -> SearchStateChangeReason.TAB_CHANGE
-        else -> SearchStateChangeReason.QUERY_CHANGE
-      }
-    }
-  }
   override val isEnabled: Boolean
     get() = SearchEverywhereMlFacade.isMlEnabled
 
 
   override fun onSessionStarted(project: Project?, tabId: String) {
-    val tab = SearchEverywhereTab.getById(tabId)
     SearchEverywhereMlFacade.onSessionStarted(project, tabId, isNewSearchEverywhere = true,
-                                              providersInfo = SearchResultProvidersInfo.forSplitTab(tab))
+                                              providersInfo = SearchResultProvidersInfo.forSplitSession())
   }
 
   override fun applyMlWeight(seItemData: SeItemData): SeItemData {
@@ -66,13 +43,16 @@ internal class SplitSeMlService : SeMlService {
   override fun onStateStarted(tabId: String, searchParams: SeParams) {
     val activeSession = checkNotNull(SearchEverywhereMlFacade.activeSession) { "Cannot call onStateStarted without active search session" }
     val project = activeSession.project
-    val previousState = activeSession.activeState ?: activeSession.previousSearchState
+    val currentProject = currentOrDefaultProject(project)
+    val isDumbMode = project?.let { DumbService.isDumb(it) } ?: false
 
-    val scopeDescriptor = searchParams.getScopeDescriptorIfExists(currentOrDefaultProject(project))
+    val scopeDescriptor = searchParams.getScopeDescriptorIfExists(currentProject)
     val isSearchEverywhere = searchParams.isSearchEverywhere()
-    val reason = inferStateChangeReason(previousState, tabId, searchParams.inputQuery, scopeDescriptor)
+    val previousState = activeSession.activeState ?: activeSession.previousSearchState
+    val reason = SearchStateChangeReason.inferFromStateChange(previousState, tabId, searchParams, isDumbMode)
 
-    SearchEverywhereMlFacade.onStateStarted(tabId, searchParams.inputQuery, reason, scopeDescriptor, isSearchEverywhere)
+    SearchEverywhereMlFacade.onStateStarted(tabId, searchParams.inputQuery, reason, scopeDescriptor, isSearchEverywhere,
+                                            searchFilter = searchParams.filter, isDumbMode = isDumbMode)
   }
 
   override fun onStateFinished(results: List<SeItemData>) {

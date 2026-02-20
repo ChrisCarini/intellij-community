@@ -2,6 +2,7 @@ package com.intellij.searchEverywhereMl.ranking.core
 
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.openapi.project.Project
+import com.intellij.platform.searchEverywhere.SeFilterState
 import com.intellij.searchEverywhereMl.SearchEverywhereMlExperiment
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.isTabWithMlRanking
@@ -31,8 +32,9 @@ internal object SearchEverywhereMlFacade {
   }
 
   fun onStateStarted(tabId: String, query: String, changeReason: SearchStateChangeReason,
-                     scopeDescriptor: ScopeDescriptor?, isSearchEverywhere: Boolean) {
-    _activeSession.get()?.onStateStarted(tabId, query, changeReason, scopeDescriptor, isSearchEverywhere)
+                     scopeDescriptor: ScopeDescriptor?, isSearchEverywhere: Boolean,
+                     searchFilter: SeFilterState? = null, isDumbMode: Boolean = false) {
+    _activeSession.get()?.onStateStarted(tabId, query, changeReason, scopeDescriptor, isSearchEverywhere, searchFilter, isDumbMode)
   }
 
   fun onStateFinished(results: List<SearchResultAdapter.Raw>) {
