@@ -8,12 +8,10 @@ import com.intellij.diagnostic.Activity
 import com.intellij.diagnostic.CoroutineTracerShim
 import com.intellij.diagnostic.LoadingState
 import com.intellij.ide.plugins.DisabledPluginsState.Companion.invalidate
-import com.intellij.ide.plugins.PluginManagerCore.CORE_ID
 import com.intellij.ide.plugins.PluginManagerCore.ULTIMATE_PLUGIN_ID
 import com.intellij.ide.plugins.PluginManagerCore.getPluginSet
 import com.intellij.ide.plugins.PluginManagerCore.isDisabled
 import com.intellij.ide.plugins.PluginManagerCore.loadedPlugins
-import com.intellij.ide.plugins.PluginManagerCore.logger
 import com.intellij.ide.plugins.PluginManagerCore.processAllNonOptionalDependencies
 import com.intellij.ide.plugins.cl.PluginAwareClassLoader
 import com.intellij.idea.AppMode
@@ -975,61 +973,6 @@ object PluginManagerCore {
     DisabledPluginsState.addDisablePluginListener(listener)
   }
   //</editor-fold>
-}
-
-private fun selectPluginsForLoading(
-  descriptors: Collection<PluginMainDescriptor>,
-  idMap: Map<PluginId, IdeaPluginDescriptorImpl>,
-  pluginNonLoadReasons: MutableMap<PluginId, PluginNonLoadReason>,
-  initContext: PluginInitializationContext,
-) {
-  if (initContext.explicitPluginSubsetToLoad != null) {
-    val rootPluginsToLoad: Set<PluginId> = initContext.explicitPluginSubsetToLoad!!.toHashSet() + initContext.essentialPlugins
-    val pluginsToLoad = LinkedHashSet<IdeaPluginDescriptorImpl>(rootPluginsToLoad.size)
-    val contentModuleIdMap = HashMap<PluginModuleId, ContentModuleDescriptor>()
-    for (descriptor in descriptors) {
-      descriptor.contentModules.associateByTo(contentModuleIdMap) { it.moduleId }
-    }
-    for (id in rootPluginsToLoad) {
-      val descriptor = idMap.get(id) ?: continue
-      pluginsToLoad.add(descriptor)
-      processAllNonOptionalDependencies(descriptor, idMap, contentModuleIdMap) { dependency ->
-        pluginsToLoad.add(dependency)
-        FileVisitResult.CONTINUE
-      }
-    }
-
-    for (descriptor in descriptors) {
-      if (descriptor.pluginId == CORE_ID) {
-        continue
-      }
-      if (!pluginsToLoad.contains(descriptor)) {
-        descriptor.isMarkedForLoading = false
-        logger.info("Plugin '" + descriptor.getName() + "' is not in 'idea.load.plugins.id' system property and won't be loaded")
-      }
-    }
-  }
-  else if (initContext.disablePluginLoadingCompletely) {
-    for (descriptor in descriptors) {
-      if (descriptor.pluginId == CORE_ID) {
-        continue
-      }
-      descriptor.isMarkedForLoading = false
-      pluginNonLoadReasons.put(descriptor.getPluginId(), PluginLoadingIsDisabledCompletely(descriptor))
-    }
-  }
-  else {
-    for (essentialId in initContext.essentialPlugins) {
-      val essentialPlugin = idMap.get(essentialId) ?: continue
-      for (incompatibleId in essentialPlugin.incompatiblePlugins) {
-        val incompatiblePlugin = idMap.get(incompatibleId) ?: continue
-        if (incompatiblePlugin.isMarkedForLoading) {
-          incompatiblePlugin.isMarkedForLoading = false
-          logger.info("Plugin '${incompatiblePlugin.name}' conflicts with required plugin '${essentialPlugin.name}' and won't be loaded")
-        }
-      }
-    }
-  }
 }
 
 private fun processAllNonOptionalDependencies(
