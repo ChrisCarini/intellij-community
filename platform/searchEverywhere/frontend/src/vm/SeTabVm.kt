@@ -205,8 +205,9 @@ class SeTabVmImpl(
           val resultsFlow = tab.getItems(params).let { resultsFlow ->
             val resultsFlowWithAdaptedPresentations = resultsFlow.mapNotNull {
               checkAndAddMissingPresentationIfPossible(it)
-            }.map {
-              calculateMlWeight(it)
+                ?.let { withPresentation ->
+                  calculateMlWeight(withPresentation)
+                }
             }
 
             val essential = tab.essentialProviderIds()

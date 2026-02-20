@@ -2,6 +2,7 @@ package com.intellij.searchEverywhereMl.ranking.core
 
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
 import com.intellij.ide.util.scopeChooser.ScopesStateService
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.currentOrDefaultProject
 import com.intellij.platform.searchEverywhere.SeItemData
@@ -47,11 +48,9 @@ internal class SplitSeMlService : SeMlService {
   override fun applyMlWeight(seItemData: SeItemData): SeItemData {
     val adapter = SearchResultAdapter.createAdapterFor(seItemData)
     val processedSearchResult = SearchEverywhereMlFacade.processSearchResult(adapter)
-                                ?: return seItemData
 
     if (processedSearchResult.mlProbability != null) {
-      val weight = processedSearchResult.mlProbability.toWeight()
-      return seItemData.withWeight(weight)
+      return seItemData.withWeight(processedSearchResult.finalPriority)
     }
     else {
       return seItemData

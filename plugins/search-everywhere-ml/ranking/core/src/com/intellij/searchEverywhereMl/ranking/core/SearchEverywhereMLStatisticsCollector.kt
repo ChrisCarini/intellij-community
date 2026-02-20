@@ -164,7 +164,7 @@ object SearchEverywhereMLStatisticsCollector : CounterUsagesCollector() {
         add(ACTION_ID_KEY.with(actionId))
       }
 
-      add(PRIORITY_KEY.with(this@toObjectEventData.originalWeight))
+      add(PRIORITY_KEY.with(this@toObjectEventData.finalPriority))
     }
 
     return ObjectEventData(searchResultData)

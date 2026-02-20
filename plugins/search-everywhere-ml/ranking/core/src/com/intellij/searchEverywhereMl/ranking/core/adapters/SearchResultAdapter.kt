@@ -63,6 +63,18 @@ sealed interface SearchResultAdapter {
              "mlFeatures=${mlFeatures?.size}, " +
              "mlProbability=${mlProbability?.value})"
     }
+
+    /**
+     * Represents the final priority of a search result, determined by combining machine learning
+     * probability, if available, and a default weight from the associated adapter.
+     *
+     * If machine learning (ML) probability is present, it is converted to a weight using the
+     * [toWeight] method, which scales the probability value for scoring purposes. If ML probability
+     * is not available, the original default weight provided by the associated search result adapter
+     * is used as a fallback.
+     */
+    val finalPriority: Int
+      get() = mlProbability?.toWeight() ?: adapter.originalWeight
   }
 }
 
