@@ -26,7 +26,7 @@ internal class SplitSeMlService : SeMlService {
 
   override fun applyMlWeight(seItemData: SeItemData): SeItemData {
     val adapter = SearchResultAdapter.createAdapterFor(seItemData)
-    val processedSearchResult = SearchEverywhereMlFacade.processSearchResult(adapter) ?: return seItemData
+    val processedSearchResult = SearchEverywhereMlFacade.processSearchResult(adapter)
 
     if (processedSearchResult.mlProbability != null) {
       return seItemData.withWeight(processedSearchResult.finalPriority)
