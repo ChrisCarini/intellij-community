@@ -1,7 +1,7 @@
 package com.intellij.searchEverywhereMl.ranking.core
 
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereMixedListInfo
-import com.intellij.openapi.options.advanced.AdvancedSettings
+import com.intellij.platform.searchEverywhere.frontend.ui.SeResultList
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 
 internal data class SearchResultProvidersInfo(
@@ -18,24 +18,8 @@ internal data class SearchResultProvidersInfo(
 
     fun forSplitTab(tab: SearchEverywhereTab): SearchResultProvidersInfo {
       if (tab != SearchEverywhereTab.All) return EMPTY
-      return SearchResultProvidersInfo(true, createDefaultMixedListPriorities())
-    }
-
-    private fun createDefaultMixedListPriorities(): Map<String, Int> {
-      val prioritizedProviders = mutableListOf<String>()
-      prioritizedProviders.add("com.intellij.ide.actions.searcheverywhere.CalculatorSEContributor")
-      prioritizedProviders.add("AutocompletionContributor")
-      prioritizedProviders.add("CommandsContributor")
-      prioritizedProviders.add("TopHitSEContributor")
-      if (AdvancedSettings.getBoolean("search.everywhere.recent.at.top")) {
-        prioritizedProviders.add("RecentFilesSEContributor")
-      }
-
-      return buildMap {
-        prioritizedProviders.forEachIndexed { index, providerId ->
-          put(providerId, prioritizedProviders.size - index)
-        }
-      }
+      val contributorPriorities = SeResultList.prioritizedProvidersPriorities.mapKeys { (providerId, _) -> providerId.value }
+      return SearchResultProvidersInfo(true, contributorPriorities)
     }
   }
 }
