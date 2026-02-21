@@ -49,7 +49,7 @@ public abstract class JsonPropertyMixin extends JsonElementImpl implements JsonP
     return ArrayUtil.prepend(new JsonPropertyNameReference(this), fromProviders);
   }
 
-  private boolean hasSymbolDeclarations() {
+  public boolean hasSymbolDeclarations() {
     return CachedValuesManager.getCachedValue(this, () -> {
       return Result.create(!allDeclarationsInElement(this).isEmpty(), PsiModificationTracker.MODIFICATION_COUNT);
     });
