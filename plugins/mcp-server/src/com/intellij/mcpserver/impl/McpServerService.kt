@@ -114,6 +114,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonPrimitive
+import org.jetbrains.annotations.ApiStatus
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -147,7 +148,6 @@ class McpServerService(val cs: CoroutineScope) {
   class McpSessionOptions(
     val commandExecutionMode: AskCommandExecutionMode,
     val toolFilter: McpToolFilter = McpToolFilter.AllowAll,
-    val advancedMcpToolFilter: String? = null,
     val localAgentId: String? = null,
   )
 
@@ -169,6 +169,11 @@ class McpServerService(val cs: CoroutineScope) {
 
   val isRunning: Boolean
     get() = server.value != null
+
+  // For tests
+  val theOnlySession: McpSessionOptions?
+    @ApiStatus.Internal
+    get() = if (activeAuthorizedSessions.size == 1) activeAuthorizedSessions.values.firstOrNull() else null
 
   private val connectionAddressProvider: McpServerConnectionAddressProvider
     get() = service()
@@ -312,7 +317,7 @@ class McpServerService(val cs: CoroutineScope) {
       val currentOptions = currentSessionOptions.value
       logger.trace {
         "Emitting MCP tools update: reason=$reason, clientName=${currentClientInfo?.name}, " +
-        "advancedMcpToolFilter=${currentOptions?.advancedMcpToolFilter}, localAgentId=${currentOptions?.localAgentId}"
+        "localAgentId=${currentOptions?.localAgentId}"
       }
       mcpTools.tryEmit(getMcpTools(clientInfo = currentClientInfo, sessionOptions = currentOptions))
     }
@@ -438,7 +443,7 @@ class McpServerService(val cs: CoroutineScope) {
         session.onInitialized {
           logger.trace {
             "Session initialized: sessionId=${session.sessionId}, clientVersion=${session.clientVersion?.name}, " +
-            "advancedMcpToolFilter=${sessionOptions.advancedMcpToolFilter}, localAgentId=${sessionOptions.localAgentId}"
+            "localAgentId=${sessionOptions.localAgentId}"
           }
           // Update clientInfo when session is initialized
           val clientVersion = session.clientVersion

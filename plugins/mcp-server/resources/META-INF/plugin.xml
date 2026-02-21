@@ -57,7 +57,6 @@
     <mcpServer.mcpToolFilterProvider implementation="com.intellij.mcpserver.impl.RegistryKeyMcpToolFilterProvider" />
     <mcpServer.mcpToolFilterProvider implementation="com.intellij.mcpserver.impl.SettingsBasedMcpToolFilterProvider" />
     <mcpServer.mcpToolFilterProvider implementation="com.intellij.mcpserver.impl.DisallowListBasedMcpToolFilterProvider" />
-    <mcpServer.mcpToolFilterProvider implementation="com.intellij.mcpserver.impl.AdvancedMcpToolFilterProvider" />
 
     <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.ExecutionToolset" />
     <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.AnalysisToolset" />

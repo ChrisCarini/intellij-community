@@ -6,6 +6,7 @@ import com.intellij.util.PatternUtil
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import org.jetbrains.annotations.ApiStatus
 
 interface McpToolFilterProvider {
   data class McpToolFilterContext(
@@ -69,7 +70,8 @@ interface McpToolFilterProvider {
   companion object {
     val EP: ExtensionPointName<McpToolFilterProvider> = ExtensionPointName.create<McpToolFilterProvider>("com.intellij.mcpServer.mcpToolFilterProvider")
 
-    private const val MCP_TOOL_FILTER_KEY = "mcp.tool.filter"
+    @ApiStatus.Internal
+    const val MCP_TOOL_FILTER_KEY: String = "mcp.tool.filter"
 
     /**
      * Returns the MCP tool filter string from system property.

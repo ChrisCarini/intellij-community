@@ -139,6 +139,7 @@ jvm_library(
     "//libraries/ktor/io:io_test_lib",
     "//platform/execution:execution_test_lib",
     "//platform/diagnostic/telemetry:telemetry_test_lib",
+    "//platform/util/coroutines:coroutines_test_lib",
     "//platform/util-class-loader:util-classLoader_test_lib",
     "//platform/vcs-impl:vcs-impl_test_lib",
   ]
