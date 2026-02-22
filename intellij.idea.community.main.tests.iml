@@ -104,5 +104,6 @@
     <orderEntry type="module" module-name="intellij.python.test.env.uv" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.completion.common.tests" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.settings.local.tests" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.vcs.impl.frontend.tests" scope="TEST" />
   </component>
 </module>
