@@ -33,6 +33,7 @@ import com.intellij.driver.sdk.ui.should
 import com.intellij.driver.sdk.ui.ui
 import com.intellij.driver.sdk.waitFor
 import com.intellij.driver.sdk.waitForCodeAnalysis
+import com.intellij.driver.sdk.waitNotNull
 import org.intellij.lang.annotations.Language
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -56,11 +57,11 @@ fun NotebookEditorUiComponent.waitForHighlighting() {
   driver.waitForCodeAnalysis(file = editor.getVirtualFile())
 }
 
-typealias CellSelector = (List<UiComponent>) -> UiComponent
+typealias CellSelector = (List<UiComponent>) -> UiComponent?
 
-val FirstCell: CellSelector = { it.first() }
-val SecondCell: CellSelector = { it.drop(1).first() }
-val LastCell: CellSelector = { it.last() }
+val FirstCell: CellSelector = { it.firstOrNull() }
+val SecondCell: CellSelector = { it.getOrNull(1) }
+val LastCell: CellSelector = { it.lastOrNull() }
 
 
 class NotebookEditorUiComponent(private val data: ComponentData) : JEditorUiComponent(data) {
@@ -233,14 +234,12 @@ class NotebookEditorUiComponent(private val data: ComponentData) : JEditorUiComp
   }
 
   fun clickOnCell(cellSelector: CellSelector) {
-    val cellEditors = notebookCellEditors
-    val cell = cellSelector(cellEditors)
+    val cell = waitNotNull { cellSelector(notebookCellEditors) }
     cell.strictClick()
   }
 
   fun moveMouseOnCell(cellSelector: CellSelector) {
-    val cellEditors = notebookCellEditors
-    val cell = cellSelector(cellEditors)
+    val cell = waitNotNull { cellSelector(notebookCellEditors) }
     cell.moveMouse()
   }
 
@@ -265,7 +264,8 @@ class NotebookEditorUiComponent(private val data: ComponentData) : JEditorUiComp
       clickOnCell(cellSelector)
       driver.ui.pasteText(text)
       val searchText = text.replace("\n", "").replace(" ", "")
-      LastCell(notebookCellEditors).getParent().getParent().getAllTexts().asString().replace(" ", "").contains(searchText)
+      val lastCell = waitNotNull { LastCell(notebookCellEditors) }
+      lastCell.getParent().getParent().getAllTexts().asString().replace(" ", "").contains(searchText)
     }
   }
 
