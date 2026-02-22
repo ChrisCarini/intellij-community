@@ -1097,6 +1097,7 @@
       <module fileurl="file://$PROJECT_DIR$/platform/collaboration-tools/auth-base/intellij.platform.collaborationTools.auth.base.iml" filepath="$PROJECT_DIR$/platform/collaboration-tools/auth-base/intellij.platform.collaborationTools.auth.base.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/completion/backend/intellij.platform.completion.backend.iml" filepath="$PROJECT_DIR$/platform/completion/backend/intellij.platform.completion.backend.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/completion/common/intellij.platform.completion.common.iml" filepath="$PROJECT_DIR$/platform/completion/common/intellij.platform.completion.common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/platform/completion/common/intellij.platform.completion.common.tests.iml" filepath="$PROJECT_DIR$/platform/completion/common/intellij.platform.completion.common.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/completion/frontend/intellij.platform.completion.frontend.iml" filepath="$PROJECT_DIR$/platform/completion/frontend/intellij.platform.completion.frontend.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/compose/intellij.platform.compose.iml" filepath="$PROJECT_DIR$/platform/compose/intellij.platform.compose.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/compose/compiler-plugin/intellij.platform.compose.compilerPlugin.iml" filepath="$PROJECT_DIR$/platform/compose/compiler-plugin/intellij.platform.compose.compilerPlugin.iml" />
