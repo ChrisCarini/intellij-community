@@ -19390,6 +19390,13 @@ jvm_import(
   visibility = ["//visibility:public"]
 )
 
+jvm_import(
+  name = "relaxng-tests-jing",
+  jar = "@thaiopensource-jing-20030619_http//file",
+  source_jar = "@thaiopensource-jing-20030619-sources_http//file",
+  visibility = ["//visibility:public"]
+)
+
 copy_file(
   name = "jetbrains.fleet/rhizomedb-compiler-plugin-2.3.10-RC-0.1.jar_copy",
   src = "@jetbrains_fleet-rhizomedb-compiler-plugin-2_3_10-RC-0_1_http//file",
