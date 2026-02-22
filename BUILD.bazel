@@ -728,6 +728,8 @@ jvm_library(
     "//platform/vcs-impl/shared:vcs-impl-shared-tests_test_lib",
     "//platform/vcs-impl:vcs-impl-tests",
     "//platform/vcs-impl:vcs-impl-tests_test_lib",
+    "//platform/xdebugger-impl/frontend:debugger-impl-frontend-tests",
+    "//platform/xdebugger-impl/frontend:debugger-impl-frontend-tests_test_lib",
   ]
 )
 ### auto-generated section `build intellij.idea.community.main.tests` end

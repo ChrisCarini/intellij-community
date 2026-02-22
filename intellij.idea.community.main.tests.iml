@@ -107,5 +107,6 @@
     <orderEntry type="module" module-name="intellij.platform.vcs.impl.frontend.tests" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.vcs.impl.shared.tests" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.vcs.impl.tests" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.debugger.impl.frontend.tests" scope="TEST" />
   </component>
 </module>
