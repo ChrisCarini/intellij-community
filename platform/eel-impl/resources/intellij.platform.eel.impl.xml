@@ -32,6 +32,9 @@
     />
   </extensions>
   <extensionPoints>
+    <extensionPoint qualifiedName="com.intellij.platform.eel.impl.portAccessibleLocally"
+                    dynamic="false"
+                    interface="com.intellij.platform.eel.impl.portAccessibleLocally.EelPortAccessibleLocally"/>
     <extensionPoint name="multiRoutingFileSystemBackend" interface="com.intellij.platform.eel.provider.MultiRoutingFileSystemBackend"
                     dynamic="true"/>
   </extensionPoints>

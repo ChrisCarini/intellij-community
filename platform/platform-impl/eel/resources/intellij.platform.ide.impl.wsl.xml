@@ -1,5 +1,12 @@
 <idea-plugin visibility="internal">
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.libraries.caffeine"/>
+  </dependencies>
+  <!-- endregion -->
+
   <extensions defaultExtensionNs="com.intellij">
+    <platform.eel.impl.portAccessibleLocally implementation="com.intellij.platform.ide.impl.wsl.WslEelPortAccessibleLocally"/>
     <eelProvider implementation="com.intellij.platform.ide.impl.wsl.WslEelProvider" os="windows"/>
     <eelMachineResolver implementation="com.intellij.platform.ide.impl.wsl.WslEelMachineResolver" os="windows"/>
     <applicationService serviceInterface="com.intellij.execution.wsl.WslIjentManager"

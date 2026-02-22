@@ -16,6 +16,8 @@ import com.intellij.platform.eel.channels.EelReceiveChannelException
 import com.intellij.platform.eel.channels.EelSendChannel
 import com.intellij.platform.eel.channels.EelSendChannelException
 import com.intellij.platform.eel.channels.sendWholeBuffer
+import com.intellij.platform.eel.impl.portAccessibleLocally.EelPortAccessibleLocally.Companion.isEelPortAccessibleLocally
+import com.intellij.platform.eel.provider.LocalEelDescriptor
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -120,19 +122,17 @@ private class RealEelProxy(
  *
  * It is deliberately chosen to check different types in runtime to not pollute public API with implementation-detail types.
  */
-private fun fakeListenAddress(
+private suspend fun fakeListenAddress(
   acceptorInfo: Pair<EelTunnelsApi, Any?>?,
   connectorInfo: Pair<EelTunnelsApi, Any?>?,
 ): EelTunnelsApi.ResolvedSocketAddress? {
+  // info is (eelTunnelApi, (TCP, (host, port)))
+  // acceptor is an address we listen to
   if (acceptorInfo == null || connectorInfo == null) return null
-  if (acceptorInfo.first != connectorInfo.first) return null
 
   val (acceptorKey, acceptorValue) = acceptorInfo.second as? Pair<*, *> ?: return null
   val (connectorKey, connectorValue) = connectorInfo.second as? Pair<*, *> ?: return null
 
-  if (acceptorKey != connectorKey) return null
-
-  require(acceptorKey == "TCP")
   val (acceptorHost, acceptorPort) = acceptorValue as Pair<*, *>
   val (connectorHost, connectorPort) = connectorValue as Pair<*, *>
 
@@ -141,7 +141,18 @@ private fun fakeListenAddress(
   connectorHost as String
   connectorPort as UShort
 
+  if (acceptorKey != connectorKey) return null
   if (acceptorHost != connectorHost) return null
+
+  require(acceptorKey == "TCP" || acceptorKey == "UDP")
+  // connection to host that runs IJ and port acceptorPort is automatically forwarded to eel:connectorPort
+  val eelPortAccessibleLocally =
+    (
+      acceptorInfo.first == connectorInfo.first ||
+      (acceptorInfo.first.descriptor == LocalEelDescriptor &&
+       isEelPortAccessibleLocally(localPort = acceptorPort, eelPort = connectorPort, onEel = connectorInfo.first.descriptor))
+    )
+  if (!eelPortAccessibleLocally) return null
 
   if (acceptorPort == 0.toUShort() || acceptorPort == connectorPort) {
     check(connectorPort > 0u)
