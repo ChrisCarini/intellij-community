@@ -18862,6 +18862,13 @@ jvm_import(
   visibility = ["//visibility:public"]
 )
 
+jvm_import(
+  name = "platform-settings-local-tests-jackson-dataformat-cbor",
+  jar = "@com_fasterxml_jackson_dataformat-jackson-dataformat-cbor-2_19_0_http//file",
+  source_jar = "@com_fasterxml_jackson_dataformat-jackson-dataformat-cbor-2_19_0-sources_http//file",
+  visibility = ["//visibility:public"]
+)
+
 copy_file(
   name = "com.squareup.okhttp3/mockwebserver-5.0.0-alpha.11.jar_copy",
   src = "@com_squareup_okhttp3-mockwebserver-5_0_0-alpha_11_http//file",
