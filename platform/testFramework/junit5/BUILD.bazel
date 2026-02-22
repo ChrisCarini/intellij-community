@@ -80,6 +80,8 @@ jvm_library(
     "//libraries/kotlinx/coroutines/core:core_test_lib",
     "@lib//:opentest4j",
     "@lib//:junit5Params",
+    "//community-resources:customization",
+    "//community-resources:customization_test_lib",
     "//java/java-runtime:rt",
     "//java/java-runtime:rt_test_lib",
     "//libraries/junit5",

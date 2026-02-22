@@ -144,6 +144,8 @@ jvm_library(
     "//libraries/jackson/module-kotlin:libraries-jackson-module-kotlin",
     "//libraries/jackson/module-kotlin:libraries-jackson-module-kotlin_test_lib",
     "@lib//:okhttp",
+    "//community-resources:customization",
+    "//community-resources:customization_test_lib",
     "//java/java-runtime:rt",
     "//java/java-runtime:rt_test_lib",
     "//libraries/junit4",
