@@ -170,7 +170,7 @@ com.intellij.openapi.editor.FoldingModel
 - a:getHorizontalOffset(com.intellij.openapi.editor.Editor,java.awt.Point,com.intellij.openapi.editor.ScrollType,java.awt.Rectangle,javax.swing.JScrollPane):I
 - a:getVerticalOffset(com.intellij.openapi.editor.Editor,java.awt.Point,com.intellij.openapi.editor.ScrollType,java.awt.Rectangle,javax.swing.JScrollPane):I
 com.intellij.openapi.editor.colors.EditorColors
-- *sf:INACTIVE_SELECTION_BACKGROUND_COLOR:com.intellij.openapi.editor.colors.ColorKey
+- *sf:SELECTION_BACKGROUND_COLOR_INACTIVE:com.intellij.openapi.editor.colors.ColorKey
 a:com.intellij.openapi.editor.colors.EditorColorsManager
 - *a:getSchemeModificationCounter():J
 com.intellij.openapi.editor.highlighter.HighlighterIterator

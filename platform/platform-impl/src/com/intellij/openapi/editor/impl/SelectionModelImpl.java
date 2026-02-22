@@ -171,7 +171,7 @@ public final class SelectionModelImpl implements SelectionModel {
     if (isActiveColor) {
       return scheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR);
     }
-    Color inactiveColor = scheme.getColor(EditorColors.INACTIVE_SELECTION_BACKGROUND_COLOR);
+    Color inactiveColor = scheme.getColor(EditorColors.SELECTION_BACKGROUND_COLOR_INACTIVE);
     if (inactiveColor != null) {
       return inactiveColor;
     }
