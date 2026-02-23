@@ -6,7 +6,6 @@ import com.intellij.lambda.testFramework.starter.IdeInstance.ide
 import com.intellij.lambda.testFramework.starter.IdeInstance.isStarted
 import com.intellij.lambda.testFramework.utils.IdeWithLambda
 import com.intellij.openapi.diagnostic.thisLogger
-import com.intellij.testFramework.recordErrorsLoggedInTheCurrentThreadAndReportThemAsFailures
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.AfterEachCallback
@@ -43,7 +42,7 @@ class BackgroundLambdaDefaultCallbacks : BeforeAllCallback, BeforeEachCallback, 
         ide.afterEach(contextName)
       }
     }
-  }
+   }
 
   private fun tryOrRestartIde(context: ExtensionContext, action: IdeWithLambda.() -> Unit) {
     try {
@@ -75,13 +74,9 @@ class BackgroundLambdaDefaultCallbacks : BeforeAllCallback, BeforeEachCallback, 
       thisLogger().warn("IDE wasn't started yet. Skipping $callbackName for $contextName")
       return@synchronized
     }
-    recordErrorsLoggedInTheCurrentThreadAndReportThemAsFailures {
-      runCatching {
-        @Suppress("RAW_RUN_BLOCKING")
-        runBlocking(testSuiteSupervisorScope.coroutineContext) {
-          ide.action()
-        }
-      }.onFailure { thisLogger().error("Problems in $callbackName: ${it.message}", it, contextName) }
+    @Suppress("RAW_RUN_BLOCKING")
+    runBlocking(testSuiteSupervisorScope.coroutineContext) {
+      ide.action()
     }
   }
 }

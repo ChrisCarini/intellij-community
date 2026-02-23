@@ -242,10 +242,15 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
         session.afterEach.setSuspend(sessionBgtDispatcher) { _, testName ->
           LOG.info("------------------------- Test '$testName' finished -------------------------")
           assert(ideContext?.coroutineContext?.isActive == true) { "Lambda task coroutine context should be active" }
-
-          ideContext!!.runAfterEachCleanup()
-
-          ideContext = null
+          try {
+            ideContext!!.runAfterEachCleanup()
+          }
+          catch (t: Throwable) {
+            LOG.error("Error during afterEach cleanup for test '$testName': ${t.message}", t)
+          }
+          finally {
+            ideContext = null
+          }
         }
 
         session.afterAll.setSuspend(sessionBgtDispatcher) { _, testClassName ->
