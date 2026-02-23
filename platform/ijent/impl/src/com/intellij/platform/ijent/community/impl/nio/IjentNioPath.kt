@@ -313,7 +313,7 @@ internal class RelativeIjentNioPath(val segments: List<String>, nioFs: IjentNioF
     throw InvalidPathException(toString(), "Can't find a real path for a relative path")
   }
 
-  override fun toString(): String = segments.joinToString("/")
+  override fun toString(): String = segments.joinToString(nioFs.separator)
 
   /**
    * Commonly, instances of Path are not considered as equal if they actually represent the same path but come from different file systems.
