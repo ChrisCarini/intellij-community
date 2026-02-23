@@ -33,4 +33,5 @@ public class LVTTest extends SingleClassesTestBase {
   @Test public void testVarType() { doTest("pkg/TestVarType"); }
   @Test public void testLoopMerging() { doTest("pkg/TestLoopMerging"); }
   @Test public void testPPMM() { doTest("pkg/TestPPMM"); }
+  @Test public void testBoxedPPMM() { doTest("pkg/TestBoxedPPMM"); }
 }

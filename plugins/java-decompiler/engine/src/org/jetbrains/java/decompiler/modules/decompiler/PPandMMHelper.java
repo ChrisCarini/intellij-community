@@ -5,6 +5,7 @@ import org.jetbrains.java.decompiler.modules.decompiler.exps.AssignmentExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.ConstExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.Exprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.FunctionExprent;
+import org.jetbrains.java.decompiler.modules.decompiler.exps.InvocationExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.VarExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.DirectGraph;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.DirectNode;
@@ -107,8 +108,19 @@ public class PPandMMHelper {
     if (exprent.type == Exprent.EXPRENT_ASSIGNMENT) {
       AssignmentExprent as = (AssignmentExprent)exprent;
 
-      if (as.getRight().type == Exprent.EXPRENT_FUNCTION) {
-        FunctionExprent func = (FunctionExprent)as.getRight();
+      // Peel off boxing call (e.g., Integer.valueOf(x) -> x)
+      Exprent right = as.getRight();
+      boolean isBoxed = false;
+      if (right.type == Exprent.EXPRENT_INVOCATION) {
+        InvocationExprent invoc = (InvocationExprent)right;
+        if (invoc.isBoxingCall() && invoc.getParameters().size() == 1) {
+          right = invoc.getParameters().get(0);
+          isBoxed = true;
+        }
+      }
+
+      if (right.type == Exprent.EXPRENT_FUNCTION) {
+        FunctionExprent func = (FunctionExprent)right;
 
         VarType midlayer = null;
         if (func.getFuncType() >= FunctionExprent.FUNCTION_I2L &&
@@ -135,6 +147,14 @@ public class PPandMMHelper {
 
           if (econst.type == Exprent.EXPRENT_CONST && ((ConstExprent)econst).hasValueOne()) {
             Exprent left = as.getLeft();
+
+            // Peel off unboxing call (e.g., a.intValue() -> a)
+            if (isBoxed && econd.type == Exprent.EXPRENT_INVOCATION) {
+              InvocationExprent unboxInvoc = (InvocationExprent)econd;
+              if (unboxInvoc.isUnboxingCall() && unboxInvoc.getInstance() != null) {
+                econd = unboxInvoc.getInstance();
+              }
+            }
 
             VarType condtype = left.getExprType();
             if (exprsEqual(left, econd) && (midlayer == null || midlayer.equals(condtype))) {
