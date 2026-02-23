@@ -361,7 +361,7 @@ class IjentNioFileSystemProvider : FileSystemProvider() {
     val nioFs = path.nioFs
 
     return fsBlocking {
-      nioFs.ijentFs.sameFile(path.eelPath, path2.eelPath)
+      nioFs.ijentFs.sameFile(path.eelPath.normalize(), path2.eelPath.normalize())
     }
       .getOrThrowFileSystemException()
   }
