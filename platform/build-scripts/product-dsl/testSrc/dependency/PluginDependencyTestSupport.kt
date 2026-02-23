@@ -241,6 +241,7 @@ private suspend fun generatePluginDependency(
   val pluginContentModuleName = graphDeps.pluginContentModuleName
   val existingXmlModuleDeps = info.moduleDependencies
   val existingXmlPluginDeps: Set<PluginId> = info.depsByFile.firstOrNull()?.pluginDependencies ?: emptySet()
+  val effectiveJpsPluginDependencies = graphDeps.jpsPluginDependencies - graphDeps.legacyConfigFilePluginDependencies
   val suppressedModules = effectiveConfig.getPluginSuppressedModules(pluginContentModuleName)
   val suppressedPlugins = effectiveConfig.getPluginSuppressedPlugins(pluginContentModuleName)
   val effectiveSuppressedModules = computeEffectiveSuppressedDeps(
@@ -252,13 +253,14 @@ private suspend fun generatePluginDependency(
   val effectiveSuppressedPlugins = computeEffectiveSuppressedDeps(
     updateSuppressions = updateSuppressions,
     existingXmlDeps = existingXmlPluginDeps,
-    jpsDeps = graphDeps.jpsPluginDependencies,
+    jpsDeps = effectiveJpsPluginDependencies,
     suppressedDeps = suppressedPlugins,
   )
 
   val deps = filterPluginDependencies(
     graphDeps = graphDeps,
     pluginInfo = info,
+    jpsPluginDependencies = effectiveJpsPluginDependencies,
     suppressedModules = effectiveSuppressedModules,
     suppressedPlugins = effectiveSuppressedPlugins,
   )
