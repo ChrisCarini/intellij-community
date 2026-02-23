@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInspection.varScopeCanBeNarrowed;
 
 import com.intellij.codeInsight.AnnotationUtil;
@@ -32,6 +32,7 @@ import com.intellij.psi.PsiExpression;
 import com.intellij.psi.PsiExpressionStatement;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiLambdaExpression;
+import com.intellij.psi.PsiMember;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiMethodCallExpression;
 import com.intellij.psi.PsiModifier;
@@ -111,9 +112,13 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
     FieldLoop:
     for (PsiField field : candidates) {
       if (usedFields.contains(field) && !hasImplicitReadOrWriteUsage(field, implicitUsageProviders)) {
-        final List<PsiReferenceExpression> references = VariableAccessUtils.getVariableReferences(field, scope);
         final Map<PsiCodeBlock, List<PsiReferenceExpression>> refs = new HashMap<>();
-        for (PsiReferenceExpression reference : references) {
+        for (PsiReferenceExpression reference : VariableAccessUtils.getVariableReferences(field, scope)) {
+          if (PsiUtil.isAccessedForWriting(reference)
+              && PsiUtil.isAccessedForReading(reference)
+              && PsiTreeUtil.getParentOfType(reference, PsiMember.class) instanceof PsiField) {
+            continue FieldLoop;
+          }
           final PsiElement qualifier = reference.getQualifier();
           if (qualifier != null && (!(qualifier instanceof PsiThisExpression thisExpression) || thisExpression.getQualifier() != null) ||
               !groupReferenceByCodeBlocks(refs, reference)) {

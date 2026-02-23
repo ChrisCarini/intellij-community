@@ -30,6 +30,7 @@ public class FieldCanBeLocalTest extends LightJavaCodeInsightFixtureTestCase {
     myFixture.testHighlighting(getTestName(false) + ".java");
   }
 
+  public void testFieldWrittenInAnonymousClassFieldInitializer() { doTest(); }
   public void testFieldUsedInAnotherMethodAsQualifier() { doTest(); }
   public void testFieldUsedForWritingInLambda() { doTest(); }
   public void testFieldUsedInConstantInitialization() { doTest(); }
