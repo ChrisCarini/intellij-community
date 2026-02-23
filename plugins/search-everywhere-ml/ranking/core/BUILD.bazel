@@ -130,6 +130,7 @@ jvm_library(
     "//platform/execution",
     "//platform/execution:execution_test_lib",
     "//platform/searchEverywhere/frontend",
+    "//platform/searchEverywhere/frontend:frontend_test_lib",
   ],
   exports = [
     "//platform/statistics",
