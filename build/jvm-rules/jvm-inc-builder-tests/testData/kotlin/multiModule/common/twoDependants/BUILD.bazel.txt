@@ -22,6 +22,7 @@ jvm_library(
     srcs = glob(["module3/*.kt"], allow_empty = True),
     deps = [
       ":module1",
+      ":module2",
       "@rules_jvm//:kotlin-stdlib_import",
     ],
 )
