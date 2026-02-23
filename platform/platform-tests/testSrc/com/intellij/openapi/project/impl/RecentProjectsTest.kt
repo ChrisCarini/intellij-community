@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 @file:Suppress("ReplaceGetOrSet")
 
 package com.intellij.openapi.project.impl
@@ -83,18 +83,21 @@ class RecentProjectsTest {
     val manager = RecentProjectsManager.getInstance()
     val g1 = ProjectGroup("g1")
     val g2 = ProjectGroup("g2")
+    val g3 = ProjectGroup("g3")
     manager.addGroup(g1)
     manager.addGroup(g2)
+    manager.addGroup(g3)
 
     g1.addProject(p1.toString())
     g1.addProject(p2.toString())
     g2.addProject(p3.toString())
+    g3.addProject("/project/that/is/not/in/recents")
 
-    checkGroups(listOf("g2", "g1"))
+    checkGroups(listOf("g2", "g1", "g3"))
 
-    doReopenCloseAndCheckGroups(p4, listOf("g2", "g1"))
-    doReopenCloseAndCheckGroups(p1, listOf("g1", "g2"))
-    doReopenCloseAndCheckGroups(p3, listOf("g2", "g1"))
+    doReopenCloseAndCheckGroups(p4, listOf("g2", "g1", "g3"))
+    doReopenCloseAndCheckGroups(p1, listOf("g1", "g2", "g3"))
+    doReopenCloseAndCheckGroups(p3, listOf("g2", "g1", "g3"))
   }
 
   @Test
