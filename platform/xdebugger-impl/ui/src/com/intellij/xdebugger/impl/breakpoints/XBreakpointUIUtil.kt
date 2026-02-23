@@ -239,18 +239,14 @@ object XBreakpointUIUtil {
 
   @JvmStatic
   fun <T : XBreakpointProxy> removeBreakpointIfPossible(
-    project: Project,
     info: XLineBreakpointInstallationInfo,
     vararg breakpoints: T,
-  ) {
-    if (info.canRemoveBreakpoint()) {
-      removeBreakpointsWithConfirmation(project, *breakpoints)
+  ): CompletableFuture<Void?> {
+    if (!info.canRemoveBreakpoint()) {
+      return CompletableFuture.completedFuture(null)
     }
-  }
 
-  @JvmStatic
-  fun removeBreakpointWithConfirmation(breakpoint: XBreakpointProxy): Boolean {
-    return removeBreakpointWithConfirmation(breakpoint.project, breakpoint)
+    return removeBreakpointsWithConfirmation(*breakpoints)
   }
 
   /**
@@ -258,7 +254,8 @@ object XBreakpointUIUtil {
    * Returns whether breakpoint was really deleted.
    */
   @JvmStatic
-  fun removeBreakpointWithConfirmation(project: Project, breakpoint: XBreakpointProxy): Boolean {
+  fun removeBreakpointWithConfirmation(breakpoint: XBreakpointProxy): CompletableFuture<Boolean> {
+    val project = breakpoint.project
     if ((!DebuggerUIUtil.isEmptyExpression(breakpoint.getConditionExpression()) || !DebuggerUIUtil.isEmptyExpression(breakpoint.getLogExpressionObject())) &&
         !ApplicationManager.getApplication().isHeadlessEnvironment &&
         !ApplicationManager.getApplication().isUnitTestMode &&
@@ -296,29 +293,25 @@ object XBreakpointUIUtil {
             }
           }
         ) != Messages.OK) {
-        return false
+        return CompletableFuture.completedFuture(false)
       }
     }
     val breakpointManager = XDebugManagerProxy.getInstance().getBreakpointManagerProxy(project)
     breakpointManager.rememberRemovedBreakpoint(breakpoint)
-    breakpointManager.removeBreakpoint(breakpoint)
-    return true
+    return breakpointManager.removeBreakpoint(breakpoint).thenApply { true }
   }
 
   @JvmStatic
-  fun removeBreakpointsWithConfirmation(breakpoints: List<XBreakpointProxy>) {
-    if (breakpoints.isEmpty()) return
-    val project = breakpoints[0].project
+  fun removeBreakpointsWithConfirmation(breakpoints: List<XBreakpointProxy>): CompletableFuture<Void?> {
+    if (breakpoints.isEmpty()) return CompletableFuture.completedFuture(null)
     // FIXME[inline-bp]: support multiple breakpoints restore
     // FIXME[inline-bp]: Reconsider this, maybe we should have single confirmation for all breakpoints.
-    removeBreakpointsWithConfirmation(project, *breakpoints.toTypedArray())
+    return removeBreakpointsWithConfirmation(*breakpoints.toTypedArray())
   }
 
-  @JvmStatic
-  fun <T : XBreakpointProxy> removeBreakpointsWithConfirmation(project: Project, vararg breakpoints: T) {
-    for (b in breakpoints) {
-      removeBreakpointWithConfirmation(project, b)
-    }
+  private fun <T : XBreakpointProxy> removeBreakpointsWithConfirmation(vararg breakpoints: T): CompletableFuture<Void?> {
+    val futures = breakpoints.map { removeBreakpointWithConfirmation(it) }
+    return CompletableFuture.allOf(*futures.toTypedArray())
   }
 
   @JvmStatic

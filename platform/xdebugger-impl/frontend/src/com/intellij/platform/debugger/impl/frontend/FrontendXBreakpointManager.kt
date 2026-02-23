@@ -49,11 +49,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.future.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.VisibleForTesting
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 import kotlin.time.Duration.Companion.seconds
@@ -350,18 +352,18 @@ class FrontendXBreakpointManager(private val project: Project, private val cs: C
     return lastRemovedBreakpoint
   }
 
-  override fun removeBreakpoint(breakpoint: XBreakpointProxy) {
+  override fun removeBreakpoint(breakpoint: XBreakpointProxy): CompletableFuture<Void?> {
     if (breakpoint.isDefaultBreakpoint()) {
       // removing default breakpoint should just disable it
       breakpoint.setEnabled(false)
+      return CompletableFuture.completedFuture(null)
     }
-    else {
-      log.debug { "Breakpoint removal request from frontend: ${breakpoint.id}" }
-      removeBreakpointLocally(breakpoint.id)
-      breakpointsChanged.tryEmit(Unit)
-      cs.launch {
-        XBreakpointTypeApi.getInstance().removeBreakpoint(breakpoint.id)
-      }
+    log.debug { "Breakpoint removal request from frontend: ${breakpoint.id}" }
+    removeBreakpointLocally(breakpoint.id)
+    breakpointsChanged.tryEmit(Unit)
+    return cs.future {
+      XBreakpointTypeApi.getInstance().removeBreakpoint(breakpoint.id)
+      null
     }
   }
 
