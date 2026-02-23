@@ -31,7 +31,8 @@ public class SingleClassesTest extends SingleClassesTestBase {
         Map.entry(IFernflowerPreferences.CHECK_CLOSABLE_INTERFACE, "0"),
         Map.entry(IFernflowerPreferences.HIDE_RECORD_CONSTRUCTOR_AND_GETTERS, "0"),
         Map.entry(IFernflowerPreferences.MAX_DIRECT_NODES_COUNT, 20000),
-        Map.entry(IFernflowerPreferences.MAX_DIRECT_VARIABLE_NODE_COUNT, 30000)
+        Map.entry(IFernflowerPreferences.MAX_DIRECT_VARIABLE_NODE_COUNT, 30000),
+        Map.entry(IFernflowerPreferences.PARENTHESES_FOR_BITWISE_OPERATIONS, "1")
     );
   }
 
@@ -163,6 +164,7 @@ public class SingleClassesTest extends SingleClassesTestBase {
   @Test public void testSuspendLambda() { doTest("pkg/TestSuspendLambdaKt"); }
   @Test public void testNamedSuspendFun2Kt() { doTest("pkg/TestNamedSuspendFun2Kt"); }
   @Test public void testGenericArgs() { doTest("pkg/TestGenericArgs"); }
+  @Test public void testBitwiseParentheses() { doTest("pkg/TestBitwiseParentheses"); }
   @Test public void testRecordEmpty() { doTest("records/TestRecordEmpty"); }
   @Test public void testRecordSimple() { doTest("records/TestRecordSimple"); }
   @Test public void testRecordVararg() { doTest("records/TestRecordVararg"); }
