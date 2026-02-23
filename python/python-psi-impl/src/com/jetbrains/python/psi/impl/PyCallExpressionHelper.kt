@@ -169,12 +169,12 @@ object PyCallExpressionHelper {
       val result = mutableListOf<PyType?>()
       if (clarified != null) {
         typeFromProviders.toStream().forEach {
-          ContainerUtil.addIfNotNull<PyCallableType?>(result, toCallableType(expression, clarified, it, resolveContext.typeEvalContext))
+          ContainerUtil.addIfNotNull(result, toCallableType(expression, clarified, it, resolveContext.typeEvalContext))
         }
 
         if (result.isEmpty()) {
           val clarifiedResolved = clarified.clarifiedResolved as? PyTypedElement ?: continue
-          ContainerUtil.addIfNotNull<PyCallableType?>(
+          ContainerUtil.addIfNotNull(
             result,
             toCallableType(expression, clarified, resolveContext.typeEvalContext.getType(clarifiedResolved), resolveContext.typeEvalContext)
           )
