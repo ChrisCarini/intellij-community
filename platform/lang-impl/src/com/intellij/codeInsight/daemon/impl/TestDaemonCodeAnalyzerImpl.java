@@ -329,7 +329,7 @@ public final class TestDaemonCodeAnalyzerImpl {
     waitWhilePumping(future);
   }
 
-  private static void waitWhilePumping(@NotNull Future<?> future) throws InterruptedException, ExecutionException {
+  public static void waitWhilePumping(@NotNull Future<?> future) throws InterruptedException, ExecutionException {
     do {
       try {
         future.get(10, TimeUnit.MILLISECONDS);
@@ -412,6 +412,7 @@ public final class TestDaemonCodeAnalyzerImpl {
     return myDaemonCodeAnalyzer.isRunningOrPending() || PsiDocumentManager.getInstance(project).isUncommited(document);
   }
 
+  @RequiresEdt
   public @NotNull List<HighlightInfo> waitHighlighting(@NotNull Project project, @NotNull Document document, @NotNull HighlightSeverity minSeverity) {
     waitForDaemonToFinish(project, document);
     return DaemonCodeAnalyzerImpl.getHighlights(document, minSeverity, project);

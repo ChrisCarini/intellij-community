@@ -7,6 +7,7 @@ import com.intellij.codeInsight.daemon.GutterIconNavigationHandler;
 import com.intellij.codeInsight.daemon.LineMarkerInfo;
 import com.intellij.codeInsight.daemon.LineMarkerProvider;
 import com.intellij.codeInsight.daemon.LineMarkerProviders;
+import com.intellij.codeInsight.daemon.ProductionDaemonAnalyzerTestCase;
 import com.intellij.codeInspection.deadCode.UnusedDeclarationInspection;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.highlighter.JavaFileType;
@@ -36,9 +37,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaFile;
 import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.SkipSlowTestLocally;
-import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl;
 import com.intellij.util.ExceptionUtil;
-import com.intellij.util.ThrowableRunnable;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.EdtInvocationManager;
 import org.jetbrains.annotations.NotNull;
@@ -58,13 +57,12 @@ import java.util.Objects;
  */
 @SkipSlowTestLocally
 @DaemonAnalyzerTestCase.CanChangeDocumentDuringHighlighting
-public class DaemonLineMarkersRespondToChangesTest extends DaemonAnalyzerTestCase {
+public class DaemonLineMarkersRespondToChangesTest extends ProductionDaemonAnalyzerTestCase {
   @Override
   protected void setUp() throws Exception {
     super.setUp();
     enableInspectionTool(new UnusedDeclarationInspection());
     UndoManager.getInstance(myProject);
-    myDaemonCodeAnalyzer.setUpdateByTimerEnabled(true);
   }
 
   @Override
@@ -85,11 +83,6 @@ public class DaemonLineMarkersRespondToChangesTest extends DaemonAnalyzerTestCas
     finally {
       super.tearDown();
     }
-  }
-
-  @Override
-  protected void runTestRunnable(@NotNull ThrowableRunnable<Throwable> testRunnable) throws Throwable {
-    DaemonProgressIndicator.runInDebugMode(() -> super.runTestRunnable(testRunnable));
   }
 
   @Override
@@ -206,9 +199,8 @@ public class DaemonLineMarkersRespondToChangesTest extends DaemonAnalyzerTestCas
     });
 
     PsiDocumentManager.getInstance(getProject()).commitAllDocuments();
-    List<HighlightInfo> infosAfter =
-      CodeInsightTestFixtureImpl.instantiateAndRun(myFile, myEditor, new int[]{/*Pass.UPDATE_ALL, Pass.LOCAL_INSPECTIONS*/}, false);
-    assertNotEmpty(filter(infosAfter, HighlightSeverity.ERROR));
+    List<HighlightInfo> infosAfter = myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
+    assertNotEmpty(infosAfter);
     PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
     assertEmpty(changed);
     List<LineMarkerInfo<?>> lineMarkersAfter = DaemonCodeAnalyzerImpl.getLineMarkers(myEditor.getDocument(), getProject());

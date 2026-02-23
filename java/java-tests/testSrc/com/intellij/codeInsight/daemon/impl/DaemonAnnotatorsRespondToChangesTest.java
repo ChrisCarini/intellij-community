@@ -5,6 +5,7 @@ import com.intellij.codeHighlighting.TextEditorHighlightingPassRegistrar;
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase;
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer;
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzerSettings;
+import com.intellij.codeInsight.daemon.ProductionDaemonAnalyzerTestCase;
 import com.intellij.codeInspection.LocalInspectionTool;
 import com.intellij.codeInspection.LocalInspectionToolSession;
 import com.intellij.codeInspection.ProblemsHolder;
@@ -56,7 +57,6 @@ import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.SkipSlowTestLocally;
 import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl;
 import com.intellij.util.TestTimeOut;
-import com.intellij.util.ThrowableRunnable;
 import com.intellij.util.TimeoutUtil;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.UIUtil;
@@ -89,13 +89,12 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @SkipSlowTestLocally
 @DaemonAnalyzerTestCase.CanChangeDocumentDuringHighlighting
-public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase {
+public class DaemonAnnotatorsRespondToChangesTest extends ProductionDaemonAnalyzerTestCase {
   @Override
   protected void setUp() throws Exception {
     PlatformTestUtil.assumeEnoughParallelism();
     super.setUp();
     UndoManager.getInstance(myProject);
-    myDaemonCodeAnalyzer.setUpdateByTimerEnabled(true);
   }
 
   @Override
@@ -117,11 +116,6 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
     finally {
       super.tearDown();
     }
-  }
-
-  @Override
-  protected void runTestRunnable(@NotNull ThrowableRunnable<Throwable> testRunnable) throws Throwable {
-    DaemonProgressIndicator.runInDebugMode(() -> super.runTestRunnable(testRunnable));
   }
 
   @Override
@@ -529,34 +523,33 @@ public class DaemonAnnotatorsRespondToChangesTest extends DaemonAnalyzerTestCase
   }
   public void testTypingMustRescheduleDaemonBackByReparseDelayMillis() {
     EmptyAnnotator emptyAnnotator = new EmptyAnnotator();
-    TestDaemonCodeAnalyzerImpl.runWithReparseDelay(2000, () -> useAnnotatorsIn(JavaLanguage.INSTANCE, new MyRecordingAnnotator[]{emptyAnnotator}, () -> {
-            @Language("JAVA")
-            String text = "class X {\n}";
-            configureByText(JavaFileType.INSTANCE, text);
-            ((EditorImpl)myEditor).getScrollPane().getViewport().setSize(1000, 1000);
-      @NotNull Editor editor = getEditor();
+    TestDaemonCodeAnalyzerImpl.runWithReparseDelay(3000, () -> useAnnotatorsIn(JavaLanguage.INSTANCE, new MyRecordingAnnotator[]{emptyAnnotator}, () -> {
+      @Language("JAVA")
+      String text = "class X {\n}";
+      configureByText(JavaFileType.INSTANCE, text);
+      ((EditorImpl)myEditor).getScrollPane().getViewport().setSize(1000, 1000);
+      Editor editor = getEditor();
       assertEquals(getFile().getTextRange(), editor.calculateVisibleRange());
-            CodeInsightTestFixtureImpl.ensureIndexesUpToDate(getProject());
+      CodeInsightTestFixtureImpl.ensureIndexesUpToDate(getProject());
       myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.INFORMATION);
       MyRecordingAnnotator.clearAll();
-            type(" import java.lang.*;\n");
-            long start = System.currentTimeMillis();
-            for (int i=0; i<10; i++) {
-              type(" ");
-              TimeoutUtil.sleep(100);
-              PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
-            }
-            long typing = System.currentTimeMillis();
-            while (!emptyAnnotator.didIDoIt()) {
-              PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
-            }
-            long end = System.currentTimeMillis();
+      long start = System.currentTimeMillis();
+      type(" import java.lang.*;\n");
+      for (int i=0; i<10; i++) {
+        TimeoutUtil.sleep(100);
+        type(" ");
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
+        assertFalse(emptyAnnotator.didIDoIt()); // no highlighting should start
+      }
+      long typingEnd = System.currentTimeMillis();
+      myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
+      long end = System.currentTimeMillis();
 
-            long typingElapsed = typing - start;
-            long highlightElapsed = end - typing;
-            assertTrue("; typed in " + typingElapsed + "ms; highlighted in " + highlightElapsed + "ms",
-                       typingElapsed > 1000 && highlightElapsed >= 2000);
-          })
+      long typingElapsed = typingEnd - start;
+      long highlightElapsed = end - typingEnd;
+      assertTrue("; typed in " + typingElapsed + "ms; highlighted in " + highlightElapsed + "ms",
+                 typingElapsed > 1000 && highlightElapsed >= 2000);
+      })
     );
   }
 

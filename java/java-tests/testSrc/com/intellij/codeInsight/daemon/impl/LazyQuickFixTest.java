@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInsight.daemon.impl;
 
+import com.intellij.codeInsight.daemon.ProductionLightDaemonAnalyzerTestCase;
 import com.intellij.codeInsight.daemon.QuickFixActionRegistrar;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
 import com.intellij.codeInsight.daemon.quickFix.LightQuickFixTestCase;
@@ -51,7 +52,7 @@ public class LazyQuickFixTest extends LightQuickFixTestCase {
   }
   @Override
   protected void runTestRunnable(@NotNull ThrowableRunnable<Throwable> testRunnable) throws Throwable {
-    TestDaemonCodeAnalyzerImpl.runWithReparseDelay(0, () -> DaemonProgressIndicator.runInDebugMode(() -> super.runTestRunnable(testRunnable)));
+    ProductionLightDaemonAnalyzerTestCase.runTestInProduction(myDaemonCodeAnalyzer, () -> super.runTestRunnable(testRunnable));
   }
 
   private static class MyCountingQuickFixProvider extends UnresolvedReferenceQuickFixProvider<PsiJavaCodeReferenceElement> {
@@ -124,7 +125,7 @@ public class LazyQuickFixTest extends LightQuickFixTestCase {
       assertTrue(ContainerUtil.exists(errors, h->"my class".equals(h.getDescription())));
       CodeInsightTestFixtureImpl.waitForLazyQuickFixesUnderCaret(getProject(), getEditor());
 
-      IntentionAction fix = findActionWithText("my lazy fix");
+      IntentionAction fix = findActionWithText(CodeInsightTestFixtureImpl.getAvailableIntentions(getEditor(), getFile()), "my lazy fix");
       assertNotNull(fix);
       invoke(fix);
 

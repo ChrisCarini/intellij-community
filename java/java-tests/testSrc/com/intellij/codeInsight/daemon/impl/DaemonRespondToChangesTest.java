@@ -12,6 +12,7 @@ import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase;
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer;
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzerSettings;
 import com.intellij.codeInsight.daemon.HighlightDisplayKey;
+import com.intellij.codeInsight.daemon.ProductionDaemonAnalyzerTestCase;
 import com.intellij.codeInsight.daemon.impl.analysis.FileHighlightingSetting;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightingSettingsPerFile;
 import com.intellij.codeInsight.daemon.quickFix.LightQuickFixTestCase;
@@ -117,7 +118,6 @@ import com.intellij.testFramework.SkipSlowTestLocally;
 import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl;
 import com.intellij.util.DocumentUtil;
 import com.intellij.util.TestTimeOut;
-import com.intellij.util.ThrowableRunnable;
 import com.intellij.util.TimeoutUtil;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.concurrency.ThreadingAssertions;
@@ -160,7 +160,7 @@ import java.util.stream.Collectors;
  */
 @SkipSlowTestLocally
 @DaemonAnalyzerTestCase.CanChangeDocumentDuringHighlighting
-public class DaemonRespondToChangesTest extends DaemonAnalyzerTestCase {
+public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase {
   public static final String BASE_PATH = "/codeInsight/daemonCodeAnalyzer/typing/";
 
   @Override
@@ -168,7 +168,6 @@ public class DaemonRespondToChangesTest extends DaemonAnalyzerTestCase {
     super.setUp();
     enableInspectionTool(new UnusedDeclarationInspection());
     UndoManager.getInstance(myProject);
-    myDaemonCodeAnalyzer.setUpdateByTimerEnabled(true);
   }
 
   @Override
@@ -189,11 +188,6 @@ public class DaemonRespondToChangesTest extends DaemonAnalyzerTestCase {
     finally {
       super.tearDown();
     }
-  }
-
-  @Override
-  protected void runTestRunnable(@NotNull ThrowableRunnable<Throwable> testRunnable) throws Throwable {
-    TestDaemonCodeAnalyzerImpl.runWithReparseDelay(0, () -> DaemonProgressIndicator.runInDebugMode(() -> super.runTestRunnable(testRunnable)));
   }
 
   @Override
@@ -1038,26 +1032,33 @@ public class DaemonRespondToChangesTest extends DaemonAnalyzerTestCase {
     @Language("JAVA")
     String xText = "public class X { public static void ffffffffffffff(){} }";
     PsiFile x = createFile("X.java", xText);
-    PsiFile use = createFile("Use.java", "public class Use { { <caret>X.ffffffffffffff(); } }");
+    @Language("JAVA")
+    String useText = """
+      public class Use {
+        { <caret>X.ffffffffffffff(); }
+        public static void main(String[] args) { } // to avoid 'class Use never used'
+      }""";
+    PsiFile use = createFile("Use.java", useText);
     configureByExistingFile(use.getVirtualFile());
 
     enableDeadCodeInspection();
 
     Editor xEditor = createEditor(x.getVirtualFile());
-    List<HighlightInfo> xInfos = filter(CodeInsightTestFixtureImpl.instantiateAndRun(x, xEditor, new int[0], false),
-                                        HighlightSeverity.WARNING);
+    EditorTracker.getInstance(getProject()).setActiveEditorsInTests(List.of(xEditor, getEditor())); // EditorTrackerImpl does not work correctly in case of multiple editors in tests
+    List<HighlightInfo> xInfos = myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), xEditor.getDocument(), HighlightSeverity.WARNING);
     HighlightInfo info = ContainerUtil.find(xInfos, xInfo -> xInfo.getDescription().equals("Method 'ffffffffffffff()' is never used"));
     assertNull(xInfos.toString(), info);
 
     Editor useEditor = myEditor;
-    List<HighlightInfo> useInfos = filter(CodeInsightTestFixtureImpl.instantiateAndRun(use, useEditor, new int[0], false), HighlightSeverity.ERROR);
+    myDaemonCodeAnalyzer.restart(getTestName(false));
+    List<HighlightInfo> useInfos = myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), useEditor.getDocument(), HighlightSeverity.WARNING);
     assertEmpty(useInfos);
 
     type('/');
     type('/');
 
-    PsiDocumentManager.getInstance(getProject()).commitAllDocuments();
-    xInfos = filter(CodeInsightTestFixtureImpl.instantiateAndRun(x, xEditor, new int[0], false), HighlightSeverity.WARNING);
+    myDaemonCodeAnalyzer.restart(getTestName(false));
+    xInfos = myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), xEditor.getDocument(), HighlightSeverity.WARNING);
     info = ContainerUtil.find(xInfos, xInfo -> xInfo.getDescription().equals("Method 'ffffffffffffff()' is never used"));
     assertNotNull(xInfos.toString(), info);
   }

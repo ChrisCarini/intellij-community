@@ -3,6 +3,7 @@ package com.intellij.codeInsight.daemon.impl;
 
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase;
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzerSettings;
+import com.intellij.codeInsight.daemon.ProductionDaemonAnalyzerTestCase;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.codeInspection.LocalInspectionTool;
 import com.intellij.codeInspection.LocalInspectionToolSession;
@@ -66,7 +67,6 @@ import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.SkipSlowTestLocally;
 import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl;
 import com.intellij.util.TestTimeOut;
-import com.intellij.util.ThrowableRunnable;
 import com.intellij.util.TimeoutUtil;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.UIUtil;
@@ -99,14 +99,13 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @SkipSlowTestLocally
 @DaemonAnalyzerTestCase.CanChangeDocumentDuringHighlighting
-public class DaemonInspectionsRespondToChangesTest extends DaemonAnalyzerTestCase {
+public class DaemonInspectionsRespondToChangesTest extends ProductionDaemonAnalyzerTestCase {
   @Override
   protected void setUp() throws Exception {
+    PlatformTestUtil.assumeEnoughParallelism();
     super.setUp();
     enableInspectionTool(new UnusedDeclarationInspection());
     UndoManager.getInstance(myProject);
-    myDaemonCodeAnalyzer.setUpdateByTimerEnabled(true);
-    PlatformTestUtil.assumeEnoughParallelism();
   }
 
   @Override
@@ -127,11 +126,6 @@ public class DaemonInspectionsRespondToChangesTest extends DaemonAnalyzerTestCas
     finally {
       super.tearDown();
     }
-  }
-
-  @Override
-  protected void runTestRunnable(@NotNull ThrowableRunnable<Throwable> testRunnable) throws Throwable {
-    DaemonProgressIndicator.runInDebugMode(() -> super.runTestRunnable(testRunnable));
   }
 
   @Override
@@ -282,30 +276,28 @@ public class DaemonInspectionsRespondToChangesTest extends DaemonAnalyzerTestCas
 
     PsiFile psiFile = configureByText(JavaFileType.INSTANCE, "class X { void f() { <caret> } }");
     PsiFile otherPsiFile = createFile(myModule, psiFile.getContainingDirectory().getVirtualFile(), "otherFile.txt", "xxx");
-    List<HighlightInfo> infos =
-      myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING);
+    myDaemonCodeAnalyzer.restart(getTestName(false));
+    List<HighlightInfo> infos = myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING);
     assertEmpty(infos);
-    int visitedCount = tool.visited.size();
-    assertTrue(tool.visited.toString(), visitedCount > 0);
+    assertFalse(tool.visited.isEmpty());
     tool.visited.clear();
 
     Document otherDocument = Objects.requireNonNull(PsiDocumentManager.getInstance(getProject()).getDocument(otherPsiFile));
     WriteCommandAction.runWriteCommandAction(getProject(), () -> otherDocument.setText("zzz"));
-
+    myDaemonCodeAnalyzer.restart(getTestName(false));
     infos = myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING);
     assertEmpty(infos);
 
-    int countAfter = tool.visited.size();
-    assertTrue(tool.visited.toString(), countAfter > 0);
+    assertFalse(tool.visited.isEmpty());
     tool.visited.clear();
 
     //ensure started on another file
     configureByExistingFile(otherPsiFile.getVirtualFile());
+    myDaemonCodeAnalyzer.restart(getTestName(false));
     infos = myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING);
     assertEmpty(infos);
 
-    int countAfter2 = tool.visited.size();
-    assertTrue(tool.visited.toString(), countAfter2 > 0);
+    assertFalse(tool.visited.isEmpty());
   }
 
   public void testInspectionIsRestartedOnPsiCacheDrop() {

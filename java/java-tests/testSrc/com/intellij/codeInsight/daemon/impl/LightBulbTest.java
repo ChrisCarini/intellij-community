@@ -7,6 +7,7 @@ import com.intellij.codeHighlighting.TextEditorHighlightingPassFactory;
 import com.intellij.codeHighlighting.TextEditorHighlightingPassRegistrar;
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase;
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzerSettings;
+import com.intellij.codeInsight.daemon.ProductionDaemonAnalyzerTestCase;
 import com.intellij.codeInsight.hint.EditorHintListener;
 import com.intellij.codeInsight.intention.AbstractIntentionAction;
 import com.intellij.codeInsight.intention.IntentionAction;
@@ -57,7 +58,6 @@ import com.intellij.ui.HintListener;
 import com.intellij.ui.LightweightHint;
 import com.intellij.util.ExceptionUtil;
 import com.intellij.util.IncorrectOperationException;
-import com.intellij.util.ThrowableRunnable;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.UIUtil;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
@@ -84,14 +84,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @SkipSlowTestLocally
 @DaemonAnalyzerTestCase.CanChangeDocumentDuringHighlighting
-public class LightBulbTest extends DaemonAnalyzerTestCase {
-
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-    myDaemonCodeAnalyzer.setUpdateByTimerEnabled(true);
-  }
-
+public class LightBulbTest extends ProductionDaemonAnalyzerTestCase {
   @Override
   protected void tearDown() throws Exception {
     try {
@@ -110,11 +103,6 @@ public class LightBulbTest extends DaemonAnalyzerTestCase {
     finally {
       super.tearDown();
     }
-  }
-
-  @Override
-  protected void runTestRunnable(@NotNull ThrowableRunnable<Throwable> testRunnable) throws Throwable {
-    DaemonProgressIndicator.runInDebugMode(() -> super.runTestRunnable(testRunnable));
   }
 
   @Override

@@ -2,9 +2,7 @@
 package com.intellij.codeInsight.daemon.impl;
 
 import com.intellij.codeInsight.completion.CompletionContributor;
-import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase;
-import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer;
-import com.intellij.codeInsight.daemon.DaemonCodeAnalyzerSettings;
+import com.intellij.codeInsight.daemon.ProductionDaemonAnalyzerTestCase;
 import com.intellij.diagnostic.PerformanceWatcher;
 import com.intellij.diagnostic.ThreadDumper;
 import com.intellij.ide.highlighter.JavaFileType;
@@ -31,7 +29,6 @@ import com.intellij.testFramework.Timings;
 import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl;
 import com.intellij.tools.ide.metrics.benchmark.Benchmark;
 import com.intellij.util.ArrayUtil;
-import com.intellij.util.ThrowableRunnable;
 import com.intellij.util.TimeoutUtil;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.containers.ContainerUtil;
@@ -52,19 +49,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * tests the daemon performance during highlighting interruptions/typing
  */
-public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
+public class DaemonRespondToChangesPerfTest extends ProductionDaemonAnalyzerTestCase {
   private static final boolean DEBUG = false;
-
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-    myDaemonCodeAnalyzer.setUpdateByTimerEnabled(true);
-  }
-
-  @Override
-  protected void runTestRunnable(@NotNull ThrowableRunnable<Throwable> testRunnable) throws Throwable {
-    TestDaemonCodeAnalyzerImpl.runWithReparseDelay(0, () -> super.runTestRunnable(testRunnable));
-  }
 
   @PerformanceUnitTest
   public void testHugeAppendChainDoesNotCauseSOE_Stress() {
@@ -138,12 +124,11 @@ public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
     CompletionContributor.forLanguage(getFile().getLanguage());
     myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
 
-    final DaemonCodeAnalyzerImpl codeAnalyzer = (DaemonCodeAnalyzerImpl)DaemonCodeAnalyzer.getInstance(getProject());
     int N = Math.max(5, Timings.adjustAccordingToMySpeed(80, false));
     LOG.debug("N = " + N);
     final long[] interruptTimes = new long[N];
     for (int i = 0; i < N; i++) {
-      codeAnalyzer.restart(getTestName(false));
+      myDaemonCodeAnalyzer.restart(getTestName(false));
       final int finalI = i;
       final long start = System.currentTimeMillis();
       final AtomicLong typingStart = new AtomicLong();
@@ -165,7 +150,7 @@ public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
             if (elapsed > 500) {
               // too long, see WTF
               String message = "Too long interrupt: " + elapsed +
-                               "; Progress: " + codeAnalyzer.getUpdateProgress() +
+                               "; Progress: " + myDaemonCodeAnalyzer.getUpdateProgress() +
                                "\n----------------------------";
               dumpThreadsToConsole();
               exception.set(new RuntimeException(message));
@@ -184,7 +169,7 @@ public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
           long end = System.currentTimeMillis();
           long interruptTime = end - now;
           interruptTimes[finalI] = interruptTime;
-          DaemonProgressIndicator indicator = ContainerUtil.getFirstItem(new ArrayList<>(codeAnalyzer.getUpdateProgress().values()));
+          DaemonProgressIndicator indicator = ContainerUtil.getFirstItem(new ArrayList<>(myDaemonCodeAnalyzer.getUpdateProgress().values()));
           assertTrue(String.valueOf(indicator), indicator == null || indicator.isCanceled());
           LOG.debug("interruptTime:"+interruptTime);
           throw new ProcessCanceledException();
@@ -192,7 +177,7 @@ public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
         long hiStart = System.currentTimeMillis();
         myTestDaemonCodeAnalyzer.waitForDaemonToFinish(getProject(), getEditor().getDocument(), interrupt);
         long hiEnd = System.currentTimeMillis();
-        DaemonProgressIndicator progress = ContainerUtil.getFirstItem(new ArrayList<>(codeAnalyzer.getUpdateProgress().values()));
+        DaemonProgressIndicator progress = ContainerUtil.getFirstItem(new ArrayList<>(myDaemonCodeAnalyzer.getUpdateProgress().values()));
         String message = "Should have been interrupted: " + progress + "; Elapsed: " + (hiEnd - hiStart) + "ms";
         dumpThreadsToConsole();
         throw new RuntimeException(message);
@@ -242,12 +227,11 @@ public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
 
     List<String> dumps = new ArrayList<>();
 
-    final DaemonCodeAnalyzerImpl codeAnalyzer = (DaemonCodeAnalyzerImpl)DaemonCodeAnalyzer.getInstance(getProject());
     int N = Math.max(5, Timings.adjustAccordingToMySpeed(80, false));
     LOG.debug("N = " + N);
     final long[] interruptTimes = new long[N];
     for (int i = 0; i < N; i++) {
-      codeAnalyzer.restart(getTestName(false));
+      myDaemonCodeAnalyzer.restart(getTestName(false));
       final int finalI = i;
       final long start = System.currentTimeMillis();
       Runnable interrupt = () -> {
@@ -270,7 +254,7 @@ public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
         finished.set(true);
         long interruptTime = end - now;
         interruptTimes[finalI] = interruptTime;
-        DaemonProgressIndicator indicator = ContainerUtil.getFirstItem(new ArrayList<>(codeAnalyzer.getUpdateProgress().values()));
+        DaemonProgressIndicator indicator = ContainerUtil.getFirstItem(new ArrayList<>(myDaemonCodeAnalyzer.getUpdateProgress().values()));
         assertTrue(String.valueOf(indicator), indicator == null || indicator.isCanceled());
         throw new ProcessCanceledException();
       };
@@ -307,11 +291,10 @@ public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
     configureByFile("/psi/resolve/Thinlet.java");
     assertNotEmpty(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR));
 
-    final DaemonCodeAnalyzerImpl codeAnalyzer = (DaemonCodeAnalyzerImpl)DaemonCodeAnalyzer.getInstance(getProject());
     type(' ');
     for (int i=0; i<100; i++) {
       backspace();
-      codeAnalyzer.restart(getTestName(false));
+      myDaemonCodeAnalyzer.restart(getTestName(false));
       try {
         PsiDocumentManager.getInstance(myProject).commitAllDocuments();
         CodeInsightTestFixtureImpl.ensureIndexesUpToDate(getProject());
@@ -347,9 +330,9 @@ public class DaemonRespondToChangesPerfTest extends DaemonAnalyzerTestCase {
     configureByText(PlainTextFileType.INSTANCE, " ".repeat(N));
     // just checks that highlighting doesn't freeze because there are no quadratics inside anymore
     DaemonAnnotatorsRespondToChangesTest.useAnnotatorsIn(PlainTextLanguage.INSTANCE, new DaemonAnnotatorsRespondToChangesTest.MyRecordingAnnotator[]{new MyHugeAnnotator()}, ()->{
-      assertEquals(N, ContainerUtil.count(doHighlighting(), h -> MyHugeAnnotator.myText.equals(h.getDescription())));
+      assertEquals(N, ContainerUtil.count(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING), h -> MyHugeAnnotator.myText.equals(h.getDescription())));
       type(' ');
-      assertEquals(N+1, ContainerUtil.count(doHighlighting(), h -> MyHugeAnnotator.myText.equals(h.getDescription())));
+      assertEquals(N+1, ContainerUtil.count(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.WARNING), h -> MyHugeAnnotator.myText.equals(h.getDescription())));
     });
   }
 }
