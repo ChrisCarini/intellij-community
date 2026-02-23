@@ -272,7 +272,7 @@ public final class DependencyGraphImpl extends GraphImpl implements DependencyGr
       for (var node : flat(map(flat(inputSources, deleted), graphView::getNodes))) {
         Iterable<NodeSource> nodeSources = graphView.getSources(node.getReferenceID());
         if (count(nodeSources) > 1) {
-          List<NodeSource> filteredNodeSources = collect(filter(nodeSources, srcFilter::test), new ArrayList<>());
+          List<NodeSource> filteredNodeSources = collect(filter(nodeSources, srcFilter), new ArrayList<>());
           // all sources associated with the node should be either marked 'dirty' or deleted
           if (find(filteredNodeSources, s -> !inputSources.contains(s)) != null) {
             for (NodeSource s : filteredNodeSources) {
@@ -291,7 +291,7 @@ public final class DependencyGraphImpl extends GraphImpl implements DependencyGr
     if (!delta.isSourceOnly()) {
       // complete affected file set with source-delta dependencies
       Delta affectedSourceDelta = createDelta(
-        filter(affectedSources, params.belongsToCurrentCompilationChunk()::test),
+        filter(affectedSources, params.belongsToCurrentCompilationChunk()),
         Collections.emptyList(),
         true
       );
@@ -404,7 +404,7 @@ public final class DependencyGraphImpl extends GraphImpl implements DependencyGr
       myNodeToSourcesMap.update(nodeID, sourcesAfter, Difference::diff);
     }
 
-    for (NodeSource src : delta.getSources()) {
+    for (NodeSource src : params.isCompiledWithErrors() || delta.isSourceOnly()? delta.getSources() : unique(flat(delta.getSources(), delta.getBaseSources()))) {
       //noinspection unchecked
       mySourceToNodesMap.update(src, delta.getNodes(src), (past, now) -> new Difference.Specifier<>() {
         private final Difference.Specifier<Node, ?> diff = Difference.deepDiff(Graph.getNodesOfType(past, Node.class), Graph.getNodesOfType(now, Node.class));

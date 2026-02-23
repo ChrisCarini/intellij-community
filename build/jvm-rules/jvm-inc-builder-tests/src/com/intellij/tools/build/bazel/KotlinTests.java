@@ -1688,4 +1688,103 @@ public class KotlinTests extends BazelIncBuildTest {
   public void testLazyKotlinCachesTopLevelPropertyAccess() throws Exception {
     performTest("kotlin/lazyKotlinCaches/topLevelPropertyAccess").assertSuccessful();
   }
+
+  // withJava/kotlinUsedInJava tests
+
+  @Test
+  public void testKotlinUsedInJavaAddOptionalParameter() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/addOptionalParameter").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaChangeNotUsedSignature() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/changeNotUsedSignature").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaChangeSignature() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/changeSignature").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaConstantChanged() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/constantChanged").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaConstantUnchanged() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/constantUnchanged").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaFunRenamed() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/funRenamed").assertFailure();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaImportedClassRemoved() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/importedClassRemoved").assertFailure();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaJvmFieldChanged() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/jvmFieldChanged").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaJvmFieldUnchanged() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/jvmFieldUnchanged").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaMethodAddedInSuper() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/methodAddedInSuper").assertFailure();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaNotChangeSignature() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/notChangeSignature").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaOnlyTopLevelFunctionInFileRemoved() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/onlyTopLevelFunctionInFileRemoved").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaPackageFileAdded() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/packageFileAdded").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaPrivateChanges() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/privateChanges").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinUsedInJavaPropertyRenamed() throws Exception {
+    performTest("kotlin/withJava/kotlinUsedInJava/propertyRenamed").assertFailure();
+  }
+
+  // withJava/convertBetweenJavaAndKotlin tests
+
+  @Test
+  public void testJavaToKotlin() throws Exception {
+    performTest("kotlin/withJava/convertBetweenJavaAndKotlin/javaToKotlin").assertSuccessful();
+  }
+
+  @Test
+  public void testJavaToKotlinAndBack() throws Exception {
+    performTest(2, "kotlin/withJava/convertBetweenJavaAndKotlin/javaToKotlinAndBack").assertSuccessful();
+  }
+
+  @Test
+  public void testJavaToKotlinAndRemove() throws Exception {
+    performTest(2, "kotlin/withJava/convertBetweenJavaAndKotlin/javaToKotlinAndRemove").assertSuccessful();
+  }
+
+  @Test
+  public void testKotlinToJava() throws Exception {
+    performTest("kotlin/withJava/convertBetweenJavaAndKotlin/kotlinToJava").assertSuccessful();
+  }
 }
