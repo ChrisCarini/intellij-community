@@ -115,9 +115,9 @@ internal fun fetchCaseSensitivityUsingEel(eelPath: EelPath): FileAttributes.Case
       directAccessPath
     }
     else {
-      val ioFile = directAccessPath.parent?.asNioPath()?.toFile()
-      return if (ioFile != null) {
-        FileSystemUtil.readParentCaseSensitivity(ioFile)
+      val nioPath = directAccessPath.parent?.asNioPath()
+      return if (nioPath != null) {
+        FileSystemUtil.readParentCaseSensitivity(nioPath)
       }
       else {
         FileAttributes.CaseSensitivity.UNKNOWN

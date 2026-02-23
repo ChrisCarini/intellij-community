@@ -143,16 +143,6 @@ public final class FileSystemUtil {
   }
 
   /**
-   * Detects case-sensitivity of the directory containing {@code anyChild} (or {@code anyChild} itself, if it happens to be
-   * a filesystem root) - first by calling platform-specific APIs if possible, then falling back to querying its attributes
-   * via different names.
-   */
-  @ApiStatus.Internal
-  public static @NotNull FileAttributes.CaseSensitivity readParentCaseSensitivity(@NotNull java.io.File anyChild) {
-    return readParentCaseSensitivity(anyChild.toPath());
-  }
-
-  /**
    * Detects case-sensitivity of the directory:
    * - first by calling platform-specific APIs if possible,
    * - then falling back to querying its attributes via different names.
@@ -165,19 +155,17 @@ public final class FileSystemUtil {
     return readDirectoryCaseSensitivityComparingTwoChildren(dir);
   }
 
+  /**
+   * Detects case-sensitivity of the directory containing {@code anyChild} (or {@code anyChild} itself, if it happens to be
+   * a filesystem root) - first by calling platform-specific APIs if possible, then falling back to querying its attributes
+   * via different names.
+   */
   @ApiStatus.Internal
   public static @NotNull FileAttributes.CaseSensitivity readParentCaseSensitivity(@NotNull Path anyChild) {
     FileAttributes.CaseSensitivity detected = readParentCaseSensitivityByNativeAPI(anyChild);
     if (detected.isKnown()) return detected;
     // native queries failed, fallback to the Java I/O:
     return readParentCaseSensitivityByJavaNio(anyChild);
-  }
-
-  @VisibleForTesting
-  @ApiStatus.Internal
-  public static @NotNull FileAttributes.CaseSensitivity readParentCaseSensitivityByJavaIO(@NotNull java.io.File anyChild) {
-    // try to query this path by different-case strings and deduce case sensitivity from the answers
-    return readParentCaseSensitivityByJavaNio(anyChild.toPath());
   }
 
   @VisibleForTesting
@@ -257,12 +245,6 @@ public final class FileSystemUtil {
 
     // it's a different file indeed; tough luck
     return FileAttributes.CaseSensitivity.SENSITIVE;
-  }
-
-  @VisibleForTesting
-  @ApiStatus.Internal
-  public static @NotNull FileAttributes.CaseSensitivity readParentCaseSensitivityByNativeAPI(@NotNull java.io.File anyChild) {
-    return readParentCaseSensitivityByNativeAPI(anyChild.toPath());
   }
 
   @VisibleForTesting
