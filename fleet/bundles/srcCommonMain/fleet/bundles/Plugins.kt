@@ -322,6 +322,14 @@ data class PluginLayer(
 data class PluginParts(val layers: Map<LayerSelector, PluginLayer>)
 
 @Serializable
+sealed interface ResourcesEntry {
+  @Serializable
+  data class Content(val name: String, val content: String) : ResourcesEntry
+  @Serializable
+  data class RelativePath(val path: String): ResourcesEntry
+}
+
+@Serializable
 sealed interface Coordinates {
   val meta: Map<String, String>
 
