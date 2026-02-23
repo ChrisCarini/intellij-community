@@ -692,4 +692,16 @@
     <pyModuleMembersProvider implementation="com.jetbrains.python.tensorFlow.PyTensorFlowModuleMembersProvider"/>
     <pyiStubSuppressor implementation="com.jetbrains.python.tensorFlow.TensorflowPyiStubsSuppressor"/>
   </extensions>
+  <extensions defaultExtensionNs="com.intellij">
+    <notificationGroup id="Python.Internal" displayType="BALLOON" isLogByDefault="true" hideFromSettings="true"/>
+  </extensions>
+
+  <actions resource-bundle="messages.PyPsiBundle">
+    <group id="PythonPsiInternalGroup" internal="true" popup="true">
+      <add-to-group group-id="Internal" anchor="last"/>
+      <action id="PyTypeBenchmarkAction"
+              class="com.jetbrains.python.actions.internal.PyTypeBenchmarkAction"
+              internal="true"/>
+    </group>
+  </actions>
 </idea-plugin>
