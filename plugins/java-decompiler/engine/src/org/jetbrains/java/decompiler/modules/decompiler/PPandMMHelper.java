@@ -79,6 +79,7 @@ public class PPandMMHelper {
         lst.set(i, retexpr);
 
         result = true;
+        //noinspection AssignmentToForLoopParameter
         i--; // process the same exprent again
       }
 
@@ -114,7 +115,7 @@ public class PPandMMHelper {
       if (right.type == Exprent.EXPRENT_INVOCATION) {
         InvocationExprent invoc = (InvocationExprent)right;
         if (invoc.isBoxingCall() && invoc.getParameters().size() == 1) {
-          right = invoc.getParameters().get(0);
+          right = invoc.getParameters().getFirst();
           isBoxed = true;
         }
       }
@@ -126,8 +127,8 @@ public class PPandMMHelper {
         if (func.getFuncType() >= FunctionExprent.FUNCTION_I2L &&
             func.getFuncType() <= FunctionExprent.FUNCTION_I2S) {
           midlayer = func.getSimpleCastType();
-          if (func.getLstOperands().get(0).type == Exprent.EXPRENT_FUNCTION) {
-            func = (FunctionExprent)func.getLstOperands().get(0);
+          if (func.getLstOperands().getFirst().type == Exprent.EXPRENT_FUNCTION) {
+            func = (FunctionExprent)func.getLstOperands().getFirst();
           }
           else {
             return null;
@@ -142,7 +143,7 @@ public class PPandMMHelper {
           if (econst.type != Exprent.EXPRENT_CONST && econd.type == Exprent.EXPRENT_CONST &&
               func.getFuncType() == FunctionExprent.FUNCTION_ADD) {
             econd = econst;
-            econst = func.getLstOperands().get(0);
+            econst = func.getLstOperands().getFirst();
           }
 
           if (econst.type == Exprent.EXPRENT_CONST && ((ConstExprent)econst).hasValueOne()) {
