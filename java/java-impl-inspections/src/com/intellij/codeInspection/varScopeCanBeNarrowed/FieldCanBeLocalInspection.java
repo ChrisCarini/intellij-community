@@ -16,7 +16,6 @@ import com.intellij.java.JavaBundle;
 import com.intellij.modcommand.ModPsiUpdater;
 import com.intellij.modcommand.PsiUpdateModCommandQuickFix;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.util.JDOMExternalizableStringList;
 import com.intellij.openapi.util.WriteExternalException;
 import com.intellij.pom.java.JavaFeature;
@@ -102,8 +101,7 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
     removeFieldsReferencedFromInitializers(aClass, aClass, candidates);
     if (candidates.isEmpty()) return;
 
-    final Set<PsiField> usedFields = new HashSet<>();
-    removeReadFields(aClass, candidates, usedFields, IGNORE_FIELDS_USED_IN_MULTIPLE_METHODS);
+    removeReadFields(aClass, candidates);
     if (candidates.isEmpty()) return;
 
     final List<ImplicitUsageProvider> implicitUsageProviders = ImplicitUsageProvider.EP_NAME.getExtensionList();
@@ -111,7 +109,7 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
 
     FieldLoop:
     for (PsiField field : candidates) {
-      if (usedFields.contains(field) && !hasImplicitReadOrWriteUsage(field, implicitUsageProviders)) {
+      if (!hasImplicitReadOrWriteUsage(field, implicitUsageProviders)) {
         final Map<PsiCodeBlock, List<PsiReferenceExpression>> refs = new HashMap<>();
         for (PsiReferenceExpression reference : VariableAccessUtils.getVariableReferences(field, scope)) {
           if (PsiUtil.isAccessedForWriting(reference)
@@ -210,11 +208,9 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
     });
   }
 
-  private static void removeReadFields(PsiClass aClass,
-                                       Set<? super PsiField> candidates,
-                                       Set<? super PsiField> usedFields,
-                                       boolean ignoreFieldsUsedInMultipleMethods) {
-    final Set<PsiField> ignored = new HashSet<>();
+  private void removeReadFields(PsiClass aClass, Set<? super PsiField> candidates) {
+    final Set<PsiVariable> ignored = new HashSet<>();
+    final Set<PsiVariable> usedFields = new HashSet<>();
     aClass.accept(new JavaRecursiveElementWalkingVisitor() {
       @Override
       public void visitElement(@NotNull PsiElement element) {
@@ -224,10 +220,9 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
       @Override
       public void visitMethod(@NotNull PsiMethod method) {
         super.visitMethod(method);
-
         final PsiCodeBlock body = method.getBody();
         if (body != null) {
-          checkCodeBlock(body, candidates, usedFields, ignoreFieldsUsedInMultipleMethods, ignored);
+          checkCodeBlock(body, candidates, usedFields, ignored);
         }
       }
 
@@ -236,23 +231,23 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
         super.visitLambdaExpression(expression);
         final PsiElement body = expression.getBody();
         if (body != null) {
-          checkCodeBlock(body, candidates, usedFields, ignoreFieldsUsedInMultipleMethods, ignored);
+          checkCodeBlock(body, candidates, usedFields, ignored);
         }
       }
 
       @Override
       public void visitClassInitializer(@NotNull PsiClassInitializer initializer) {
         super.visitClassInitializer(initializer);
-        checkCodeBlock(initializer.getBody(), candidates, usedFields, ignoreFieldsUsedInMultipleMethods, ignored);
+        checkCodeBlock(initializer.getBody(), candidates, usedFields, ignored);
       }
     });
+    candidates.retainAll(usedFields);
   }
 
-  private static void checkCodeBlock(PsiElement body,
-                                     Set<? super PsiField> candidates,
-                                     Set<? super PsiField> usedFields,
-                                     boolean ignoreFieldsUsedInMultipleMethods,
-                                     Set<? super PsiField> ignored) {
+  private void checkCodeBlock(PsiElement body,
+                              Set<? super PsiField> candidates,
+                              Set<? super PsiField> usedFields,
+                              Set<? super PsiField> ignored) {
     try {
       final ControlFlow controlFlow =
         ControlFlowFactory.getControlFlow(body, AllVariablesControlFlowPolicy.getInstance(), ControlFlowOptions.NO_CONST_EVALUATE);
@@ -266,7 +261,7 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
           ignored.add(usedVariable);
         }
 
-        if (!usedFields.add(usedVariable) && (ignoreFieldsUsedInMultipleMethods || ignored.contains(usedVariable))) {
+        if (!usedFields.add(usedVariable) && (IGNORE_FIELDS_USED_IN_MULTIPLE_METHODS || ignored.contains(usedVariable))) {
           candidates.remove(usedVariable); //used in more than one code block
         }
       }
@@ -275,7 +270,7 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
       for (PsiReferenceExpression readBeforeWrite : ControlFlowUtil.getReadBeforeWrite(controlFlow)) {
         final PsiElement resolved = readBeforeWrite.resolve();
         if (resolved instanceof PsiField field &&
-            (!isImmutableState(field.getType()) || !PsiUtil.isConstantExpression(field.getInitializer()) ||
+            (!isImmutable(field.getType()) || !PsiUtil.isConstantExpression(field.getInitializer()) ||
              writtenVariables.contains(field))) {
           PsiElement parent = body.getParent();
           if (parent instanceof PsiMethod method && method.isConstructor() &&
@@ -292,10 +287,10 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
     }
   }
 
-  private static boolean isImmutableState(PsiType type) {
+  private static boolean isImmutable(PsiType type) {
     return type instanceof PsiPrimitiveType ||
            PsiPrimitiveType.getUnboxedType(type) != null ||
-           Comparing.strEqual(CommonClassNames.JAVA_LANG_STRING, type.getCanonicalText());
+           type.equalsToText(CommonClassNames.JAVA_LANG_STRING);
   }
 
   private static boolean hasImplicitReadOrWriteUsage(PsiField field, List<? extends ImplicitUsageProvider> implicitUsageProviders) {
