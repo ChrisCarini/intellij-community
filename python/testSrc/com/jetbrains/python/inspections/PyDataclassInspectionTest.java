@@ -445,6 +445,21 @@ public class PyDataclassInspectionTest extends PyInspectionTestCase {
                    Child(number=1)""");
   }
 
+  // PY-76861
+  public void testFieldDefaultFactoryType() {
+    doTest();
+  }
+
+  // PY-76861
+  public void testFieldDefaultFactoryTypeForFunctionReference() {
+    doTest();
+  }
+
+  // PY-76861
+  public void testFieldDefaultFactoryTypeForCall() {
+    doTest();
+  }
+
   @Override
   protected void doTest() {
     myFixture.copyDirectoryToProject("packages/attr", "attr");

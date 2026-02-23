@@ -37,6 +37,7 @@ import com.jetbrains.python.psi.PyUtil
 import com.jetbrains.python.psi.impl.ParamHelper
 import com.jetbrains.python.psi.impl.PyCallExpressionHelper
 import com.jetbrains.python.psi.impl.PyEvaluator
+import com.jetbrains.python.psi.types.PyCallableType
 import com.jetbrains.python.psi.types.PyClassType
 import com.jetbrains.python.psi.types.PyCollectionType
 import com.jetbrains.python.psi.types.PyStructuralType
@@ -132,6 +133,16 @@ class PyDataclassInspection : PyInspection() {
         }
 
         processAnnotationsExistence(node, dataclassParameters)
+
+        //TODO: remove this check once PY-80837 is fixed
+        node.processClassLevelDeclarations { field, _ ->
+          if (field !is PyTargetExpression) return@processClassLevelDeclarations true
+
+          if (!PyTypingTypeProvider.isClassVar(field, myTypeEvalContext) && !isInitVar(field)) {
+            inspectFieldDefaultFactoryType(field, node, dataclassParameters, myTypeEvalContext)
+          }
+          true
+        }
 
         PyNamedTupleInspection.inspectFieldsOrder(
           cls = node,
@@ -733,6 +744,40 @@ class PyDataclassInspection : PyInspection() {
         }
 
         registerProblem(argument, message)
+      }
+    }
+
+    private fun inspectFieldDefaultFactoryType(field : PyTargetExpression, cls: PyClass, dataclassParameters: PyDataclassParameters, context: TypeEvalContext) {
+      val fieldStub = resolveDataclassFieldParameters(cls, dataclassParameters, field, myTypeEvalContext)
+                      ?: return
+
+      if (!fieldStub.hasDefaultFactory) return
+
+      val call = field.findAssignedValue() as? PyCallExpression ?: return
+      val annotationExpr = field.annotation?.value ?: return
+      val expectedType = context.getType(annotationExpr)
+
+      val defaultFactoryExpr = call.getKeywordArgument("default_factory") ?: return
+      val defaultFactoryType = context.getType(defaultFactoryExpr) ?: return
+      val returnType = (defaultFactoryType as? PyCallableType)
+        ?.getReturnType(context)
+
+      val expectedInstanceType: PyType? = when (expectedType) {
+        is PyClassType -> expectedType.toInstance()
+        else -> expectedType
+      }
+
+      val actualInstanceType: PyType = when (val actualType = returnType ?: defaultFactoryType) {
+        is PyClassType -> actualType.toInstance()
+        else -> actualType
+      }
+
+      if (!PyTypeChecker.match(expectedInstanceType, actualInstanceType, context)) {
+        val expectedTypeName = PythonDocumentationProvider.getTypeName(expectedInstanceType, context)
+        val actualTypeName = PythonDocumentationProvider.getTypeName(actualInstanceType, context)
+
+        registerProblem(call,
+                        PyPsiBundle.message("INSP.dataclasses.default.factory.type.incompatible", expectedTypeName, actualTypeName))
       }
     }
 
