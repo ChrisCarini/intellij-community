@@ -329,7 +329,7 @@ com.intellij.modcommand.ModPsiUpdater
 - sf:EP_NAME:com.intellij.lang.LanguageExtension
 - s:forLanguage(com.intellij.lang.Language):java.util.List
 - getSorter(com.intellij.modcompletion.ModCompletionItemProvider$CompletionContext):com.intellij.codeInsight.completion.CompletionSorter
-- a:provideItems(com.intellij.modcompletion.ModCompletionItemProvider$CompletionContext,java.util.function.Consumer):V
+- a:provideItems(com.intellij.modcompletion.ModCompletionItemProvider$CompletionContext,com.intellij.modcompletion.ModCompletionResult):V
 *f:com.intellij.modcompletion.ModCompletionItemProvider$CompletionContext
 - java.lang.Record
 - com.intellij.codeInsight.completion.BaseCompletionParameters
@@ -353,6 +353,8 @@ com.intellij.modcommand.ModPsiUpdater
 - originalFile():com.intellij.psi.PsiFile
 - prefix():java.lang.String
 - type():com.intellij.codeInsight.completion.CompletionType
+*:com.intellij.modcompletion.ModCompletionResult
+- java.util.function.Consumer
 *a:com.intellij.modcompletion.PsiUpdateCompletionItem
 - com.intellij.modcompletion.ModCompletionItem
 - p:<init>(java.lang.String,java.lang.Object):V

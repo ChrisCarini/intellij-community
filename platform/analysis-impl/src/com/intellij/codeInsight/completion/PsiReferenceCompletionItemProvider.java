@@ -7,6 +7,7 @@ import com.intellij.diagnostic.PluginException;
 import com.intellij.modcompletion.CommonCompletionItem;
 import com.intellij.modcompletion.ModCompletionItem;
 import com.intellij.modcompletion.ModCompletionItemProvider;
+import com.intellij.modcompletion.ModCompletionResult;
 import com.intellij.openapi.paths.PsiDynaReference;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
@@ -23,7 +24,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 /**
  * A provider of variants from {@link PsiReference#getVariants()}. 
@@ -33,7 +33,7 @@ import java.util.function.Consumer;
 @NotNullByDefault
 final class PsiReferenceCompletionItemProvider implements ModCompletionItemProvider {
   @Override
-  public void provideItems(CompletionContext context, Consumer<ModCompletionItem> sink) {
+  public void provideItems(CompletionContext context, ModCompletionResult sink) {
     processReferences(context, (reference, prefix) -> {
       final Set<ModCompletionItem> lookupSet = new LinkedHashSet<>();
       completeReference(reference, lookupSet);

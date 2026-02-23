@@ -28,6 +28,7 @@ import com.intellij.modcommand.ModLaunchEditorAction;
 import com.intellij.modcompletion.CommonCompletionItem;
 import com.intellij.modcompletion.ModCompletionItem;
 import com.intellij.modcompletion.ModCompletionItemPresentation;
+import com.intellij.modcompletion.ModCompletionResult;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Condition;
@@ -93,7 +94,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Consumer;
 
 import static com.intellij.patterns.PlatformPatterns.psiElement;
 import static com.intellij.patterns.PsiJavaPatterns.psiMethod;
@@ -110,7 +110,7 @@ final class ReferenceItemProvider extends JavaModCompletionItemProvider {
   private static final ElementPattern<PsiElement> AFTER_NEW = psiElement().afterLeaf(psiElement().withText(JavaKeywords.NEW));
   
   @Override
-  public void provideItems(CompletionContext context, Consumer<ModCompletionItem> sink) {
+  public void provideItems(CompletionContext context, ModCompletionResult sink) {
     PsiElement position = context.getPosition();
     if (!(position.getParent() instanceof PsiJavaCodeReferenceElement ref)) return;
     if (TOP_LEVEL_VAR_IN_MODULE.accepts(position) ||
@@ -266,7 +266,7 @@ final class ReferenceItemProvider extends JavaModCompletionItemProvider {
                                            ElementFilter elementFilter,
                                            JavaCompletionProcessor.Options options,
                                            CompletionContext parameters,
-                                           Consumer<ModCompletionItem> sink) {
+                                           ModCompletionResult sink) {
     Condition<String> nameCondition = s -> true;
     JavaCompletionProcessor processor = new JavaCompletionProcessor(element, elementFilter, options, nameCondition);
     PsiType plainQualifier = processor.getQualifierType();
