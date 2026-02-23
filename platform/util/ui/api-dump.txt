@@ -2721,6 +2721,8 @@ f:com.intellij.ui.SizedIcon
 - getIconHeight():I
 - getIconWidth():I
 - getMenuBarIcon(Z):javax.swing.Icon
+- getSizedHeight():I
+- getSizedWidth():I
 - paintIcon(java.awt.Component,java.awt.Graphics,I,I):V
 - replaceBy(com.intellij.ui.icons.IconReplacer):com.intellij.ui.SizedIcon
 - retrieveIcon():javax.swing.Icon
