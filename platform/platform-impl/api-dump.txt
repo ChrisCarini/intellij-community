@@ -937,7 +937,7 @@ f:com.intellij.openapi.keymap.impl.ui.KeymapPanel
 f:com.intellij.openapi.observable.util.BindUtilKt
 - sf:bindSelected(com.intellij.ui.CardLayoutPanel,com.intellij.openapi.observable.properties.ObservableProperty):com.intellij.ui.CardLayoutPanel
 a:com.intellij.openapi.options.BeanConfigurable
-- pf:checkBox(java.lang.String,java.lang.String):V
+- bpf:checkBox(java.lang.String,java.lang.String):V
 com.intellij.openapi.progress.util.ProgressIndicatorListener
 - cancelled():V
 - installToProgress(com.intellij.openapi.wm.ex.ProgressIndicatorEx):V
