@@ -301,9 +301,3 @@ public final class ThemeJsonUtil {
            || key.contains(".Fraction");
   }
 }
-
-record ColorValueDefinition(
-  @NotNull String colorName,
-  @NotNull String colorValue,
-  @NotNull PsiAnchor declaration
-) {}
