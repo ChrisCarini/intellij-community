@@ -21950,6 +21950,12 @@ function normalizePortList(preferredPorts, portScanStart, portScanLimit) {
   }
   return candidates;
 }
+function formatProbedPortList(candidates) {
+  return candidates.map((candidate) => String(candidate.port)).join(", ");
+}
+function buildEndpointNotFoundMessage(candidates) {
+  return `Failed to locate MCP stream endpoint. Probed ports: ${formatProbedPortList(candidates)}. Install the "MCP Server" plugin and ensure it is enabled in Settings | Tools | MCP Server.`;
+}
 
 class StreamTransportImpl {
   _options;
@@ -22068,8 +22074,8 @@ class StreamTransportImpl {
         }
         if (!targetUrl) {
           if (warn)
-            warn("No reachable MCP stream ports found during scan");
-          throw Error("Failed to locate MCP stream endpoint");
+            warn(`No reachable MCP stream ports found during scan. Probed ports: ${formatProbedPortList(candidates)}`);
+          throw Error(buildEndpointNotFoundMessage(candidates));
         }
       }
       if (note)
