@@ -24,12 +24,12 @@ data class LibraryOrSdkDependencyEdge(
   val orderNumber: Int,
 )
 
-@ApiStatus.Internal
 /**
  * [getModuleDependants] returns [ModuleEntity] which depend on the given module taking into account exported dependencies.
  *
  * [getLibraryOrSdkDependants] returns a collection of [LibraryOrSdkDependencyEdge] which contains a dependent on give [SymbolicEntityId] module and its order number.
  */
+@ApiStatus.Internal
 interface ModuleDependenciesGraph {
   fun getModuleDependants(module: ModuleEntity): Collection<ModuleEntity>
   fun getLibraryOrSdkDependants(libraryOrSdk: SymbolicEntityId<*>): Collection<LibraryOrSdkDependencyEdge>
