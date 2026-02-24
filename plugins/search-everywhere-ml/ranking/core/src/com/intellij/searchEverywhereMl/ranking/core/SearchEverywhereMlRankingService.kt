@@ -36,7 +36,6 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     val searchResultAdapter = SearchResultAdapter.createAdapterFor(elementInfo)
 
     val processedSearchResult = SearchEverywhereMlFacade.processSearchResult(searchResultAdapter)
-                                ?: return elementInfo
 
     if (processedSearchResult.mlProbability != null) {
       return elementInfo.withPriority(processedSearchResult.finalPriority)
