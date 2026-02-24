@@ -24,8 +24,9 @@ repositories {
 
 dependencies {
   implementation("org.jetbrains:annotations:24.0.0")
-  testImplementation("junit:junit:4.13.2")
-  testImplementation("org.assertj:assertj-core:3.26.3")
+  testImplementation(platform("org.junit:junit-bom:6.0.3"))
+  testImplementation("org.junit.jupiter:junit-jupiter")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 application {
@@ -44,5 +45,6 @@ tasks.jar {
 }
 
 tasks.test {
+  useJUnitPlatform()
   maxHeapSize = "1024m"
 }

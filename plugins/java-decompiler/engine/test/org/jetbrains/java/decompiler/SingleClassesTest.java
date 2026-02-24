@@ -4,20 +4,16 @@ package org.jetbrains.java.decompiler;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.main.extern.ClassFormatException;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerPreferences;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+@Timeout(value = 60, unit = TimeUnit.SECONDS)
 public class SingleClassesTest extends SingleClassesTestBase {
-  /*
-   * Set individual test duration time limit to 60 seconds.
-   * This will help us to test bugs hanging decompiler.
-   */
-  @Rule
-  public Timeout globalTimeout = Timeout.seconds(60);
-
   @Override
   protected Map<String, Object> getDecompilerOptions() {
     return Map.ofEntries(
@@ -242,8 +238,10 @@ public class SingleClassesTest extends SingleClassesTestBase {
     doTest("patterns/TestInstanceofPatternNotSupported");
   }
 
-  @Test(expected = ClassFormatException.class)
-  public void testUnsupportedConstantPoolEntry() { doTest("java11/TestUnsupportedConstantPoolEntry"); }
+  @Test
+  public void testUnsupportedConstantPoolEntry() {
+    assertThrows(ClassFormatException.class, () -> doTest("java11/TestUnsupportedConstantPoolEntry"));
+  }
   @Test public void testSwitchOnStatic() { doTest("pkg/SwitchOnStatic"); }
   @Test public void testCompoundAssignment() { doTest("pkg/TestCompoundAssignment"); }
   @Test public void testTryToPreserveCast() { doTest("pkg/TryToPreserveCast"); }
