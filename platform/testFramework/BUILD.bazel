@@ -109,7 +109,6 @@ jvm_library(
     "//platform/testFramework/core",
   ],
   runtime_deps = [
-    "//resources-en:java-resources-en",
     "//images",
     "//RegExpSupport:regexp",
     "//xml/dom-impl",
@@ -275,7 +274,6 @@ jvm_library(
     "//platform/testFramework/core:core_test_lib",
   ],
   runtime_deps = [
-    "//resources-en:java-resources-en_test_lib",
     "//platform/platform-impl/codeinsight-inline:ide-codeinsight-inline_test_lib",
     "//platform/ide-core-impl:ide-core-impl_test_lib",
     "//platform/platform-impl:ide-impl_test_lib",

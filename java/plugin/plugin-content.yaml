@@ -166,9 +166,6 @@
 - name: lib/modules/intellij.java.remoteServers.jar
   contentModules:
   - name: intellij.java.remoteServers
-- name: lib/modules/intellij.java.resources.en.jar
-  contentModules:
-  - name: intellij.java.resources.en
 - name: lib/modules/intellij.java.resources.jar
   contentModules:
   - name: intellij.java.resources

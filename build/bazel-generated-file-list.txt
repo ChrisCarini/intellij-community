@@ -1588,7 +1588,6 @@ python/services/system-python
 python/testFramework
 python/tools
 resources
-resources-en
 spellchecker
 spellchecker/xml
 tools/apiDump

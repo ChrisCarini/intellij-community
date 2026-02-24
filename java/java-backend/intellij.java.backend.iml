@@ -25,7 +25,6 @@
     <orderEntry type="module" module-name="intellij.java.execution" exported="" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.jvm.analysis" exported="" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.jsp" exported="" scope="RUNTIME" />
-    <orderEntry type="module" module-name="intellij.java.resources.en" exported="" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.java.debugger" exported="" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.java.codeserver.core" exported="" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.java.codeserver.highlighting" exported="" scope="RUNTIME" />

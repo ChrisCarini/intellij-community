@@ -36,7 +36,6 @@
     <module name="intellij.java.remoteServers" loading="optional"/>
     <module name="intellij.jvm.analysis" required-if-available="intellij.platform.backend"/>
     <module name="intellij.jsp" required-if-available="intellij.platform.backend"/>
-    <module name="intellij.java.resources.en" required-if-available="intellij.platform.backend"/>
     <module name="intellij.java.debugger" required-if-available="intellij.platform.backend"/>
     <module name="intellij.java.codeserver.core" required-if-available="intellij.platform.backend"/>
     <module name="intellij.java.codeserver.highlighting" required-if-available="intellij.platform.backend"/>
