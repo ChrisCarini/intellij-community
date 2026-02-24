@@ -361,7 +361,7 @@ public final class TestDaemonCodeAnalyzerImpl {
   public @NotNull Collection<? extends DaemonProgressIndicator> waitForDaemonToFinish(@NotNull Project project, @NotNull Document document, @NotNull Runnable callbackWhileWaiting) {
     ThreadingAssertions.assertEventDispatchThread();
     long start = System.currentTimeMillis();
-    long deadline = start + 60_00000;
+    long deadline = start + 60_000;
     waitForUpdateFileStatusBackgroundQueueInTests();
     Collection<? extends DaemonProgressIndicator> progresses = waitForDaemonToStart(project, document, 60_000);
     assert myDaemonCodeAnalyzer.isUpdateByTimerEnabled() : "codeAnalyzer.isUpdateByTimerEnabled()=false so waitForDaemonToFinish() will never finish";
