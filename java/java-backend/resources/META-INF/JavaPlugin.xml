@@ -595,7 +595,7 @@
 
     <completion.contributor language="JAVA" id="methodsChainsCompletionContributor" order="first"
                             implementationClass="com.intellij.compiler.chainsSearch.completion.MethodChainCompletionContributor"/>
-    <weigher order="after mostUsed" key="completion" id="methodChains"
+    <weigher order="after stats" key="completion" id="methodChains"
              implementationClass="com.intellij.compiler.chainsSearch.completion.MethodChainWeigher"/>
 
     <projectTemplate projectType="JAVA_MODULE" templatePath="resources/projectTemplates/Java/Command_Line_App.zip"/>
