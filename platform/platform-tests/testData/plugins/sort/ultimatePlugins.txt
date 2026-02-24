@@ -121,7 +121,6 @@
 + -com-intellij-spring-
 + -com-intellij-spring-websocket-
 + -com-intellij-spring-batch-
-+ -org-intellij-grails-
 + -com-intellij-spring-ws-
 + -com-intellij-spring-data-
 + -Java EE: Web Services (JAX-WS)-
