@@ -426,6 +426,8 @@ For DSL-defined test plugins, the generator can **automatically add** JPS module
 
 **Key Principle**: Only add **unresolvable** modules - those not available in the same product (module sets + bundled production plugins; other test plugins excluded).
 
+DSL test plugins also support a test-descriptor fallback for JPS targets: when dependency target `X` has no `X.xml` descriptor but has `X._test.xml`, dependency planning treats it as content module `X._test`.
+
 ```
 JPS Dependencies (.iml)
         │
@@ -446,6 +448,8 @@ explicit content modules. Project library dependencies resolve via `ModuleSetGen
 (built from JPS library modules, not graph targets), and `libraryModuleFilter` is ignored for DSL test plugins
 because the test plugin must be a complete container in dev mode. Auto-added modules are written into the
 generated test plugin content (the `<!-- region additional -->` block), so repeat runs are clean.
+
+This fallback is scoped to **DSL test plugin auto-add** and does not change global content-module dependency generation/classification.
 
 **Why this design**: Module sets are just convenience for avoiding duplication - they're NOT special. The auto-add logic respects them naturally without special handling.
 

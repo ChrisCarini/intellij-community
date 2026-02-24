@@ -561,6 +561,132 @@ class PluginDependencyGeneratorTest {
   }
 
   @Test
+  fun `computePluginContentFromDslSpec remaps JPS deps to test descriptor modules when only _test descriptor exists`(@TempDir tempDir: Path) {
+    runBlocking(Dispatchers.Default) {
+      val jps = jpsProject(tempDir) {
+        module("intellij.consumer.module") {
+          resourceRoot()
+          moduleDep("intellij.platform.testFramework.junit5.wsl")
+        }
+        module("intellij.platform.testFramework.junit5.wsl") {
+          resourceRoot()
+        }
+      }
+
+      val consumerResourcesDir = tempDir.resolve("intellij/consumer/module/resources")
+      java.nio.file.Files.createDirectories(consumerResourcesDir)
+      java.nio.file.Files.writeString(
+        consumerResourcesDir.resolve("intellij.consumer.module.xml"),
+        """<idea-plugin package="com.intellij.consumer.module"/>"""
+      )
+
+      val wslResourcesDir = tempDir.resolve("intellij/platform/testFramework/junit5/wsl/resources")
+      java.nio.file.Files.createDirectories(wslResourcesDir)
+      java.nio.file.Files.writeString(
+        wslResourcesDir.resolve("intellij.platform.testFramework.junit5.wsl._test.xml"),
+        """<idea-plugin package="com.intellij.testFramework.junit5.wsl._test"/>"""
+      )
+
+      val spec = org.jetbrains.intellij.build.productLayout.TestPluginSpec(
+        pluginId = PluginId("test.plugin"),
+        name = "Test Plugin",
+        pluginXmlPath = "test/plugin.xml",
+        spec = org.jetbrains.intellij.build.productLayout.productModules {
+          module("intellij.consumer.module")
+        }
+      )
+
+      val descriptorCache = ModuleDescriptorCache(jps.outputProvider, this)
+      val graph = pluginGraphWithDescriptors(descriptorCache) {
+        moduleWithScopedDeps("intellij.consumer.module", "intellij.platform.testFramework.junit5.wsl" to "COMPILE")
+        product("TestProduct") { }
+      }
+      val errorSink = ErrorSink()
+      val result = org.jetbrains.intellij.build.productLayout.discovery.computePluginContentFromDslSpec(
+        testPluginSpec = spec,
+        projectRoot = tempDir,
+        resolvableModules = emptySet(),
+        productName = "TestProduct",
+        pluginGraph = graph,
+        errorSink = errorSink,
+        descriptorCache = descriptorCache,
+      )
+
+      val contentModuleNames = result.contentModules.map { it.name }
+      assertThat(contentModuleNames)
+        .describedAs("JPS deps should resolve to *_test module when only *_test descriptor exists")
+        .contains(ContentModuleName("intellij.consumer.module"))
+        .contains(ContentModuleName("intellij.platform.testFramework.junit5.wsl._test"))
+        .doesNotContain(ContentModuleName("intellij.platform.testFramework.junit5.wsl"))
+      assertThat(errorSink.getErrors()).isEmpty()
+    }
+  }
+
+  @Test
+  fun `computePluginContentFromDslSpec keeps base module when both base and _test descriptors exist`(@TempDir tempDir: Path) {
+    runBlocking(Dispatchers.Default) {
+      val jps = jpsProject(tempDir) {
+        module("intellij.consumer.module") {
+          resourceRoot()
+          moduleDep("intellij.platform.testFramework.junit5.wsl")
+        }
+        module("intellij.platform.testFramework.junit5.wsl") {
+          resourceRoot()
+        }
+      }
+
+      val consumerResourcesDir = tempDir.resolve("intellij/consumer/module/resources")
+      java.nio.file.Files.createDirectories(consumerResourcesDir)
+      java.nio.file.Files.writeString(
+        consumerResourcesDir.resolve("intellij.consumer.module.xml"),
+        """<idea-plugin package="com.intellij.consumer.module"/>"""
+      )
+
+      val wslResourcesDir = tempDir.resolve("intellij/platform/testFramework/junit5/wsl/resources")
+      java.nio.file.Files.createDirectories(wslResourcesDir)
+      java.nio.file.Files.writeString(
+        wslResourcesDir.resolve("intellij.platform.testFramework.junit5.wsl.xml"),
+        """<idea-plugin package="com.intellij.testFramework.junit5.wsl"/>"""
+      )
+      java.nio.file.Files.writeString(
+        wslResourcesDir.resolve("intellij.platform.testFramework.junit5.wsl._test.xml"),
+        """<idea-plugin package="com.intellij.testFramework.junit5.wsl._test"/>"""
+      )
+
+      val spec = org.jetbrains.intellij.build.productLayout.TestPluginSpec(
+        pluginId = PluginId("test.plugin"),
+        name = "Test Plugin",
+        pluginXmlPath = "test/plugin.xml",
+        spec = org.jetbrains.intellij.build.productLayout.productModules {
+          module("intellij.consumer.module")
+        }
+      )
+
+      val descriptorCache = ModuleDescriptorCache(jps.outputProvider, this)
+      val graph = pluginGraphWithDescriptors(descriptorCache) {
+        moduleWithScopedDeps("intellij.consumer.module", "intellij.platform.testFramework.junit5.wsl" to "COMPILE")
+        product("TestProduct") { }
+      }
+      val result = org.jetbrains.intellij.build.productLayout.discovery.computePluginContentFromDslSpec(
+        testPluginSpec = spec,
+        projectRoot = tempDir,
+        resolvableModules = emptySet(),
+        productName = "TestProduct",
+        pluginGraph = graph,
+        errorSink = ErrorSink(),
+        descriptorCache = descriptorCache,
+      )
+
+      val contentModuleNames = result.contentModules.map { it.name }
+      assertThat(contentModuleNames)
+        .describedAs("Base descriptor should be preferred when both base and *_test descriptors exist")
+        .contains(ContentModuleName("intellij.consumer.module"))
+        .contains(ContentModuleName("intellij.platform.testFramework.junit5.wsl"))
+        .doesNotContain(ContentModuleName("intellij.platform.testFramework.junit5.wsl._test"))
+    }
+  }
+
+  @Test
   fun `computePluginContentFromDslSpec auto-adds test descriptor deps`(@TempDir tempDir: Path) {
     runBlocking(Dispatchers.Default) {
       val jps = jpsProject(tempDir) {
