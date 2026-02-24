@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A simplified mirror of {@link LiveTemplateCompletionContributor} to provide live templates as {@link ModCompletionItem}'s. 
+ * A simplified mirror of {@link LiveTemplateCompletionContributor} to provide live templates as {@link ModCompletionItem}s. 
  */
 @NotNullByDefault
 final class LiveTemplateModCompletionItemProvider implements ModCompletionItemProvider {
