@@ -56,6 +56,7 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
 import kotlin.io.path.notExists
+import kotlin.io.path.pathString
 import kotlin.io.path.writeText
 
 private val LOG = Logger.getInstance("org.jetbrains.idea.devkit.actions.updateFromSources.UpdateFromSourcesKt")
@@ -120,6 +121,7 @@ fun updateFromSources(project: Project, beforeRestart: () -> Unit, restartAutoma
   val params = createScriptJavaParameters(
     project, deployDir, builtDistDir, buildEnabledPluginsOnly, bundledPluginDirsToSkip, nonBundledPluginDirsToInclude
   ) ?: return
+  params.workingDirectory = devIdeaHome.pathString
   val taskManager = ProjectTaskManager.getInstance(project)
   taskManager
     .run(taskManager.createModulesBuildTask(ModuleManager.getInstance(project).modules, true, true, true, false))
