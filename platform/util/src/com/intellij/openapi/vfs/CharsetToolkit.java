@@ -1,7 +1,8 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.vfs;
 
 import com.intellij.util.ArrayUtil;
+import com.intellij.util.system.OS;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -502,8 +503,9 @@ public final class CharsetToolkit {
    * Retrieve the platform charset of the system (determined by "sun.jnu.encoding" property)
    */
   public static @NotNull Charset getPlatformCharset() {
-    String name = System.getProperty("sun.jnu.encoding");
-    Charset value = forName(name);
+    Charset value = OS.CURRENT == OS.Windows
+      ? ((OS.WindowsInfo)OS.CURRENT.getOsInfo()).getSystemCharset()
+      : forName(System.getProperty("sun.jnu.encoding"));
     return value == null ? getDefaultSystemCharset() : value;
   }
 
