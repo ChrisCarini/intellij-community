@@ -309,6 +309,10 @@ public class PyTypeCheckerInspection extends PyInspection {
 
       boolean descriptor = false;
       PyType expected = myTypeEvalContext.getType(node);
+      if (node.isQualified()) {
+        PyTypeChecker.GenericSubstitutions substitutions = PyTypeChecker.unifyReceiver(node.getQualifier(), myTypeEvalContext);
+        expected = PyTypeChecker.substitute(expected, substitutions, myTypeEvalContext);
+      }
       Ref<PyType> classAttrType = getClassAttributeType(node);
       if (classAttrType != null) {
         Ref<PyType> dunderSetValueType =

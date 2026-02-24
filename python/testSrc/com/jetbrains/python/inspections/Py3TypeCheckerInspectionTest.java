@@ -4321,4 +4321,28 @@ public class Py3TypeCheckerInspectionTest extends PyInspectionTestCase {
                        _: Actual = e
                    """);
   }
+
+  // PY-56613
+  public void testGenericAttributeAssignment() {
+    doTestByText("""
+                   class C[T]:
+                       attr: list[T]
+                   
+                   c: C[int]
+                   c.attr = <warning descr="Expected type 'list[int]', got 'list[str]' instead">["foo"]</warning>
+                   """);
+  }
+
+  // PY-85974
+  public void testSelfAttributeAssignment() {
+    doTestByText("""
+                   from typing import Self
+                   
+                   class Node:
+                       next: Self | None
+
+                   c: Node
+                   c.next = Node()
+                   """);
+  }
 }
