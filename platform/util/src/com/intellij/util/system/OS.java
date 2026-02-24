@@ -66,17 +66,17 @@ public enum OS {
    * Returns an instance of {@link OsInfo} for the current OS.
    */
   public final @NotNull OsInfo getOsInfo() {
-    return
+    return (
       this == Windows ? WindowsInfo.INSTANCE :
       this == macOS ? MacOsInfo.INSTANCE :
       this == Linux ? LinuxInfo.INSTANCE :
-      UnixInfo.INSTANCE;
+      UnixInfo.INSTANCE
+    );
   }
 
   /** Represents an operating system this JVM is running on */
   public static final OS CURRENT = fromString(System.getProperty("os.name"));
 
-  @SuppressWarnings("SpellCheckingInspection")
   public static @NotNull OS fromString(@Nullable String os) {
     if (os != null) {
       os = os.toLowerCase(Locale.ENGLISH);
