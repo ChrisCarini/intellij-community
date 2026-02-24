@@ -524,6 +524,9 @@ private fun computeJpsDeps(
 
         when (val c = classifyTarget(dep.targetId)) {
           is DependencyClassification.ModuleDep -> {
+            if (c.moduleName == moduleName) {
+              return@dependsOn
+            }
             if (c.moduleName.value.startsWith(LIB_MODULE_PREFIX) && !libraryModuleFilter(c.moduleName.value)) {
               return@dependsOn
             }

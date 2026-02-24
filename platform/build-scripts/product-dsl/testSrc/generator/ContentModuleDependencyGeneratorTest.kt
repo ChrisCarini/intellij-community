@@ -616,6 +616,35 @@ class ContentModuleDependencyGeneratorTest {
   }
 
   @Nested
+  inner class SelfDependencyTest {
+    @Test
+    fun `content module written deps exclude self dependency`(@TempDir tempDir: Path) {
+      runBlocking(Dispatchers.Default) {
+        val moduleName = "intellij.self.module"
+        val pluginName = "intellij.self.plugin"
+        val setup = pluginTestSetup(tempDir) {
+          contentModule(moduleName) {
+            descriptor = """<idea-plugin package="self.module"/>"""
+            jpsDependency(moduleName, JpsJavaDependencyScope.COMPILE)
+          }
+          plugin(pluginName) {
+            content(moduleName)
+          }
+        }
+
+        val result = setup.generateDependencies(listOf(pluginName))
+        val contentResult = result.files
+          .flatMap { it.contentModuleResults }
+          .single { it.contentModuleName == ContentModuleName(moduleName) }
+
+        assertThat(contentResult.writtenDependencies)
+          .describedAs("Self dependencies should not be written for content modules")
+          .doesNotContain(ContentModuleName(moduleName))
+      }
+    }
+  }
+
+  @Nested
   inner class UpdateSuppressionsDslTestPluginPolicyTest {
     @Test
     fun `pure dsl test owned module respects explicit suppressions config in regular generation`(@TempDir tempDir: Path) {
