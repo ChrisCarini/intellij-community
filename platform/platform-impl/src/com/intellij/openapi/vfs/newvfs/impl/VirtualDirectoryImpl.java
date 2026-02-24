@@ -284,7 +284,7 @@ public class VirtualDirectoryImpl extends VirtualFileSystemEntry {
           //If childId was already deleted, it should be removed from ChildrenIds list first,
           // see PersistentFSImpl.executeDelete() -- but here we are, with childId from findChildInfo(),
           // executed under the directoryLock:
-          throw new IllegalStateException("file(=#" + childId + ") is deleted, but still in .children list");
+          throw new FileDeletedException(childId, "file is deleted, but still in [" + getId() + "].children list");
         }
         newlyLoadedChild = getCachedOrLoadChild(childId, vfsData);
         addChild(newlyLoadedChild);
@@ -1187,7 +1187,7 @@ public class VirtualDirectoryImpl extends VirtualFileSystemEntry {
     if (PersistentFSRecordAccessor.hasDeletedFlag(childAttributes)) {
       //It is an error to come here with childId which was already deleted -- such childId should be removed from ChildrenIds
       // list first, see PersistentFSImpl.executeDelete()
-      throw new FileDeletedException(childId, "file is deleted, can't be loaded");
+      throw new FileDeletedException(childId, "file is deleted, but still in [" + getId() + "].children list");
     }
 
     int childNameId = vfsPeer.getNameIdByFileId(childId);
