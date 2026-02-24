@@ -119,8 +119,6 @@
     <registryKey key="batch.inspections.ignored.jvm.languages" defaultValue="Groovy,Scala"
                  description="Disable UAST processing for JVM languages; a comma separated list of UAST capable language ids."/>
     <!--used with DataFlowInspection-->
-    <registryKey key="ide.dfa.time.limit.online" defaultValue="1000"
-                 description="Time limit (in milliseconds) that is allowed to analyze data flow for one method"/>
     <registryKey key="ide.dfa.report.imprecise" defaultValue="false"
                  description="Whether to report methods for which data flow analysis was imprecise"/>
     <!--used together with DeprecationInspection-->
