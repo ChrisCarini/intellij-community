@@ -24,6 +24,7 @@ import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkEx
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil
 import com.intellij.openapi.externalSystem.service.execution.InvalidJavaHomeException
 import com.intellij.openapi.externalSystem.service.execution.InvalidSdkException
+import com.intellij.openapi.externalSystem.service.execution.getJavaHomeForEel
 import com.intellij.openapi.externalSystem.service.project.trusted.ExternalSystemTrustedProjectDialog
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -32,6 +33,7 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
+import com.intellij.openapi.progress.runBlockingCancellable
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.DumbService.Companion.isDumbAware
 import com.intellij.openapi.project.Project
@@ -1877,12 +1879,9 @@ object MavenUtil {
    */
   private fun resolveJavaHome(project: Project): String? {
     val eelDescriptor = project.getEelDescriptor()
-    if (eelDescriptor == LocalEelDescriptor) {
-      return ExternalSystemJdkUtil.getJavaHome()
-    }
-    val eel = eelDescriptor.toEelApiBlocking()
-    val remoteJavaHome = eel.exec.fetchLoginShellEnvVariablesBlocking()[ExternalSystemJdkUtil.JAVA_HOME]
-    return remoteJavaHome?.let(eel.fs::getPath)?.asNioPath().toString()
+    return runBlockingCancellable {
+      getJavaHomeForEel(eelDescriptor)
+    }?.toString()
   }
 
   private fun resolveJavaHomeSdk(project: Project): Sdk {
