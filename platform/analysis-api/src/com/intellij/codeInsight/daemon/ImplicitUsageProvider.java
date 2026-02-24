@@ -12,10 +12,17 @@ import org.jetbrains.annotations.NotNull;
 /// - From generated code
 /// - From outside containers: `@javax.servlet.annotation.WebServlet public class MyServlet {}`
 /// - From some frameworks: `@javax.ejb.EJB private DataStore myInjectedDataStore;`
+///
+/// Methods in this interface are called during highlighting for every symbol in the file and must be fast.
+/// Avoid expensive operations such as reference searches or index queries;
+/// prefer using only local information (e.g., checking annotations or modifiers).
 public interface ImplicitUsageProvider {
   ExtensionPointName<ImplicitUsageProvider> EP_NAME = new ExtensionPointName<>("com.intellij.implicitUsageProvider");
 
   /// Returns true if the element should not be reported as unused.
+  ///
+  /// If detecting implicit usage requires a reference search, consider using [#isReferencedByAlternativeNames(PsiElement)] instead,
+  /// which defers the search to the platform's standard unused-detection path.
   boolean isImplicitUsage(@NotNull PsiElement element);
 
   /// Returns true if the element should not be reported as "assigned but not used".
