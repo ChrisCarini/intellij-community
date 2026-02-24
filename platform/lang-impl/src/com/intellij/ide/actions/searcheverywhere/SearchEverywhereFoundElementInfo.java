@@ -62,11 +62,6 @@ public class SearchEverywhereFoundElementInfo {
     return correction;
   }
 
-  @Contract("_ -> new")
-  public SearchEverywhereFoundElementInfo withPriority(int priority) {
-    return new SearchEverywhereFoundElementInfo(uuid, element, priority, contributor, correction);
-  }
-
   public String getDescription() {
     return "contributor: " + (contributor != null ? contributor.getSearchProviderId() : "null") + "\n" +
            "weight: " + priority + "\n" +

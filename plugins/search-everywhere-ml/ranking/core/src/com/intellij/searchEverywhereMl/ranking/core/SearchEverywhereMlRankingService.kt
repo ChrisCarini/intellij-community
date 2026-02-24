@@ -114,6 +114,10 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     return SearchEverywhereMlFacade.experimentGroup
   }
 
+  private fun SearchEverywhereFoundElementInfo.withPriority(priority: Int): SearchEverywhereFoundElementInfo {
+    return SearchEverywhereFoundElementInfo(uuid, element, priority, contributor, correction)
+  }
+
   private fun List<SearchEverywhereFoundElementInfo>.toAdapter(): List<SearchResultAdapter.Raw> {
     return this.map {
       SearchResultAdapter.createAdapterFor(it)
