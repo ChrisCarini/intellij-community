@@ -357,25 +357,30 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
 
     private ConvertFieldToLocalQuickFix(@NotNull Map<PsiCodeBlock, List<PsiReferenceExpression>> refs) {
       final Set<PsiCodeBlock> blocks = refs.keySet();
-      final PsiElement block =
-        blocks.size() == 1
-        ? PsiTreeUtil.getParentOfType(blocks.toArray(PsiCodeBlock.EMPTY_ARRAY)[0], PsiClassInitializer.class, PsiMethod.class)
-        : null;
+      final PsiCodeBlock block = blocks.size() == 1 ? blocks.toArray(PsiCodeBlock.EMPTY_ARRAY)[0] : null;
       myName = determineName(block);
     }
 
-    private @NotNull @IntentionName String determineName(@Nullable PsiElement block) {
-      if (block instanceof PsiClassInitializer) return JavaBundle.message("inspection.field.can.be.local.quickfix.initializer");
-      if (block instanceof PsiMethod method) {
-        if (method.isConstructor()) return JavaBundle.message("inspection.field.can.be.local.quickfix.constructor");
-        return JavaBundle.message("inspection.field.can.be.local.quickfix.one.method", method.getName());
+    private @NotNull @IntentionName String determineName(@Nullable PsiCodeBlock block) {
+      if (block == null) return getFamilyName();
+      PsiMember parent = PsiTreeUtil.getParentOfType(block, PsiClassInitializer.class, PsiMethod.class);
+      if (parent instanceof PsiClassInitializer) return JavaBundle.message("inspection.field.can.be.local.quickfix.initializer");
+      if (parent instanceof PsiMethod method) {
+        return method.isConstructor()
+               ? JavaBundle.message("inspection.field.can.be.local.quickfix.constructor")
+               : JavaBundle.message("inspection.field.can.be.local.quickfix.one.method", method.getName());
       }
-      return getFamilyName();
+      return JavaBundle.message("inspection.field.can.be.local.quickfix");
     }
 
     @Override
     public @NotNull String getName() {
       return myName;
+    }
+
+    @Override
+    public @NotNull String getFamilyName() {
+      return JavaBundle.message("inspection.convert.to.local.family.name");
     }
 
     private static @NotNull String suggestLocalName(@NotNull PsiField field, @NotNull PsiCodeBlock scope) {
@@ -402,11 +407,6 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
         deleteField(variable, lastDeclaration);
       }
       return newDeclarations;
-    }
-
-    @Override
-    public @NotNull String getFamilyName() {
-      return JavaBundle.message("inspection.convert.to.local.quickfix");
     }
 
     @Override

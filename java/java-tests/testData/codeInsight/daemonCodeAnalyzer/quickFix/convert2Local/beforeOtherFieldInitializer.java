@@ -1,4 +1,4 @@
-// "Convert to local variable" "true-preview"
+// "Convert field to local variable" "true-preview"
 class Test {
 
   private String <caret>field;
