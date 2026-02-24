@@ -79,7 +79,6 @@ internal class AgentChatFileEditor(
         .workingDirectory(file.projectPath)
         .tabName(file.threadTitle)
         .shellCommand(file.shellCommand)
-        .useDefaultStartupEnvironment(true)
         .createTab()
       tab = createdTab
       component.removeAll()

@@ -52,7 +52,6 @@ import org.jetbrains.plugins.terminal.JBTerminalSystemSettingsProvider
 import org.jetbrains.plugins.terminal.ShellStartupOptions
 import org.jetbrains.plugins.terminal.TerminalEngine
 import org.jetbrains.plugins.terminal.TerminalOptionsProvider
-import org.jetbrains.plugins.terminal.TerminalStartupEnvironmentMode
 import org.jetbrains.plugins.terminal.TerminalTabCloseListener
 import org.jetbrains.plugins.terminal.TerminalToolWindowFactory
 import org.jetbrains.plugins.terminal.TerminalToolWindowInitializer
@@ -340,9 +339,6 @@ internal class TerminalToolWindowTabsManagerImpl(
     val baseOptions = ShellStartupOptions.Builder()
       .shellCommand(builder.shellCommand)
       .workingDirectory(builder.workingDirectory)
-      .startupEnvironmentMode(
-        if (builder.useDefaultStartupEnvironment) TerminalStartupEnvironmentMode.DEFAULT else TerminalStartupEnvironmentMode.MINIMAL
-      )
 
     return if (calculateSizeFromComponent) {
       withContext(Dispatchers.UI + ModalityState.any().asContextElement()) {
@@ -460,8 +456,6 @@ internal class TerminalToolWindowTabsManagerImpl(
       private set
     var startupFusInfo: TerminalStartupFusInfo? = null
       private set
-    var useDefaultStartupEnvironment: Boolean = false
-      private set
 
     var backendTabId: Int? = null
       private set
@@ -477,11 +471,6 @@ internal class TerminalToolWindowTabsManagerImpl(
 
     override fun shellCommand(command: List<String>?): TerminalToolWindowTabBuilder {
       shellCommand = command
-      return this
-    }
-
-    override fun useDefaultStartupEnvironment(useDefault: Boolean): TerminalToolWindowTabBuilder {
-      useDefaultStartupEnvironment = useDefault
       return this
     }
 

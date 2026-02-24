@@ -31,14 +31,6 @@ interface TerminalToolWindowTabBuilder {
   fun shellCommand(command: List<String>?): TerminalToolWindowTabBuilder
 
   /**
-   * If `true`, the shell process inherits the default parent environment.
-   * If `false`, a minimal parent environment is used.
-   *
-   * `false` by default.
-   */
-  fun useDefaultStartupEnvironment(useDefault: Boolean): TerminalToolWindowTabBuilder
-
-  /**
    * The title show in the tool window tab.
    *
    * If not specified, the default tab name specified in the Terminal settings will be used.

@@ -27,7 +27,6 @@ import com.intellij.platform.eel.provider.utils.awaitProcessResult
 import com.intellij.platform.eel.provider.utils.stderrString
 import com.intellij.platform.eel.provider.utils.stdoutString
 import com.intellij.platform.eel.spawnProcess
-import com.intellij.util.EnvironmentUtil
 import com.intellij.util.PathUtil
 import com.intellij.util.io.awaitExit
 import com.intellij.util.system.OS
@@ -240,28 +239,6 @@ internal fun fetchMinimalEnvironmentVariablesBlocking(eelDescriptor: EelDescript
   return runBlockingMaybeCancellable {
     eelDescriptor.toEelApi().fetchMinimalEnvironmentVariables()
   } 
-}
-
-internal suspend fun fetchDefaultEnvironmentVariables(api: EelApi): Map<String, String> {
-  return try {
-    when (val exec = api.exec) {
-      is EelExecPosixApi -> exec.environmentVariables().default().eelIt().await()
-      is EelExecWindowsApi -> exec.environmentVariables().eelIt().await()
-    }
-  }
-  catch (err: EelExecApi.EnvironmentVariablesException) {
-    log.warn("Failed to fetch default environment variables for ${api.descriptor}, using an empty environment", err)
-    return emptyMap()
-  }
-}
-
-internal fun fetchDefaultEnvironmentVariablesBlocking(eelDescriptor: EelDescriptor): Map<String, String> {
-  if (eelDescriptor == LocalEelDescriptor) {
-    return EnvironmentUtil.getEnvironmentMap()
-  }
-  return runBlockingMaybeCancellable {
-    fetchDefaultEnvironmentVariables(eelDescriptor.toEelApi())
-  }
 }
 
 

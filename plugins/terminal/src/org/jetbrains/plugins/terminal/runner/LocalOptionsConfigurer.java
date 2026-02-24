@@ -24,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.terminal.ShellStartupOptions;
 import org.jetbrains.plugins.terminal.TerminalProjectOptionsProvider;
-import org.jetbrains.plugins.terminal.TerminalStartupEnvironmentMode;
 import org.jetbrains.plugins.terminal.TerminalStartupKt;
 import org.jetbrains.plugins.terminal.util.TerminalEnvironment;
 
@@ -51,11 +50,7 @@ public final class LocalOptionsConfigurer {
     String workingDir = requestedWorkingDirectory != null ? requestedWorkingDirectory : getDefaultWorkingDirectory(project);
     List<String> initialCommand = getInitialCommand(baseOptions, project, workingDir, isRequestedWorkingDirectoryInvalid);
     var eelDescriptor = findEelDescriptor(workingDir, initialCommand);
-    Map<String, String> envs = getTerminalEnvironment(baseOptions.getEnvVariables(),
-                                                      baseOptions.getStartupEnvironmentMode(),
-                                                      project,
-                                                      eelDescriptor,
-                                                      initialCommand);
+    Map<String, String> envs = getTerminalEnvironment(baseOptions.getEnvVariables(), project, eelDescriptor, initialCommand);
 
     TerminalWidget widget = baseOptions.getWidget();
     if (widget != null) {
@@ -119,21 +114,15 @@ public final class LocalOptionsConfigurer {
   }
 
   private static @NotNull Map<String, String> getTerminalEnvironment(@NotNull Map<String, String> baseEnvs,
-                                                                      @NotNull TerminalStartupEnvironmentMode startupEnvironmentMode,
-                                                                      @NotNull Project project,
-                                                                      @NotNull EelDescriptor eelDescriptor,
-                                                                      @NotNull List<String> shellCommand) {
+                                                                     @NotNull Project project,
+                                                                     @NotNull EelDescriptor eelDescriptor,
+                                                                     @NotNull List<String> shellCommand) {
     final var isWindows = EelPlatformKt.isWindows(eelDescriptor.getOsFamily());
 
     Map<String, String> envs = isWindows ? CollectionFactory.createCaseInsensitiveStringMap() : new HashMap<>();
     EnvironmentVariablesData envData = TerminalProjectOptionsProvider.getInstance(project).getEnvData();
     if (envData.isPassParentEnvs()) {
-      if (startupEnvironmentMode == TerminalStartupEnvironmentMode.DEFAULT) {
-        envs.putAll(TerminalStartupKt.fetchDefaultEnvironmentVariablesBlocking(eelDescriptor));
-      }
-      else {
-        envs.putAll(TerminalStartupKt.fetchMinimalEnvironmentVariablesBlocking(eelDescriptor));
-      }
+      envs.putAll(TerminalStartupKt.fetchMinimalEnvironmentVariablesBlocking(eelDescriptor));
       EnvironmentRestorer.restoreOverriddenVars(envs);
       if (envs.isEmpty()) {
         LOG.warn("Empty parent environment for " + shellCommand + " on (" + eelDescriptor.getName() + ")");
