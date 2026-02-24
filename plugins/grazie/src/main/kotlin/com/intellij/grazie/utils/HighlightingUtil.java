@@ -9,10 +9,12 @@ import com.intellij.codeInspection.ex.InspectionProfileWrapper;
 import com.intellij.codeInspection.ex.ToolsImpl;
 import com.intellij.grazie.GrazieConfig;
 import com.intellij.grazie.ide.inspection.grammar.GrazieInspection;
+import com.intellij.grazie.ide.inspection.grammar.GrazieInspection.Companion.TextContentRelatedData;
 import com.intellij.grazie.jlanguage.Lang;
 import com.intellij.grazie.text.TextContent;
 import com.intellij.grazie.text.TextContent.TextDomain;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
@@ -39,6 +41,8 @@ import static com.intellij.grazie.text.TextExtractor.findAllTextContents;
 
 
 public final class HighlightingUtil {
+
+  private final static Logger LOGGER = Logger.getInstance(HighlightingUtil.class);
 
   public static final Comparator<TextContent> BY_TEXT_START = Comparator.comparing(tc -> tc.textOffsetToFile(0));
 
@@ -89,8 +93,11 @@ public final class HighlightingUtil {
   public static List<TextContent> getAllFileTexts(FileViewProvider vp) {
     return CachedValuesManager.getManager(vp.getManager().getProject()).getCachedValue(vp, () -> {
       List<TextContent> contents = ContainerUtil.sorted(findAllTextContents(vp, TextDomain.ALL), BY_TEXT_START);
-      return CachedValueProvider.Result.create(contents, vp.getAllFiles().getFirst(), grazieConfigTracker());
-    });
+      PsiFile file = vp.getAllFiles().getFirst();
+      TextContentRelatedData contentRelatedData = new TextContentRelatedData(file, contents);
+      LOGGER.debug("Evaluating texts of:", contentRelatedData);
+      return CachedValueProvider.Result.create(contentRelatedData, file, grazieConfigTracker());
+    }).getContents();
   }
 
   public static boolean isSpace(Character symbol) {
