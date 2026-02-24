@@ -19,7 +19,6 @@ import com.intellij.remoteDev.tests.impl.utils.waitSuspending
 import com.intellij.testFramework.utils.io.deleteRecursively
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.extension.AfterEachCallback
@@ -133,7 +132,7 @@ class ProjectResetCallback : BeforeEachCallback, AfterEachCallback {
       }
     }
     IdeInstance.ide.runInFrontend("Wait for no projects to be opened", globalTestScope = true) {
-      waitForNoProjects()
+      waitForNoProjects(timeout = 10.seconds)
     }
   }
 
@@ -163,7 +162,7 @@ class ProjectResetCallback : BeforeEachCallback, AfterEachCallback {
     }
 
     ide.runInFrontend("Wait for project to be opened", globalTestScope = true) {
-      waitForProject()
+      waitForProject(timeout = 10.seconds)
     }
   }
 }
