@@ -32,6 +32,7 @@ import com.intellij.ide.ui.laf.LookAndFeelThemeAdapterKt;
 import com.intellij.idea.AppMode;
 import com.intellij.openapi.application.impl.ApplicationInfoImpl;
 import com.intellij.openapi.application.migrations.BigDataToolsMigration253;
+import com.intellij.openapi.application.migrations.CwmMigration261;
 import com.intellij.openapi.application.migrations.Localization242;
 import com.intellij.openapi.application.migrations.NotebooksMigration242;
 import com.intellij.openapi.application.migrations.SpaceMigration252;
@@ -1124,6 +1125,7 @@ public final class ConfigImportHelper {
     new SpaceMigration252().migratePlugins(options);
     new BigDataToolsMigration253().migratePlugins(options);
     new VcsPluginsMigration261().migratePlugins(options);
+    new CwmMigration261().migratePlugins(options);
   }
 
   private static void migrateGlobalPlugins(
