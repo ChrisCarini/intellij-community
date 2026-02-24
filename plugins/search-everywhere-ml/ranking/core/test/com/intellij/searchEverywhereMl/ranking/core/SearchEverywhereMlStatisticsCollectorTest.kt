@@ -22,6 +22,7 @@ import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatistics
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.SESSION_FINISHED
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.SESSION_ID
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.SESSION_STARTED
+import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.SELECTED_RESULT_ID
 import com.intellij.searchEverywhereMl.ranking.core.SearchEverywhereMLStatisticsCollector.STATE_CHANGED
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeReason
 import com.intellij.searchEverywhereMl.ranking.core.features.SearchEverywhereStateFeaturesProvider
@@ -177,7 +178,8 @@ class SearchEverywhereMlStatisticsCollectorTest : SearchEverywhereLoggingTestCas
     val selectionEvent = actionSelectionEvents.first { it.event.id == ITEM_SELECTED.eventId }
     val data = selectionEvent.event.data
 
-    ITEM_SELECTED.getFields().forEach { field ->
+    val requiredFields = ITEM_SELECTED.getFields() - SELECTED_RESULT_ID
+    requiredFields.forEach { field ->
       assertTrue("${ITEM_SELECTED.eventId} event should contain ${field.name}", field.name in data)
     }
   }

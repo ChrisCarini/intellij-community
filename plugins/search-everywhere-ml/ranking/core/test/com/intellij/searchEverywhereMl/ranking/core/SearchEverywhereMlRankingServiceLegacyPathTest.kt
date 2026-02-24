@@ -53,8 +53,9 @@ class SearchEverywhereMlRankingServiceLegacyPathTest : SearchEverywhereLoggingTe
     val textChangeEvents = events.filter { it.event.id == STATE_CHANGED.eventId }.drop(1)
     textChangeEvents.forEach { event ->
       val changeReason = event.event.data[REBUILD_REASON_KEY.name]
-      assertEquals(SearchStateChangeReason.QUERY_CHANGE.toString(), changeReason,
-                   "State change after typing should be QUERY_CHANGE")
+      assertEquals("State change after typing should be QUERY_CHANGE",
+                   SearchStateChangeReason.QUERY_CHANGE.toString(),
+                   changeReason)
     }
   }
 
