@@ -83,10 +83,12 @@ f:com.intellij.openapi.actionSystem.remoting.PermissionsKt
 - *sf:Companion:com.intellij.openapi.client.ClientSystemInfo$Companion
 - sf:isMac():Z
 - sf:isWaylandToolkit():Z
+- sf:isWindowRoundedCornersManagerAvailable():java.lang.Boolean
 - sf:isWindows():Z
 *f:com.intellij.openapi.client.ClientSystemInfo$Companion
 - f:isMac():Z
 - f:isWaylandToolkit():Z
+- f:isWindowRoundedCornersManagerAvailable():java.lang.Boolean
 - f:isWindows():Z
 com.intellij.openapi.fileEditor.AsyncFileEditorProvider
 - com.intellij.openapi.fileEditor.FileEditorProvider
