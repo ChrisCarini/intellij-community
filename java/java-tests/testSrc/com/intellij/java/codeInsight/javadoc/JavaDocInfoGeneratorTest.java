@@ -160,6 +160,7 @@ public class JavaDocInfoGeneratorTest extends JavaCodeInsightTestCase {
   public void testSuperJavadocErasureResolve() { doTestAtCaret(); }
   public void testPackageInfo() { doTestPackageInfo(); }
   public void testPackageWithoutPackageInfo() { doTestPackageInfo(); }
+  public void testEmptyPackage() { doTestPackageInfo(); }
   public void testPackageHtml() { doTestPackageInfo(); }
   public void testSyntheticEnumValues() { doTestAtCaret(); }
   public void testVariableDoc() { doTestAtCaret(); }

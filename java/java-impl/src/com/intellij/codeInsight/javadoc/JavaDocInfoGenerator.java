@@ -1236,12 +1236,14 @@ public class JavaDocInfoGenerator {
   }
 
   private void generateDefaultPackageDoc(StringBuilder buffer, PsiPackage aPackage, boolean generatePrologue) {
+    PsiClass[] classes = aPackage.getClasses();
+    if (classes.length == 0) return;
     if (generatePrologue) generatePrologue(buffer);
     HtmlBuilder hb = new HtmlBuilder();
     hb.append(HtmlChunk.tag("h3").addText(JavaBundle.message("package.classes")));
     Comparator<PsiClass> comparator = Comparator.comparing(PsiClass::getName, Comparator.nullsLast(Comparator.naturalOrder()));
     Set<String> links = new HashSet<>();
-    Arrays.stream(aPackage.getClasses()).sorted(comparator).forEach(psiClass -> {
+    Arrays.stream(classes).sorted(comparator).forEach(psiClass -> {
       String link = generateLink(psiClass, psiClass.getName());
       if (link != null && links.add(link)) {
         hb.append(HtmlChunk.tag("div")
