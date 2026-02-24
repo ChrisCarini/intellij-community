@@ -55,6 +55,7 @@ import com.intellij.psi.javadoc.PsiDocTagValue;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiUtil;
 import com.intellij.util.CommonJavaRefactoringUtil;
+import com.intellij.util.containers.ContainerUtil;
 import com.siyeh.ig.psiutils.CommentTracker;
 import com.siyeh.ig.psiutils.VariableAccessUtils;
 import org.jdom.Element;
@@ -296,12 +297,7 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
   }
 
   private static boolean hasImplicitReadOrWriteUsage(PsiField field, List<? extends ImplicitUsageProvider> implicitUsageProviders) {
-    for (ImplicitUsageProvider provider : implicitUsageProviders) {
-      if (provider.isImplicitRead(field) || provider.isImplicitWrite(field)) {
-        return true;
-      }
-    }
-    return false;
+    return ContainerUtil.exists(implicitUsageProviders, provider -> provider.isImplicitRead(field));
   }
 
   private static boolean groupByCodeBlocks(Collection<? extends PsiReferenceExpression> allReferences,

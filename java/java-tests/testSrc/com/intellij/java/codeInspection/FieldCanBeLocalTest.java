@@ -71,6 +71,22 @@ public class FieldCanBeLocalTest extends LightJavaCodeInsightFixtureTestCase {
     doTest(inspection);
   }
 
+  public void testMockito() {
+    myFixture.addClass("""
+                         package org.mockito;
+                         public @interface Mock {}
+                         """);
+    myFixture.addClass("""
+                         package org.mockito;
+                         public class Mockito {
+                           public static <T> T mock(Class<T> classToMock) {
+                             return null;
+                           }
+                         }
+                         """);
+    doTest();
+  }
+
   public void testStaticFinal() { doTest(); }
   public void testTwoMethods() { doTest(); }
   public void testNotConstantInitializer() { doTest(); }
