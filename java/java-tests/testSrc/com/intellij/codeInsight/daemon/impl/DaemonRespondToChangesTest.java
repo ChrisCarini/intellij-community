@@ -38,7 +38,6 @@ import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.ide.GeneralSettings;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.ide.highlighter.XmlFileType;
-import com.intellij.idea.IJIgnore;
 import com.intellij.javaee.ExternalResourceManagerExBase;
 import com.intellij.lang.LanguageFilter;
 import com.intellij.lang.annotation.AnnotationHolder;
@@ -1967,18 +1966,18 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       }
       LOG.debug(getClass()+".annotate("+element+") = "+didIDoIt());
     }
-    static List<HighlightInfo> myHighlights(MarkupModel markupModel) {
+    private static List<HighlightInfo> myHighlights(MarkupModel markupModel) {
       return Arrays.stream(markupModel.getAllHighlighters())
         .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
         .filter(Objects::nonNull)
         .filter(info -> SWEARING.equals(info.getDescription())).toList();
     }
-    static List<HighlightInfo> syntaxHighlights(MarkupModel markupModel, String description) {
-      return Arrays.stream(markupModel.getAllHighlighters())
-            .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
-            .filter(Objects::nonNull)
-            .filter(info -> description.equals(info.getDescription())).toList();
-    }
+  }
+  private static List<HighlightInfo> highlightsWithDescription(MarkupModel markupModel, String description) {
+    return Arrays.stream(markupModel.getAllHighlighters())
+          .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
+          .filter(Objects::nonNull)
+          .filter(info -> description.equals(info.getDescription())).toList();
   }
 
   public void testInvalidPSIElementsCreatedByTypingNearThemMustBeRemovedImmediatelyMeaningLongBeforeTheHighlightingPassFinished() {
@@ -1996,7 +1995,6 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
     assertInvalidPSIElementHighlightingIsRemovedImmediatelyAfterRepairingChange(text, "';' expected", () -> backspace());
   }
 
-  @IJIgnore(issue = "IJPL-217356")
   public void testInvalidPSIElementsCreatedByTypingNearThemMustBeRemovedImmediatelyMeaningLongBeforeTheHighlightingPassFinished2() {
     @Language("JAVA")
     String text = """
@@ -2023,7 +2021,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
     DaemonAnnotatorsRespondToChangesTest.useAnnotatorsIn(JavaFileType.INSTANCE.getLanguage(), new DaemonAnnotatorsRespondToChangesTest.MyRecordingAnnotator[]{new MyVerySlowAnnotator()}, ()->{
       MarkupModel markupModel = DocumentMarkupModel.forDocument(getEditor().getDocument(), getProject(), true);
       myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
-      assertNotEmpty(MyVerySlowAnnotator.syntaxHighlights(markupModel, errorDescription));
+      assertNotEmpty(highlightsWithDescription(markupModel, errorDescription));
       assertNotEmpty(MyVerySlowAnnotator.myHighlights(markupModel));
 
       MyVerySlowAnnotator.wait.set(true);
@@ -2033,7 +2031,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       TestTimeOut n = TestTimeOut.setTimeout(100, TimeUnit.SECONDS);
       Runnable checkHighlighted = () -> {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
-        if (MyVerySlowAnnotator.syntaxHighlights(markupModel, errorDescription).isEmpty() && MyVerySlowAnnotator.wait.get()) {
+        if (highlightsWithDescription(markupModel, errorDescription).isEmpty() && MyVerySlowAnnotator.wait.get()) {
           // removed before highlighting is finished
           MyVerySlowAnnotator.wait.set(false);
           success.set(true);
@@ -2052,7 +2050,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
         MyVerySlowAnnotator.wait.set(false);
       }
 
-      assertEmpty(MyVerySlowAnnotator.syntaxHighlights(markupModel, errorDescription));
+      assertEmpty(highlightsWithDescription(markupModel, errorDescription));
       assertNotEmpty(MyVerySlowAnnotator.myHighlights(markupModel));
       assertTrue(success.get());
     });
