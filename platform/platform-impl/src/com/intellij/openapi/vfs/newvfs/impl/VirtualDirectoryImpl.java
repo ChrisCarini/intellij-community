@@ -10,7 +10,6 @@ import com.intellij.openapi.util.IntRef;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.ThrowableComputable;
-import com.intellij.openapi.util.io.FileAttributes;
 import com.intellij.openapi.util.io.FileAttributes.CaseSensitivity;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.InvalidVirtualFileAccessException;
@@ -430,20 +429,21 @@ public class VirtualDirectoryImpl extends VirtualFileSystemEntry {
     return child;
   }
 
-  @Nullable
-  public static VFileCreateEvent createCreateEvent(@NotNull VirtualFile directory,
-                                                    @NotNull FakeVirtualFile fakeChild,
-                                                    @NotNull String canonicallyCasedName,
-                                                    @NotNull NewVirtualFileSystem fileSystem) {
-    FileAttributes attributes = fileSystem.getAttributes(fakeChild);
+  public static @Nullable VFileCreateEvent createCreateEvent(
+    @NotNull VirtualFile directory,
+    @NotNull FakeVirtualFile fakeChild,
+    @NotNull String canonicallyCasedName,
+    @NotNull NewVirtualFileSystem fileSystem
+  ) {
+    var attributes = fileSystem.getAttributes(fakeChild);
     if (attributes == null) {
       return null;
     }
 
-    boolean isDirectory = attributes.isDirectory();
-    boolean isEmptyDirectory = isDirectory && !fileSystem.hasChildren(fakeChild);
-    String symlinkTarget = attributes.isSymLink() ? fileSystem.resolveSymLink(fakeChild) : null;
-    ChildInfo[] children = isEmptyDirectory ? ChildInfo.EMPTY_ARRAY : null;
+    var isDirectory = attributes.isDirectory();
+    var isEmptyDirectory = isDirectory && !fileSystem.hasChildren(fakeChild);
+    var symlinkTarget = attributes.isSymLink() ? fileSystem.resolveSymLink(fakeChild) : null;
+    var children = isEmptyDirectory ? ChildInfo.EMPTY_ARRAY : null;
     return new VFileCreateEvent(REFRESH_REQUESTOR, directory, canonicallyCasedName, isDirectory, attributes, symlinkTarget, children);
   }
 

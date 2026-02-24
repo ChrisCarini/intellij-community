@@ -931,57 +931,63 @@ public class LocalFileSystemTest extends BareTestFixtureTestCase {
     checkAttributesAreEqual(root, (LocalFileSystemImpl)myFS);
   }
 
-  @SuppressWarnings("IO_FILE_USAGE")
   @Test
+  @SuppressWarnings("IO_FILE_USAGE")
   public void testRefreshIoFiles() {
-    LocalFileSystem fs = LocalFileSystem.getInstance();
-    testRefreshFiles(relativePath -> tempDir.newDirectory(relativePath),
-                     relativePath -> tempDir.newFile(relativePath),
-                     (file, child) -> file.toPath().resolve(child).toFile(),
-                     path -> fs.findFileByIoFile(path),
-                     files -> fs.refreshIoFiles(files));
+    var fs = LocalFileSystem.getInstance();
+    testRefreshFiles(
+      relativePath -> tempDir.newDirectoryPath(relativePath).toFile(),
+      relativePath -> tempDir.newFileNio(relativePath).toFile(),
+      (file, child) -> file.toPath().resolve(child).toFile(),
+      path -> fs.findFileByIoFile(path),
+      files -> fs.refreshIoFiles(files)
+    );
   }
 
   @Test
   public void testRefreshNioFiles() {
-    LocalFileSystem fs = LocalFileSystem.getInstance();
-    testRefreshFiles(relativePath -> tempDir.newDirectoryPath(relativePath),
-                     relativePath -> tempDir.newFileNio(relativePath),
-                     (path, child) -> path.resolve(child),
-                     path -> fs.findFileByNioFile(path),
-                     files -> fs.refreshNioFiles(files));
+    var fs = LocalFileSystem.getInstance();
+    testRefreshFiles(
+      relativePath -> tempDir.newDirectoryPath(relativePath),
+      relativePath -> tempDir.newFileNio(relativePath),
+      (path, child) -> path.resolve(child),
+      path -> fs.findFileByNioFile(path),
+      files -> fs.refreshNioFiles(files)
+    );
   }
 
-  private <T> void testRefreshFiles(Function<String, T> createDir,
-                                    Function<String, T> createFile,
-                                    BiFunction<T, String, T> addPath,
-                                    Function<T, VirtualFile> findFile,
-                                    Consumer<List<T>> refresh) {
-    String dirName = "dir";
-    T directory = createDir.apply("dir");
-    T preloadedFile = createFile.apply(dirName + "/preloaded_file.txt");
+  private <T> void testRefreshFiles(
+    Function<String, T> createDir,
+    Function<String, T> createFile,
+    BiFunction<T, String, T> addPath,
+    Function<T, VirtualFile> findFile,
+    Consumer<List<T>> refresh
+  ) {
+    var dirName = "dir";
+    var directory = createDir.apply("dir");
+    var preloadedFile = createFile.apply(dirName + "/preloaded_file.txt");
     assertNotNull(findFile.apply(preloadedFile));
-    VirtualFile vDirectory = findFile.apply(directory);
+    var vDirectory = findFile.apply(directory);
     assertNotNull(vDirectory);
 
     vDirectory.getChildren(); // cache children list
-    T newFile = createFile.apply(dirName + "/new_file.txt");
-    T newFile2 = createFile.apply(dirName + "/new_file_2.txt");
-    T deepFile = createFile.apply(dirName + "/a/b/c/d/deep_file.txt");
-    T nonExistingFile = addPath.apply(directory, dirName + "non_existing_file.txt");
+    var newFile = createFile.apply(dirName + "/new_file.txt");
+    var newFile2 = createFile.apply(dirName + "/new_file_2.txt");
+    var deepFile = createFile.apply(dirName + "/a/b/c/d/deep_file.txt");
+    var nonExistingFile = addPath.apply(directory, dirName + "non_existing_file.txt");
     assertNull(findFile.apply(newFile));
     assertNull(findFile.apply(newFile2));
     assertNull(findFile.apply(deepFile));
 
-    final int[] invocationsCount = {0};
-    List<String> names = new ArrayList<>();
+    var invocationsCount = new int[]{0};
+    var names = new ArrayList<String>();
 
     var connection = ApplicationManager.getApplication().getMessageBus().connect(getTestRootDisposable());
     connection.subscribe(VirtualFileManager.VFS_CHANGES, new BulkFileListener() {
       @Override
       public void after(@NotNull List<? extends @NotNull VFileEvent> events) {
         invocationsCount[0]++;
-        for (VFileEvent event : events) {
+        for (var event : events) {
           if (event instanceof VFileCreateEvent) {
             names.add(event.getFile().getName());
           }
@@ -1134,7 +1140,7 @@ public class LocalFileSystemTest extends BareTestFixtureTestCase {
     Files.walkFileTree(top, new SimpleFileVisitor<>() {
       @Override
       public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
-        for (int k = 1; k <= 3; k++) {
+        for (var k = 1; k <= 3; k++) {
           var name = "file_" + k;
           IoTestUtil.unchecked(() -> Files.writeString(dir.resolve(name), "."));
         }
