@@ -11503,6 +11503,11 @@ public abstract class K1QuickFixTestGenerated extends AbstractK1QuickFixTest {
             runTest("testData/quickfix/memberVisibilityCanBePrivate/constructorParam.kt");
         }
 
+        @TestMetadata("interdependentProperties.kt")
+        public void testInterdependentProperties() throws Exception {
+            runTest("testData/quickfix/memberVisibilityCanBePrivate/interdependentProperties.kt");
+        }
+
         @TestMetadata("internal.kt")
         public void testInternal() throws Exception {
             runTest("testData/quickfix/memberVisibilityCanBePrivate/internal.kt");
