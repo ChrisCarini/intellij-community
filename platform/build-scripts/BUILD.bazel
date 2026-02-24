@@ -58,7 +58,7 @@ jvm_library(
     "//libraries/blockmap",
     "//libraries/commons/io",
     "//libraries/bouncy-castle-provider",
-    "@lib//:platform-build_scripts-jetbrains-format-ripper",
+    "@lib//:jetbrains-format-ripper",
     "//libraries/http-client",
     "@lib//:slf4j-api",
     "@lib//:platform-build_scripts-jetbrains-apple-notary-api-kotlin-client",
