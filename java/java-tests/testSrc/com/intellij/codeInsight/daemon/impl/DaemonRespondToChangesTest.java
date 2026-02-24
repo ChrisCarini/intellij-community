@@ -2037,18 +2037,16 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
           // removed before highlighting is finished
           MyVerySlowAnnotator.wait.set(false);
           success.set(true);
+          return;
         }
         if (n.isTimedOut()) {
+          String dump = MyVerySlowAnnotator.wait + ThreadDumper.dumpThreadsToString();
           MyVerySlowAnnotator.wait.set(false);
-          throw new RuntimeException(new TimeoutException(ThreadDumper.dumpThreadsToString()));
+          throw new RuntimeException(new TimeoutException(dump));
         }
       };
       try {
         myTestDaemonCodeAnalyzer.waitForDaemonToFinish(getProject(), getEditor().getDocument(), checkHighlighted);
-      }
-      catch (Exception e) {
-        MyVerySlowAnnotator.wait.set(false);
-        throw new RuntimeException(e);
       }
       finally {
         MyVerySlowAnnotator.wait.set(false);
