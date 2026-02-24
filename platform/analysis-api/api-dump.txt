@@ -96,6 +96,7 @@ com.intellij.codeInsight.daemon.ImplicitUsageProvider
 - a:isImplicitUsage(com.intellij.psi.PsiElement):Z
 - a:isImplicitWrite(com.intellij.psi.PsiElement):Z
 - isImplicitlyNotNullInitialized(com.intellij.psi.PsiElement):Z
+- isReferencedByAlternativeNames(com.intellij.psi.PsiElement):Z
 com.intellij.codeInsight.daemon.QuickFixActionRegistrar
 - a:register(com.intellij.codeInsight.intention.IntentionAction):V
 - a:register(com.intellij.openapi.util.TextRange,com.intellij.codeInsight.intention.IntentionAction,com.intellij.codeInsight.daemon.HighlightDisplayKey):V

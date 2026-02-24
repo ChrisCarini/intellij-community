@@ -49,4 +49,18 @@ public interface ImplicitUsageProvider {
   default boolean isClassWithCustomizedInitialization(@NotNull PsiElement element) {
     return false;
   }
+
+  /**
+   * @return true if the given element may be referenced from code using names different from its declared name.
+   * <p>
+   * When this returns true, the unused symbol detection will not short-circuit based on a text search
+   * for the element's name and will instead perform a full reference search.
+   * <p>
+   * Example: Cucumber step definition methods are referenced from Gherkin files by step text patterns
+   * (e.g., "I am happy") rather than by the Java method name (e.g., "i_am_happy").
+   * @see <a href="https://youtrack.jetbrains.com/issue/IDEA-386128">IDEA-386128</a>
+   */
+  default boolean isReferencedByAlternativeNames(@NotNull PsiElement element) {
+    return false;
+  }
 }
