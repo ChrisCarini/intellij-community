@@ -1,7 +1,8 @@
 package com.intellij.searchEverywhereMl.ranking.core.adapters
 
 import com.intellij.searchEverywhereMl.ranking.core.MockSearchEverywhereContributor
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
 
 class SearchResultProviderAdapterTest {
