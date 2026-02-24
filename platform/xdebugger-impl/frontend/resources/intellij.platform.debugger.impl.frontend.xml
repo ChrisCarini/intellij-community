@@ -1,7 +1,7 @@
 <idea-plugin visibility="internal">
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
   <dependencies>
     <module name="intellij.platform.rpc.topics.frontend"/>
-    <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
     <module name="intellij.platform.analysis"/>
     <module name="intellij.platform.core"/>
     <module name="intellij.platform.core.impl"/>
@@ -17,8 +17,9 @@
     <module name="intellij.platform.lang.impl"/>
     <module name="intellij.platform.projectModel"/>
     <module name="intellij.platform.rpc.topics"/>
-    <!-- endregion -->
+    <module name="intellij.platform.util.ui"/>
   </dependencies>
+  <!-- endregion -->
   <extensionPoints>
     <extensionPoint name="xdebugger.imageEditorUIProvider"
                     interface="com.intellij.platform.debugger.impl.frontend.frame.ImageEditorUIProvider" dynamic="true"/>
