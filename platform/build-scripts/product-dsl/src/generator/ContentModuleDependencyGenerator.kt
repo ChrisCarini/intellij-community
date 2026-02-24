@@ -282,12 +282,22 @@ private fun buildContentModuleDependencyPlanFromInfoWithBothSets(
     val module = contentModule(contentModuleName)
     isTestDescriptor || (module != null && !hasProductionContentSource(module.id))
   }
+  // Test-runtime-only modules must keep all required library dependencies.
+  // Product-level library filters target production outputs and would drop
+  // required test libraries (for example, assertj) for these modules.
+  val effectiveLibraryModuleFilter: (String) -> Boolean =
+    if (includeTestScopeForWrittenDeps) {
+      { true }
+    }
+    else {
+      libraryModuleFilter
+    }
   val prodGraphDeps = graph.query {
     computeJpsDeps(
       graph = graph,
       moduleName = contentModuleName,
       includeTestScope = includeTestScopeForWrittenDeps,
-      libraryModuleFilter = libraryModuleFilter,
+      libraryModuleFilter = effectiveLibraryModuleFilter,
     )
   }
   val prodGraphModuleDeps = prodGraphDeps.moduleDeps
@@ -330,7 +340,7 @@ private fun buildContentModuleDependencyPlanFromInfoWithBothSets(
     graph = graph,
     moduleName = contentModuleName,
     includeTestScope = true,
-    libraryModuleFilter = libraryModuleFilter,
+    libraryModuleFilter = effectiveLibraryModuleFilter,
   ).moduleDeps
 
   for (depModule in testGraphModuleDeps) {

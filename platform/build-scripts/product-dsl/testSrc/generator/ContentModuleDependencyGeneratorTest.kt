@@ -316,6 +316,57 @@ class ContentModuleDependencyGeneratorTest {
     }
 
     @Test
+    fun `test plugin only module bypasses library filter for written and test deps`(@TempDir tempDir: Path) {
+      runBlocking(Dispatchers.Default) {
+        val setup = pluginTestSetup(tempDir) {
+          contentModule("intellij.libraries.assertj.core") {
+            descriptor = """<idea-plugin package="assertj"/>"""
+          }
+
+          contentModule("intellij.test.only.consumer") {
+            descriptor = """<idea-plugin package="test.only.consumer"/>"""
+            jpsDependency("intellij.libraries.assertj.core", JpsJavaDependencyScope.TEST)
+          }
+
+          plugin("intellij.test.plugin") {
+            isTestPlugin = true
+            content("intellij.test.only.consumer")
+            content("intellij.libraries.assertj.core")
+          }
+        }
+
+        val graph = pluginGraph {
+          moduleWithScopedDeps("intellij.libraries.assertj.core")
+          moduleWithScopedDeps("intellij.test.only.consumer", "intellij.libraries.assertj.core" to "TEST")
+          testPlugin("intellij.test.plugin") {
+            testContent("intellij.test.only.consumer")
+            testContent("intellij.libraries.assertj.core")
+          }
+        }
+
+        val descriptorCache = ModuleDescriptorCache(setup.jps.outputProvider, this)
+        val generation = planContentModuleDependenciesWithBothSets(
+          contentModuleName = ContentModuleName("intellij.test.only.consumer"),
+          descriptorCache = descriptorCache,
+          pluginGraph = graph,
+          isTestDescriptor = false,
+          suppressionConfig = SuppressionConfig(),
+          updateSuppressions = false,
+          libraryModuleFilter = { libraryModuleName -> !libraryModuleName.contains(".assertj.") },
+        )
+        val plan = generation.plan
+        assertThat(plan).isNotNull()
+
+        assertThat(plan!!.moduleDependencies)
+          .describedAs("Test-only module should keep filtered library in written deps")
+          .contains(ContentModuleName("intellij.libraries.assertj.core"))
+        assertThat(plan.testDependencies)
+          .describedAs("Test-only module should keep filtered library in test deps")
+          .contains(ContentModuleName("intellij.libraries.assertj.core"))
+      }
+    }
+
+    @Test
     fun `module shared with production source does not include TEST scope dependency in written deps`(@TempDir tempDir: Path) {
       runBlocking(Dispatchers.Default) {
         val setup = pluginTestSetup(tempDir) {
@@ -352,6 +403,64 @@ class ContentModuleDependencyGeneratorTest {
             .describedAs("Module with a production content source should keep TEST scope deps out of written XML")
             .doesNotContain(ContentModuleName("intellij.test.only.lib"))
         }
+      }
+    }
+
+    @Test
+    fun `module shared with production source still applies library filter`(@TempDir tempDir: Path) {
+      runBlocking(Dispatchers.Default) {
+        val setup = pluginTestSetup(tempDir) {
+          contentModule("intellij.libraries.assertj.core") {
+            descriptor = """<idea-plugin package="assertj"/>"""
+          }
+
+          contentModule("intellij.shared.consumer") {
+            descriptor = """<idea-plugin package="shared.consumer"/>"""
+            jpsDependency("intellij.libraries.assertj.core", JpsJavaDependencyScope.TEST)
+          }
+
+          plugin("intellij.production.plugin") {
+            content("intellij.shared.consumer")
+          }
+
+          plugin("intellij.test.plugin") {
+            isTestPlugin = true
+            content("intellij.shared.consumer")
+            content("intellij.libraries.assertj.core")
+          }
+        }
+
+        val graph = pluginGraph {
+          moduleWithScopedDeps("intellij.libraries.assertj.core")
+          moduleWithScopedDeps("intellij.shared.consumer", "intellij.libraries.assertj.core" to "TEST")
+          plugin("intellij.production.plugin") {
+            content("intellij.shared.consumer")
+          }
+          testPlugin("intellij.test.plugin") {
+            testContent("intellij.shared.consumer")
+            testContent("intellij.libraries.assertj.core")
+          }
+        }
+
+        val descriptorCache = ModuleDescriptorCache(setup.jps.outputProvider, this)
+        val generation = planContentModuleDependenciesWithBothSets(
+          contentModuleName = ContentModuleName("intellij.shared.consumer"),
+          descriptorCache = descriptorCache,
+          pluginGraph = graph,
+          isTestDescriptor = false,
+          suppressionConfig = SuppressionConfig(),
+          updateSuppressions = false,
+          libraryModuleFilter = { libraryModuleName -> !libraryModuleName.contains(".assertj.") },
+        )
+        val plan = generation.plan
+        assertThat(plan).isNotNull()
+
+        assertThat(plan!!.moduleDependencies)
+          .describedAs("Shared module should keep production library filtering in written deps")
+          .doesNotContain(ContentModuleName("intellij.libraries.assertj.core"))
+        assertThat(plan.testDependencies)
+          .describedAs("Shared module should keep production library filtering in test deps")
+          .doesNotContain(ContentModuleName("intellij.libraries.assertj.core"))
       }
     }
   }

@@ -1,6 +1,9 @@
 <idea-plugin>
   <dependencies>
     <plugin id="training"/>
+    <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+    <module name="intellij.libraries.assertj.core"/>
     <module name="intellij.platform.testFramework"/>
+    <!-- endregion -->
   </dependencies>
 </idea-plugin>
