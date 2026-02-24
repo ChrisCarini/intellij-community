@@ -58,6 +58,12 @@ public class FieldCanBeLocalTest extends LightJavaCodeInsightFixtureTestCase {
   public void testInnerClassFieldInitializer() { doTest(); }
   public void testFieldWithImmutableType() { doTest(); }
 
+  public void testLambda() {
+    final FieldCanBeLocalInspection inspection = new FieldCanBeLocalInspection();
+    inspection.IGNORE_FIELDS_USED_IN_MULTIPLE_METHODS = false;
+    doTest(inspection);
+  }
+
   public void testTwoMethodsNotIgnoreMultipleMethods () {
     final FieldCanBeLocalInspection inspection = new FieldCanBeLocalInspection();
     inspection.IGNORE_FIELDS_USED_IN_MULTIPLE_METHODS = false;

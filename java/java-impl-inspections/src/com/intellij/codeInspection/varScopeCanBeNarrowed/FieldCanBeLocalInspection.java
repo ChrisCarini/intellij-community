@@ -55,7 +55,6 @@ import com.intellij.psi.javadoc.PsiDocTagValue;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiUtil;
 import com.intellij.util.CommonJavaRefactoringUtil;
-import com.intellij.util.containers.ContainerUtil;
 import com.siyeh.ig.psiutils.CommentTracker;
 import com.siyeh.ig.psiutils.VariableAccessUtils;
 import org.jdom.Element;
@@ -66,7 +65,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -209,8 +208,8 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
   }
 
   private void removeReadFields(PsiClass aClass, Set<? super PsiField> candidates) {
-    final Set<PsiVariable> ignored = new HashSet<>();
-    final Set<PsiVariable> usedFields = new HashSet<>();
+    final Set<PsiField> ignored = new HashSet<>();
+    final Set<PsiField> usedFields = new HashSet<>();
     aClass.accept(new JavaRecursiveElementWalkingVisitor() {
       @Override
       public void visitElement(@NotNull PsiElement element) {
@@ -251,34 +250,37 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
     try {
       final ControlFlow controlFlow =
         ControlFlowFactory.getControlFlow(body, AllVariablesControlFlowPolicy.getInstance(), ControlFlowOptions.NO_CONST_EVALUATE);
-      final List<PsiField> usedVars = ContainerUtil.filterIsInstance(
-        ControlFlowUtil.getUsedVariables(controlFlow, 0, controlFlow.getSize()), PsiField.class);
+      final List<PsiVariable> usedVars = ControlFlowUtil.getUsedVariables(controlFlow, 0, controlFlow.getSize());
       if (usedVars.isEmpty()) return;
-
       final Collection<PsiVariable> writtenVariables = ControlFlowUtil.getWrittenVariables(controlFlow, 0, controlFlow.getSize(), false);
-      for (PsiField usedVariable : usedVars) {
-        if (!writtenVariables.contains(usedVariable)) {
-          ignored.add(usedVariable);
-        }
-
-        if (!usedFields.add(usedVariable) && (IGNORE_FIELDS_USED_IN_MULTIPLE_METHODS || ignored.contains(usedVariable))) {
-          candidates.remove(usedVariable); //used in more than one code block
-        }
-      }
-      if (candidates.isEmpty()) return;
 
       for (PsiReferenceExpression readBeforeWrite : ControlFlowUtil.getReadBeforeWrite(controlFlow)) {
         final PsiElement resolved = readBeforeWrite.resolve();
+        if (!PsiUtil.isAccessedForReading(readBeforeWrite) && PsiUtil.isAccessedForWriting(readBeforeWrite)) {
+          // access from anonymous/local class or lambda
+          usedVars.remove(resolved);
+          continue;
+        }
         if (resolved instanceof PsiField field &&
-            (!isImmutable(field.getType()) || !PsiUtil.isConstantExpression(field.getInitializer()) ||
-             writtenVariables.contains(field))) {
-          PsiElement parent = body.getParent();
-          if (parent instanceof PsiMethod method && method.isConstructor() &&
+            (!isImmutable(field.getType()) || !PsiUtil.isConstantExpression(field.getInitializer()) || writtenVariables.contains(field))) {
+          if (body.getParent() instanceof PsiMethod method && method.isConstructor() &&
               field.getInitializer() != null && !field.hasModifierProperty(PsiModifier.STATIC) &&
               PsiTreeUtil.isAncestor(method.getContainingClass(), field, true)) {
             continue;
           }
           candidates.remove(field);
+        }
+      }
+      if (candidates.isEmpty()) return;
+
+      for (PsiVariable usedVariable : usedVars) {
+        if (!(usedVariable instanceof PsiField usedField)) continue;
+        if (!writtenVariables.contains(usedField) && !usedField.hasModifierProperty(PsiModifier.FINAL)) {
+          ignored.add(usedField);
+        }
+
+        if (!usedFields.add(usedField) && (IGNORE_FIELDS_USED_IN_MULTIPLE_METHODS || ignored.contains(usedField))) {
+          candidates.remove(usedField); //used in more than one code block
         }
       }
     }
@@ -319,7 +321,6 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
     List<PsiReferenceExpression> references = refs.get(block);
     if (references == null) {
       references = new ArrayList<>();
-      if (findExistentBlock(refs, ref, block, references)) return true;
       refs.put(block, references);
     }
     references.add(ref);
@@ -329,30 +330,12 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
   private static @Nullable PsiCodeBlock getTopmostBlock(@NotNull PsiElement element) {
     PsiElement parent = element.getParent();
     PsiCodeBlock result = null;
-    while (parent != null && !(parent instanceof PsiClass && result != null)) {
+    while (parent != null) {
+      if ((parent instanceof PsiClass || parent instanceof PsiLambdaExpression) && result != null) break;
       if (parent instanceof PsiCodeBlock block) result = block;
       parent = parent.getParent();
     }
     return result;
-  }
-
-  private static boolean findExistentBlock(Map<PsiCodeBlock, List<PsiReferenceExpression>> refs,
-                                           PsiReferenceExpression psiReference,
-                                           PsiCodeBlock block,
-                                           Collection<? super PsiReferenceExpression> references) {
-    for (Iterator<PsiCodeBlock> iterator = refs.keySet().iterator(); iterator.hasNext(); ) {
-      PsiCodeBlock codeBlock = iterator.next();
-      if (PsiTreeUtil.isAncestor(codeBlock, block, false)) {
-        refs.get(codeBlock).add(psiReference);
-        return true;
-      }
-      else if (PsiTreeUtil.isAncestor(block, codeBlock, false)) {
-        references.addAll(refs.get(codeBlock));
-        iterator.remove();
-        break;
-      }
-    }
-    return false;
   }
 
   @Override
@@ -407,14 +390,14 @@ public final class FieldCanBeLocalInspection extends AbstractBaseJavaLocalInspec
     }
 
     private static @NotNull List<PsiElement> moveDeclaration(@NotNull PsiField variable) {
-      final Map<PsiCodeBlock, List<PsiReferenceExpression>> refs = new HashMap<>();
+      final LinkedHashMap<PsiCodeBlock, List<PsiReferenceExpression>> refs = new LinkedHashMap<>();
       final List<PsiElement> newDeclarations = new ArrayList<>();
       final PsiClass containingClass = variable.getContainingClass();
       if (containingClass == null) return newDeclarations;
       final PsiClass scope = findVariableScope(containingClass);
       if (!groupByCodeBlocks(VariableAccessUtils.getVariableReferences(variable, scope), refs)) return newDeclarations;
       PsiElement declaration;
-      for (List<PsiReferenceExpression> ref : refs.values()) {
+      for (List<PsiReferenceExpression> ref : refs.sequencedValues().reversed()) {
         declaration = ConvertToLocalUtils.copyVariableToMethodBody(variable, ref, block -> suggestLocalName(variable, block));
         if (declaration != null) newDeclarations.add(declaration);
       }

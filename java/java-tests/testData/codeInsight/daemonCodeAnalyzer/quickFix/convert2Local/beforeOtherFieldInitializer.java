@@ -5,5 +5,5 @@ class Test {
 
   private Runnable r = () -> {
     field = "foo";
-  }
+  };
 }
