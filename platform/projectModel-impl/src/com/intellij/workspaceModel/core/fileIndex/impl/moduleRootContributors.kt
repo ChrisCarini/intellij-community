@@ -121,5 +121,6 @@ internal data class ModuleSourceRootData(
   val rootTypeId: SourceRootTypeId,
   override val packagePrefix: String,
   val forGeneratedSources: Boolean,
+  // This property is required for correct equals when computing the diff in the WorkspaceFileIndex
   val languageLevelId: String?,
 ) : ModuleContentOrSourceRootData, ModuleOrLibrarySourceRootData, JvmPackageRootDataInternal

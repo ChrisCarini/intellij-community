@@ -66,6 +66,11 @@ internal data class EntityPointerImpl<E : WorkspaceEntity>(internal val id: Enti
   override fun hashCode(): Int {
     return id.hashCode()
   }
+
+  override fun isPointerToEntityOfSameTypeAs(other: EntityPointer<*>): Boolean {
+    other as EntityPointerImpl
+    return id.clazz == other.id.clazz
+  }
 }
 
 // companion object in EntityStorageSnapshotImpl is initialized too late
