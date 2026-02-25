@@ -40,18 +40,29 @@ public interface FileNavigator<F extends VirtualFile> {
   };
 
   /**
-   * POSIX path resolution requires resolving _each_ path segment against the file system -- e.g. resolve symlinks _before_
-   * the '..' resolution. Here we resolve symlink _only_ before '..' (i.e. in {@link #parentOf(VirtualFile)}), but not in
-   * other cases -- which is why it is 'light'.
+   * POSIX path resolution requires resolving _each_ path segment against the file system -- e.g. resolve all symlinks.
+   * This implementation resolves symlink _only_ before '..' (i.e. in {@link #parentOf(VirtualFile)}), but not in other cases
+   * -- which is why it is 'light'.
+   * It is an optimization, to reduce # of accesses to the actual underlying FS. But it has downsides: the path resolution
+   * sometimes gives unexpected result.
+   * E.g. 'a/b/c' and 'a/../a/b/c' paths one would expect them to resolve to the same file, since `a/../a` segment should just
+   * collapse to `a`. This is true for POSIX resolution, but not for 'POSIX light': under 'POSIX light' result of the path
+   * resolution depends on is `a` a symlink or not. If `a` is a symlink (->`/home/user/AAA`), then the symlink will be resolved
+   * during 'a/../a/b/c' resolution, but during 'a/b/c' resolution symlink will NOT be resolved -- hence, 'a/../a/b/c' resolves
+   * to VirtualFile[`/home/user/AAA/b/c`], while `a/b/c` resolves to just VirtualFile[`a/b/c`].
+   * This is important only on the level of VirtualFile operations -- e.g. if one reads VirtualFile[`a/b/c`] content, the read
+   * goes through underlying FS, which evaluates the path via true POSIX path resolution, so the `/home/user/AAA/b/c` content
+   * is really read. But as long as you work with VirtualFiles, the VirtualFile[`/home/user/AAA/b/c`] != VirtualFile[`a/b/c`],
+   * and this difference may sometimes bite.
    */
   FileNavigator<NewVirtualFile> POSIX_LIGHT = new FileNavigator<>() {
     @Override
     public @Nullable NewVirtualFile parentOf(@NotNull NewVirtualFile file) {
       //Here we do 'partial canonicalization' of the path: we resolve symlinks, but _only_ in getParent, i.e. before
-      // '..' segments. It makes the resolution unstable: 'a/b/c' and 'a/../a/b/c' could be resolved to different files,
-      // depending on is 'a' a symlink or not.
-      // And the result differs from regular canonicalization, via VirtualFile.getCanonicalPath() or Path.toRealPath(),
-      // there _all_ symlinks are resolved -- and the result also differs from Path.toRealPath(NOFOLLOW_LINKS) where _none_
+      // '..' segments. It makes the resolution "unstable" so to say: 'a/b/c' and 'a/../a/b/c' could be resolved to different
+      // files, depending on is 'a' a symlink or not.
+      // The result differs from regular canonicalization, via VirtualFile.getCanonicalPath() or Path.toRealPath(),
+      // there _all_ symlinks are resolved -- but the result also differs from Path.toRealPath(NOFOLLOW_LINKS) where _none_
       // of symlinks are resolved.
       if (file.is(SYMLINK)) {
         NewVirtualFile canonicalFile = file.getCanonicalFile();
@@ -78,8 +89,8 @@ public interface FileNavigator<F extends VirtualFile> {
    * Walks through the path given, segment by segment, resolving each segment through the provided navigator
    *
    * @return the {@link NavigateResult#resolved(VirtualFile)}  if successfully resolves the file corresponding to the path given,
-   * or {@link NavigateResult#unresolved(VirtualFile)}/{@link NavigateResult#empty()}, if the path can't be resolved fully, or
-   * not at all
+   * or {@link NavigateResult#unresolved(VirtualFile, String)}/{@link NavigateResult#empty()}, if the path can be resolved only partially,
+   * or not at all
    */
   @ApiStatus.Internal
   static <F extends VirtualFile> @NotNull NavigateResult<F> navigate(@NotNull NewVirtualFileSystem vfs,
