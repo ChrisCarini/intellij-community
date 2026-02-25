@@ -686,7 +686,7 @@
     },
 
     "MemoryIndicator": {
-      "allocatedBackground": "#1E1F22",
+      "allocatedBackground": "gray-40",
       "usedBackground": "#35538F80"
     },
 
