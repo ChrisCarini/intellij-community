@@ -65,6 +65,11 @@
     <module name="intellij.platform.welcomeScreen.impl"/>
   </dependencies>
   <!-- endregion -->
+  <extensionPoints>
+    <extensionPoint qualifiedName="com.intellij.editor.interLineBreakpointConfigurationProvider"
+                    interface="com.intellij.openapi.editor.impl.InterLineBreakpointConfigurationProvider"
+                    dynamic="true"/>
+  </extensionPoints>
   <extensions defaultExtensionNs="com.intellij">
     <registryKey
       key="ide.project.frame.auto.fix.size.windows.interval"
