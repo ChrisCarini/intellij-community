@@ -14,6 +14,7 @@ import com.intellij.ui.ListSpeedSearch
 import com.intellij.ui.PopupHandler
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.SpeedSearchComparator
+import com.intellij.util.concurrency.annotations.RequiresEdt
 import com.intellij.util.ui.JBEmptyBorder
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.TextTransferable
@@ -267,12 +268,12 @@ class XThreadsFramesView(tabDisposable: Disposable, private val sessionProxy: XD
       return
     }
 
-    if (!session.hasSuspendContext()) {
-      requestClear()
-      return
-    }
-
     UIUtil.invokeLaterIfNeeded {
+      if (!session.hasSuspendContext()) {
+        requestClear()
+        return@invokeLaterIfNeeded
+      }
+
       if (event == SessionEvent.PAUSED || event == SessionEvent.SETTINGS_CHANGED && session.isSuspended) {
         // clear immediately
         cancelClear()
@@ -310,6 +311,7 @@ class XThreadsFramesView(tabDisposable: Disposable, private val sessionProxy: XD
     }
   }
 
+  @RequiresEdt
   fun start(sessionProxy: XDebugSessionProxy) {
     if (!(sessionProxy.hasSuspendContext())) return
     val disposable = nextDisposable()
@@ -322,6 +324,7 @@ class XThreadsFramesView(tabDisposable: Disposable, private val sessionProxy: XD
     myThreadsContainer.start(sessionProxy)
   }
 
+  @RequiresEdt
   private fun XExecutionStack.setActive(sessionProxy: XDebugSessionProxy) {
     myFramesManager.setActive(this)
 
@@ -384,19 +387,26 @@ class XThreadsFramesView(tabDisposable: Disposable, private val sessionProxy: XD
       }
     }
 
+    @RequiresEdt
     fun setActive(activeDisposable: Disposable) {
       startIfNeeded()
 
       isActive = true
       activeDisposable.onTermination {
-        isActive = false
-        myVisibleRectangle = myFramesList.visibleRect
-        mySelectedValue = if (myFramesList.isSelectionEmpty) null else myFramesList.selectedValue
+        deactivate()
       }
 
       updateView()
     }
 
+    @RequiresEdt
+    private fun deactivate() {
+      isActive = false
+      myVisibleRectangle = myFramesList.visibleRect
+      mySelectedValue = if (myFramesList.isSelectionEmpty) null else myFramesList.selectedValue
+    }
+
+    @RequiresEdt
     private fun updateView() {
       if (!isActive) return
 
@@ -480,12 +490,14 @@ class XThreadsFramesView(tabDisposable: Disposable, private val sessionProxy: XD
       }
     }
 
+    @RequiresEdt
     fun setActive(stack: XExecutionStack) {
       val disposable = myActiveStackDisposables.next()
       myActiveStack = stack
       stack.getContainer().setActive(disposable)
     }
 
+    @RequiresEdt
     fun tryGetCurrentFrame(stack: XExecutionStack): XStackFrame? {
       return stack.getContainer().currentFrame
     }
