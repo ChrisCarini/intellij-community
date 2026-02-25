@@ -14,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -21,9 +22,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.ZipFile;
 
 public abstract class JavaCoverageClassesEnumerator {
   private static final OutputRootProcessor DIRECTORY_OUTPUT_ROOT_PROCESSOR = new DirectoryOutputRootProcessor();
+  private static final OutputRootProcessor ARCHIVE_OUTPUT_ROOT_PROCESSOR = new ArchiveOutputRootProcessor();
 
   protected final CoverageSuitesBundle mySuite;
   protected final Project myProject;
@@ -65,7 +68,7 @@ public abstract class JavaCoverageClassesEnumerator {
       RootRequestKey key = entry.getKey();
       RootRequestData requestData = entry.getValue();
       try {
-        visitRoot(key.root(), rootPackageVMName, requestData);
+        visitRoot(key.root(), rootPackageVMName, requestData, key.packagePathInRoot());
       }
       finally {
         myCurrentRootsCount += requestData.getRequestsCount();
@@ -85,7 +88,7 @@ public abstract class JavaCoverageClassesEnumerator {
     RootRequestData requestData = new RootRequestData();
     requestData.addRequest(requestedSimpleName);
     try {
-      visitRoot(packageOutputRoot, rootPackageVMName, requestData);
+      visitRoot(packageOutputRoot, rootPackageVMName, requestData, packagePathInRoot);
     }
     finally {
       myCurrentRootsCount++;
@@ -95,12 +98,13 @@ public abstract class JavaCoverageClassesEnumerator {
 
   private void visitRoot(File packageOutputRoot,
                          String rootPackageVMName,
-                         RootRequestData requestData) {
+                         RootRequestData requestData,
+                         @NotNull String packagePathInRoot) {
     OutputRootProcessor processor = getProcessor(packageOutputRoot);
     if (processor == null) return;
     Set<String> requestedTopLevelNames = toRequestedTopLevelNames(rootPackageVMName, requestData.getRequestedSimpleNames());
     Map<TopLevelClassKey, List<File>> topLevelClasses = new HashMap<>();
-    OutputRootContext context = new OutputRootContext(packageOutputRoot, rootPackageVMName, requestedTopLevelNames);
+    OutputRootContext context = new OutputRootContext(packageOutputRoot, rootPackageVMName, packagePathInRoot, requestedTopLevelNames);
     processor.collectClasses(context, (packageVMName, simpleName, classFile) ->
       collectTopLevelClass(topLevelClasses, packageVMName, simpleName, classFile, requestedTopLevelNames));
     visitCollectedClasses(topLevelClasses);
@@ -118,6 +122,7 @@ public abstract class JavaCoverageClassesEnumerator {
 
   private static @Nullable OutputRootProcessor getProcessor(@NotNull File outputRoot) {
     if (outputRoot.isDirectory()) return DIRECTORY_OUTPUT_ROOT_PROCESSOR;
+    if (outputRoot.isFile()) return ARCHIVE_OUTPUT_ROOT_PROCESSOR;
     return null;
   }
 
@@ -159,6 +164,7 @@ public abstract class JavaCoverageClassesEnumerator {
 
   private record OutputRootContext(File outputRoot,
                                    String rootPackageVMName,
+                                   @NotNull String packagePathInRoot,
                                    @Nullable Set<String> requestedTopLevelNames) {
     private boolean includeSubpackages() {
       return requestedTopLevelNames == null;
@@ -176,7 +182,9 @@ public abstract class JavaCoverageClassesEnumerator {
   private static final class DirectoryOutputRootProcessor implements OutputRootProcessor {
     @Override
     public void collectClasses(@NotNull OutputRootContext context, @NotNull ClassFileConsumer collector) {
-      Stack<PackageData> stack = new Stack<>(new PackageData(context.rootPackageVMName(), context.outputRoot().listFiles()));
+      File packageRoot = PackageAnnotator.findRelativeFile(context.packagePathInRoot(), context.outputRoot());
+      if (!packageRoot.exists()) return;
+      Stack<PackageData> stack = new Stack<>(new PackageData(context.rootPackageVMName(), packageRoot.listFiles()));
       while (!stack.isEmpty()) {
         ProgressIndicatorProvider.checkCanceled();
         PackageData packageData = stack.pop();
@@ -192,6 +200,38 @@ public abstract class JavaCoverageClassesEnumerator {
             stack.push(new PackageData(childPackageVMName, child.listFiles()));
           }
         }
+      }
+    }
+  }
+
+  private static final class ArchiveOutputRootProcessor implements OutputRootProcessor {
+    @Override
+    public void collectClasses(@NotNull OutputRootContext context, @NotNull ClassFileConsumer collector) {
+      String packagePathInRoot = context.packagePathInRoot();
+      String prefix = packagePathInRoot.isEmpty() ? "" : packagePathInRoot + "/";
+      try (ZipFile zipFile = new ZipFile(context.outputRoot())) {
+        var entries = zipFile.entries();
+        while (entries.hasMoreElements()) {
+          ProgressIndicatorProvider.checkCanceled();
+          var entry = entries.nextElement();
+          if (entry.isDirectory()) continue;
+          String entryName = entry.getName();
+          if (!entryName.endsWith(".class")) continue;
+          if (!prefix.isEmpty() && !entryName.startsWith(prefix)) continue;
+
+          String relativePath = prefix.isEmpty() ? entryName : entryName.substring(prefix.length());
+          int slashIndex = relativePath.lastIndexOf('/');
+          if (!context.includeSubpackages() && slashIndex >= 0) continue;
+
+          String packageVMName = slashIndex < 0 ? context.rootPackageVMName() :
+                                 AnalysisUtils.buildVMName(context.rootPackageVMName(), relativePath.substring(0, slashIndex));
+          int simpleNameStart = slashIndex + 1;
+          String simpleName = relativePath.substring(simpleNameStart, relativePath.length() - ".class".length());
+          File classFile = new File(context.outputRoot().getPath() + "!/" + entryName);
+          collector.accept(packageVMName, simpleName, classFile);
+        }
+      }
+      catch (IOException ignored) {
       }
     }
   }
