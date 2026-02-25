@@ -2,6 +2,7 @@
 package com.intellij.openapi.vfs.newvfs;
 
 import com.intellij.openapi.util.Pair;
+import com.intellij.openapi.util.ThrowableComputable;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -104,34 +105,94 @@ public interface FileNavigator<F extends VirtualFile> {
       return NavigateResult.empty();
     }
 
-    @SuppressWarnings("unchecked")
-    F file = (F)rootAndPath.first;
-    for (String pathElement : rootAndPath.second) {
+    //noinspection unchecked
+    F rootToStartFrom = (F)rootAndPath.first;
+    Iterable<String> pathElements = rootAndPath.second;
+
+    //IJPL-218716: there is no solution about how FileDeletedException could happen (seems like a race, or
+    // corruption, i.e. a bug in code, but details are not clear) -- lets just retry the resolution 3 times:
+    return retryUpToN(
+      () -> followPath(navigator, rootToStartFrom, pathElements),
+      /*maxAttempts: */ 3,
+      FileDeletedException.class
+    );
+  }
+
+  private static <F extends VirtualFile> @NotNull NavigateResult<F> followPath(@NotNull FileNavigator<F> navigator,
+                                                                               @NotNull F startingWithFile,
+                                                                               @NotNull Iterable<String> pathElementsToFollow) {
+    F currentFile = startingWithFile;
+    for (String pathElement : pathElementsToFollow) {
 
       if (pathElement.isEmpty() || ".".equals(pathElement)) {
         continue;
       }
 
-      F fileBefore = file;
+      F fileBefore = currentFile;
       boolean navigationToChild = false;
       if ("..".equals(pathElement)) {
-        file = navigator.parentOf(file);
+        currentFile = navigator.parentOf(currentFile);
       }
       else {
         navigationToChild = true;
-        file = navigator.childOf(file, pathElement);
+        currentFile = navigator.childOf(currentFile, pathElement);
       }
 
       if (LOG.isTraceEnabled()) {
-        LOG.trace("[" + fileBefore.getPath() + "]/[" + pathElement + "] resolved to [" + file + "]");
+        LOG.trace("[" + fileBefore.getPath() + "]/[" + pathElement + "] resolved to [" + currentFile + "]");
       }
 
-      if (file == null) {
+      if (currentFile == null) {
         return NavigateResult.unresolved(fileBefore, navigationToChild ? pathElement : null);
       }
     }
 
-    return NavigateResult.resolved(file);
+    return NavigateResult.resolved(currentFile);
+  }
+
+  /**
+   * If computable throws an exception of class exceptionTypeToRetry => retry computable up to maxAttempts
+   * times.
+   * Other exceptions rethrown immediately, without retries.
+   * If maxAttempts were exhausted -- the exceptions thrown by computable are rethrown in the following way:
+   * the exception thrown on 1st attempt is the exception actually rethrown, while exceptions thrown on
+   * 2-3-4..th attempts are attached to it as .suppressed.
+   * MAYBE RC: move to some generic Utils class? -- seems to be generally-useful method
+   */
+  private static <V, E extends Exception> V retryUpToN(@NotNull ThrowableComputable<V, E> computable,
+                                                       int maxAttempts,
+                                                       @NotNull Class<E> exceptionTypeToRetry) throws E {
+    if (maxAttempts <= 0) {
+      throw new IllegalArgumentException("maxAttempts(=" + maxAttempts + ") must be >0");
+    }
+
+    E mainEx = null;
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        V result = computable.compute();
+        if (mainEx != null) {//reports to FUS -> will be able to collect the stats in Diogen:
+          LOG.error("Computation succeed on attempt#" + attempt + ", but exception(s) were thrown during previous attempt(s)", mainEx);
+        }
+        return result;
+      }
+      catch (Throwable t) {
+        if (!exceptionTypeToRetry.isInstance(t)) {
+          if (mainEx != null) {
+            t.addSuppressed(mainEx); //provide as much info as possible
+          }
+          throw t;
+        }
+
+        if (mainEx == null) {
+          //noinspection unchecked
+          mainEx = (E)t;
+        }
+        else {
+          mainEx.addSuppressed(t);
+        }
+      }
+    }
+    throw mainEx;
   }
 
   @ApiStatus.Internal
