@@ -53,6 +53,12 @@ java_import(
   visibility = ["//visibility:public"]
 )
 
+java_import(
+  name = "tools-litmus-commons-httpclient-3-1-patched",
+  jars = ["commons-httpclient-3.1-patched.jar"],
+  visibility = ["//visibility:public"]
+)
+
 exports_files([
   "commons-httpclient-3.1-patched.jar",
   "eawtstub.jar",
