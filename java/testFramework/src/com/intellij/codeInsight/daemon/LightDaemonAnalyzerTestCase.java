@@ -152,7 +152,7 @@ public abstract class LightDaemonAnalyzerTestCase extends LightJavaCodeInsightTe
     return annotatedWith(DaemonAnalyzerTestCase.CanChangeDocumentDuringHighlighting.class);
   }
 
-  protected @Unmodifiable List<HighlightInfo> doHighlighting(HighlightSeverity minSeverity) {
+  protected final @Unmodifiable List<HighlightInfo> doHighlighting(HighlightSeverity minSeverity) {
     return DaemonAnalyzerTestCase.filter(doHighlighting(), minSeverity);
   }
 

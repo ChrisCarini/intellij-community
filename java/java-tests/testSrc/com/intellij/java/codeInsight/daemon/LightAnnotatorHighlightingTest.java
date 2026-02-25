@@ -2,7 +2,7 @@
 package com.intellij.java.codeInsight.daemon;
 
 import com.intellij.codeInsight.daemon.HighlightDisplayKey;
-import com.intellij.codeInsight.daemon.LightDaemonAnalyzerTestCase;
+import com.intellij.codeInsight.daemon.ProductionLightDaemonAnalyzerTestCase;
 import com.intellij.codeInsight.daemon.impl.DaemonAnnotatorsRespondToChangesTest;
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType;
@@ -60,13 +60,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
-public class LightAnnotatorHighlightingTest extends LightDaemonAnalyzerTestCase {
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-    myDaemonCodeAnalyzer.setUpdateByTimerEnabled(true);
-  }
-
+public class LightAnnotatorHighlightingTest extends ProductionLightDaemonAnalyzerTestCase {
   public void testInjectedAnnotator() {
     DaemonAnnotatorsRespondToChangesTest.useAnnotatorsIn(XmlFileType.INSTANCE.getLanguage(), new DaemonAnnotatorsRespondToChangesTest.MyRecordingAnnotator[]{new MyAnnotator()}, () ->
       doTest(LightAdvHighlightingTest.BASE_PATH + "/" + getTestName(false) + ".xml",true,false)
