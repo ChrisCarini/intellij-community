@@ -23,6 +23,7 @@ import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.content.ContentManager
 import com.intellij.ui.content.ContentManagerListener
+import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.Flow
@@ -69,7 +70,13 @@ internal class RunnerLayoutUiBridge(
   }
 
   private fun sendContentCreationEvent(component: JComponent, fakeContent: Content, contentId: @NonNls String, displayName: @Nls String, icon: Icon?) {
-    val tabId = component.setupTransfer(disposable)
+    val edtDisposable = Disposer.newDisposable()
+    Disposer.register(disposable) {
+      UIUtil.invokeLaterIfNeeded {
+        Disposer.dispose(edtDisposable)
+      }
+    }
+    val tabId = component.setupTransfer(edtDisposable)
     val uniqueId = contents.size
     contents[fakeContent] = uniqueId
     contentsByUniqueId[uniqueId] = fakeContent
