@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInspection.unnecessaryModuleDependency;
 
 import com.intellij.codeInspection.reference.RefClass;
@@ -12,6 +12,7 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.JdkOrderEntry;
+import com.intellij.openapi.roots.LibraryOrderEntry;
 import com.intellij.openapi.roots.OrderEntry;
 import com.intellij.openapi.roots.ProjectFileIndex;
 import com.intellij.openapi.util.Key;
@@ -49,12 +50,12 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
     if (what != null && from != null){
       //from should be always in sources
       final Module fromModule = ModuleUtilCore.findModuleForFile(from.getContainingFile());
-      final Set<Module> onModules = getAllPossibleWhatModules(what);
+      final Set<Module> onModules = getAllPossibleWhatModules(what, fromModule);
       if (onModules != null && fromModule != null){
         final RefModule refModule = myManager.getRefModule(fromModule);
         if (refModule != null) {
           HashSet<Module> modules = new HashSet<>(onModules);
-          collectRequiredModulesInHierarchy(myManager.getReference(what), modules);
+          collectRequiredModulesInHierarchy(myManager.getReference(what), fromModule, modules);
           modules.remove(fromModule);
           getModules(refModule).addAll(modules);
         }
@@ -82,7 +83,7 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
     RefModule refModule = refElement.getModule();
     if (refModule != null) {
       Set<Module> modules = Collections.synchronizedSet(new HashSet<>());
-      collectRequiredModulesInHierarchy(refElement, modules);
+      collectRequiredModulesInHierarchy(refElement, refModule.getModule(), modules);
       modules.remove(refModule.getModule());
       if (!modules.isEmpty()) {
         refElement.putUserData(DEPENDENCIES, modules);
@@ -91,17 +92,17 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
     }
   }
 
-  private static void collectRequiredModulesInHierarchy(RefElement refElement, Set<? super Module> modules) {
+  private static void collectRequiredModulesInHierarchy(RefElement refElement, Module currentModule, Set<? super Module> modules) {
     if (refElement instanceof RefClass) {
-      processClassHierarchy(null, (RefClass)refElement, modules);
+      processClassHierarchy(null, (RefClass)refElement, currentModule, modules);
     }
     else if (refElement instanceof RefMethod refMethod) {
       UMethod uMethod = refMethod.getUastElement();
       if (uMethod != null) {
         Set<PsiClass> classes = new HashSet<>();
-        processTypeHierarchy(classes, uMethod.getReturnType(), modules);
+        processTypeHierarchy(classes, uMethod.getReturnType(), currentModule, modules);
         for (UParameter parameter : uMethod.getUastParameters()) {
-          processTypeHierarchy(classes, parameter.getType(), modules);
+          processTypeHierarchy(classes, parameter.getType(), currentModule, modules);
         }
         //todo thrown types
       }
@@ -110,19 +111,19 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
       UField element = ((RefField)refElement).getUastElement();
       UClass aClass = UastContextKt.toUElement(PsiUtil.resolveClassInType(element.getType()), UClass.class);
       if (aClass != null) {
-        processClassHierarchy(aClass, null, modules);
+        processClassHierarchy(aClass, null, currentModule, modules);
       }
     }
   }
 
-  private static void processTypeHierarchy(Set<? super PsiClass> classes, PsiType returnType, Set<? super Module> modules) {
+  private static void processTypeHierarchy(Set<? super PsiClass> classes, PsiType returnType, Module currentModule, Set<? super Module> modules) {
     UClass aClass = UastContextKt.toUElement(PsiUtil.resolveClassInType(returnType), UClass.class);
     if (aClass != null && classes.add(aClass)) {
-      processClassHierarchy(aClass, null, modules);
+      processClassHierarchy(aClass, null, currentModule, modules);
     }
   }
 
-  private static void processClassHierarchy(UClass uClass, RefClass refClass, Set<? super Module> modules) {
+  private static void processClassHierarchy(UClass uClass, RefClass refClass, Module currentModule, Set<? super Module> modules) {
     LinkedHashSet<UClass> superClasses = new LinkedHashSet<>();
     if (refClass == null) {
       processSupers(uClass, superClasses);
@@ -136,7 +137,7 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
       }
     }
     for (PsiClass superClass : superClasses) {
-      Set<Module> onModules = getAllPossibleWhatModules(superClass);
+      Set<Module> onModules = getAllPossibleWhatModules(superClass, currentModule);
       if (onModules != null) modules.addAll(onModules);
     }
   }
@@ -156,7 +157,7 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
   /**
    * Returns all owner modules for a library or single module set for a source outside of the inspecting scope
    */
-  private static Set<Module> getAllPossibleWhatModules(@NotNull PsiElement what) {
+  private static Set<Module> getAllPossibleWhatModules(@NotNull PsiElement what, Module currentModule) {
     VirtualFile vFile = PsiUtilCore.getVirtualFile(what);
     if (vFile == null) return null;
     Project project = what.getProject();
@@ -169,7 +170,15 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
       Set<Module> modules = new HashSet<>(orderEntries.size());
       for (OrderEntry orderEntry : orderEntries) {
         if (orderEntry instanceof JdkOrderEntry) return null;
-        modules.add(orderEntry.getOwnerModule());
+        if (orderEntry instanceof LibraryOrderEntry lib) {
+          Module module = lib.getOwnerModule();
+          if (module == currentModule) {
+            return Collections.singleton(module);
+          }
+          if (lib.isExported()) {
+            modules.add(module);
+          }
+        }
       }
       return modules;
     }
