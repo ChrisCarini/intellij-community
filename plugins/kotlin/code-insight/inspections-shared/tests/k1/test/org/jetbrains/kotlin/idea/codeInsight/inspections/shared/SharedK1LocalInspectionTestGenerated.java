@@ -4089,6 +4089,21 @@ public abstract class SharedK1LocalInspectionTestGenerated extends AbstractShare
             runTest("../testData/inspectionsLocal/redundantSetter/overrideOnlyFieldSetBody.kt");
         }
 
+        @TestMetadata("raiseAccess.kt")
+        public void testRaiseAccess() throws Exception {
+            runTest("../testData/inspectionsLocal/redundantSetter/raiseAccess.kt");
+        }
+
+        @TestMetadata("raiseAccessNotOnlyFieldSetBody.kt")
+        public void testRaiseAccessNotOnlyFieldSetBody() throws Exception {
+            runTest("../testData/inspectionsLocal/redundantSetter/raiseAccessNotOnlyFieldSetBody.kt");
+        }
+
+        @TestMetadata("raiseAccessSetBody.kt")
+        public void testRaiseAccessSetBody() throws Exception {
+            runTest("../testData/inspectionsLocal/redundantSetter/raiseAccessSetBody.kt");
+        }
+
         @TestMetadata("sameVisibility1.kt")
         public void testSameVisibility1() throws Exception {
             runTest("../testData/inspectionsLocal/redundantSetter/sameVisibility1.kt");
