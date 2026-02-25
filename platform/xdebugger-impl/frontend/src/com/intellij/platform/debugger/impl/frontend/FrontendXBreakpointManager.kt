@@ -201,6 +201,9 @@ class FrontendXBreakpointManager(private val project: Project, private val cs: C
       if (newBreakpoint is XLineBreakpointProxy) {
         lineBreakpointManager.breakpointChanged(newBreakpoint)
       }
+      if (newBreakpoint is FrontendXLineBreakpointProxy) {
+        newBreakpoint.attachments.forEach { it.breakpointChanged() }
+      }
     }
     val previousBreakpoint = breakpoints.putIfAbsent(breakpointDto.id, newBreakpoint)
     if (previousBreakpoint != null) {
@@ -276,6 +279,8 @@ class FrontendXBreakpointManager(private val project: Project, private val cs: C
   private fun removeBreakpointLocally(breakpointId: XBreakpointId) {
     breakpointIdsRemovedLocally.add(breakpointId)
     val removedBreakpoint = breakpoints.remove(breakpointId)
+
+    // Attachments are automatically disposed when the breakpoint's coroutine scope is cancelled via dispose()
     removedBreakpoint?.dispose()
     if (removedBreakpoint == null) {
       log.debug { "Breakpoint removal has no effect for $breakpointId, because it doesn't exist locally" }
