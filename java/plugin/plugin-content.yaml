@@ -166,9 +166,6 @@
 - name: lib/modules/intellij.java.remoteServers.jar
   contentModules:
   - name: intellij.java.remoteServers
-- name: lib/modules/intellij.java.resources.jar
-  contentModules:
-  - name: intellij.java.resources
 - name: lib/modules/intellij.java.structuralSearch.jar
   contentModules:
   - name: intellij.java.structuralSearch

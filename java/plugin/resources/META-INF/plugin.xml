@@ -31,7 +31,6 @@
     <module name="intellij.java.compiler" required-if-available="intellij.platform.backend"/>
     <module name="intellij.java.analysis" required-if-available="intellij.platform.backend"/>
     <module name="intellij.java" required-if-available="intellij.platform.backend"/>
-    <module name="intellij.java.resources" required-if-available="intellij.platform.backend"/>
     <module name="intellij.java.execution" required-if-available="intellij.platform.backend"/>
     <module name="intellij.java.remoteServers" loading="optional"/>
     <module name="intellij.jvm.analysis" required-if-available="intellij.platform.backend"/>
