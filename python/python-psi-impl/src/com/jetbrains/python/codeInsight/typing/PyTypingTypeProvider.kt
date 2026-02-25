@@ -1840,6 +1840,13 @@ class PyTypingTypeProvider : PyTypeProviderWithCustomContext<Context?>() {
     }
 
     @JvmStatic
+    fun <T> isReadOnly(owner: T, context: TypeEvalContext): Boolean where T : PyTypeCommentOwner?, T : PyAnnotationOwner? {
+      return PyUtil.getParameterizedCachedValue(owner!!, context) {
+        typeHintedWithName(owner, context, READONLY, READONLY_EXT)
+      }
+    }
+
+    @JvmStatic
     fun <T> isClassVar(owner: T, context: TypeEvalContext): Boolean where T : PyAnnotationOwner?, T : PyTypeCommentOwner? {
       return PyUtil.getParameterizedCachedValue(owner!!, context) {
         typeHintedWithName(owner, context, CLASS_VAR)
