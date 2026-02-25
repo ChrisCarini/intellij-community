@@ -33,7 +33,6 @@ const JVM_LIB_REL_PATH: &str = "lib/server/libjvm.so";
 static DEBUG_MODE: AtomicBool = AtomicBool::new(true);
 static HOOK_MESSAGES: Mutex<Option<Vec<String>>> = Mutex::new(None);
 
-#[no_mangle]
 extern "C" fn vfprintf_hook(fp: *const c_void, format: *const c_char, args: va_list::VaList<'_>) -> jint {
     extern "C" {
         fn vfprintf(fp: *const c_void, format: *const c_char, args: va_list::VaList<'_>) -> c_int;
@@ -53,7 +52,6 @@ extern "C" fn vfprintf_hook(fp: *const c_void, format: *const c_char, args: va_l
     }
 }
 
-#[no_mangle]
 extern "C" fn abort_hook() {
     error!("[JVM] abort_hook");
     match HOOK_MESSAGES.lock() {
