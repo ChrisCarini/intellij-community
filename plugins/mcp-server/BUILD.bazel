@@ -76,6 +76,7 @@ jvm_library(
     "@lib//:opentelemetry",
     "//platform/diagnostic/telemetry",
     "//platform/util-class-loader:util-classLoader",
+    "//platform/vcs-impl",
   ]
 )
 
@@ -138,6 +139,7 @@ jvm_library(
     "//platform/execution:execution_test_lib",
     "//platform/diagnostic/telemetry:telemetry_test_lib",
     "//platform/util-class-loader:util-classLoader_test_lib",
+    "//platform/vcs-impl:vcs-impl_test_lib",
   ]
 )
 ### auto-generated section `build intellij.mcpserver` end
