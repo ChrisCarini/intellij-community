@@ -3,11 +3,13 @@
 package com.intellij.mcpserver.toolsets
 
 import com.intellij.mcpserver.McpToolsetTestBase
+import com.intellij.mcpserver.impl.DisallowListBasedMcpToolFilterProvider.Companion.ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY
 import com.intellij.mcpserver.toolsets.general.FileToolset
 import com.intellij.mcpserver.toolsets.general.PatchToolset
 import com.intellij.mcpserver.toolsets.general.TextToolset
 import com.intellij.openapi.application.readAndEdtWriteAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.testFramework.junit5.RegistryKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
@@ -15,6 +17,7 @@ import kotlinx.serialization.json.buildJsonObject
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
+@RegistryKey(key = ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY, value = "true")
 class PatchToolsetTest : McpToolsetTestBase() {
   @Test
   fun apply_patch_adds_file() = runBlocking(Dispatchers.Default) {
