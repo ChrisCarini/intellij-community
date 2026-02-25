@@ -124,7 +124,7 @@ fun updateFromSources(project: Project, beforeRestart: () -> Unit, restartAutoma
   params.workingDirectory = devIdeaHome.pathString
   val taskManager = ProjectTaskManager.getInstance(project)
   taskManager
-    .run(taskManager.createModulesBuildTask(ModuleManager.getInstance(project).modules, true, true, true, false))
+    .run(taskManager.createModulesBuildTask(ModuleManager.getInstance(project).modules, true, false, false, false))
     .onSuccess {
       if (!it.isAborted && !it.hasErrors()) {
         runUpdateScript(params, project, workIdeHome, deployDir, builtDistDir, restartAutomatically, beforeRestart)
