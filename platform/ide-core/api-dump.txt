@@ -828,7 +828,6 @@ com.intellij.openapi.wm.ToolWindowId
 - sf:FIND:java.lang.String
 - sf:HIERARCHY:java.lang.String
 - sf:INSPECTION:java.lang.String
-- sf:MEET_NEW_UI:java.lang.String
 - sf:MESSAGES_WINDOW:java.lang.String
 - sf:MODULES_DEPENDENCIES:java.lang.String
 - sf:PREVIEW:java.lang.String

@@ -2426,7 +2426,6 @@ f:org.jetbrains.jewel.ui.icons.AllIconsKeys$Actions
 - sf:EditScheme:org.jetbrains.jewel.ui.icon.IntelliJIconKey
 - sf:EditSource:org.jetbrains.jewel.ui.icon.IntelliJIconKey
 - sf:EnableNewUi:org.jetbrains.jewel.ui.icon.IntelliJIconKey
-- sf:EnableNewUiSelected:org.jetbrains.jewel.ui.icon.IntelliJIconKey
 - sf:Execute:org.jetbrains.jewel.ui.icon.IntelliJIconKey
 - sf:Exit:org.jetbrains.jewel.ui.icon.IntelliJIconKey
 - sf:Expandall:org.jetbrains.jewel.ui.icon.IntelliJIconKey
@@ -3215,13 +3214,7 @@ f:org.jetbrains.jewel.ui.icons.AllIconsKeys$Mac$Touchbar
 - <init>():V
 f:org.jetbrains.jewel.ui.icons.AllIconsKeys$MeetNewUi
 - sf:DarkTheme:org.jetbrains.jewel.ui.icon.IntelliJIconKey
-- sf:DarkThemeSelected:org.jetbrains.jewel.ui.icon.IntelliJIconKey
-- sf:DensityCompact:org.jetbrains.jewel.ui.icon.IntelliJIconKey
-- sf:DensityDefault:org.jetbrains.jewel.ui.icon.IntelliJIconKey
 - sf:LightTheme:org.jetbrains.jewel.ui.icon.IntelliJIconKey
-- sf:LightThemeSelected:org.jetbrains.jewel.ui.icon.IntelliJIconKey
-- sf:SystemTheme:org.jetbrains.jewel.ui.icon.IntelliJIconKey
-- sf:SystemThemeSelected:org.jetbrains.jewel.ui.icon.IntelliJIconKey
 - <init>():V
 f:org.jetbrains.jewel.ui.icons.AllIconsKeys$Modules
 - sf:AddExcludedRoot:org.jetbrains.jewel.ui.icon.IntelliJIconKey

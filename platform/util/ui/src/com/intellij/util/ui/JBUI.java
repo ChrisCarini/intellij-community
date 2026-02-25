@@ -926,6 +926,10 @@ public final class JBUI {
     }
 
     public interface IconBadge {
+      /**
+       * @deprecated Not needed anymore
+       */
+      @Deprecated(forRemoval = true)
       Color NEW_UI = JBColor.namedColor("IconBadge.newUiBackground", 0x8F5AE5, 0x8F5AE5);
       Color ERROR = JBColor.namedColor("IconBadge.errorBackground", 0xE55765, 0xDB5C5C);
       Color WARNING = JBColor.namedColor("IconBadge.warningBackground", 0xFFAF0F, 0xF2C55C);
