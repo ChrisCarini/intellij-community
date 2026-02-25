@@ -103,6 +103,7 @@ import com.intellij.psi.PsiModifierListOwner;
 import com.intellij.psi.PsiNamedElement;
 import com.intellij.psi.PsiNewExpression;
 import com.intellij.psi.PsiPackage;
+import com.intellij.psi.PsiPackageStatement;
 import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiParameterList;
 import com.intellij.psi.PsiPattern;
@@ -815,6 +816,10 @@ public class JavaDocInfoGenerator {
       case PsiJavaModule module -> generateModuleJavaDoc(buffer, module, true);
       // package-info case
       case PsiDocComment comment -> generatePackageJavaDoc(buffer, comment, true);
+      case PsiPackageStatement packageStatement -> {
+        PsiDocComment docComment = packageStatement.getDocComment();
+        if (docComment != null) generatePackageJavaDoc(buffer, docComment, true);
+      }
       case null, default -> {
         return null;
       }
