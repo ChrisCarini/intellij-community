@@ -30,6 +30,15 @@ public class K2CodeFragmentCompletionHandlerTestGenerated extends AbstractK2Code
         KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
     }
 
+    @TestMetadata("CastRuntimeTypeCompletion.kt")
+    public void testCastRuntimeTypeCompletion() throws Exception {
+        runTest("../../completion/testData/handlers/runtimeCast/CastRuntimeTypeCompletion.kt");
+    }
+
+    @TestMetadata("CastFunctionWithParams.kt")
+    public void testCastFunctionWithParams() throws Exception {
+        runTest("../../completion/testData/handlers/runtimeCast/CastFunctionWithParams.kt");
+    }
     @TestMetadata("CastPrivateFun.kt")
     public void testCastPrivateFun() throws Exception {
         runTest("../../completion/testData/handlers/runtimeCast/CastPrivateFun.kt");
