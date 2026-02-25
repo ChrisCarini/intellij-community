@@ -574,7 +574,7 @@ object PluginManagerCore {
 
     if (initContext.checkEssentialPlugins && pluginsToLoad.resolvePluginId(CORE_ID) == null) {
       throw EssentialPluginMissingException(listOf("$CORE_ID (platform prefix: ${System.getProperty(PlatformUtils.PLATFORM_PREFIX_KEY)})"))
-        .apply { (pluginNonLoadReasons.get(CORE_ID))?.let { addSuppressed(Exception(it.logMessage)) } }
+        .apply { pluginNonLoadReasons.get(CORE_ID)?.let { addSuppressed(Exception(it.logMessage)) } }
     }
 
     checkThirdPartyPluginsPrivacyConsent(parentActivity, pluginsToLoad)
