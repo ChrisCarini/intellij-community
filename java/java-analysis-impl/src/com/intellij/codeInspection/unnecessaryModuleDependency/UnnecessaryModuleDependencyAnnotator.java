@@ -41,17 +41,17 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
 
   private final RefManager myManager;
 
-  public UnnecessaryModuleDependencyAnnotator(final RefManager manager) {
+  public UnnecessaryModuleDependencyAnnotator(RefManager manager) {
     myManager = manager;
   }
 
   @Override
   public void onMarkReferenced(PsiElement what, PsiElement from, boolean referencedFromClassInitializer) {
-    if (what != null && from != null){
+    if (what != null && from != null) {
       //from should be always in sources
       final Module fromModule = ModuleUtilCore.findModuleForFile(from.getContainingFile());
       final Set<Module> onModules = getAllPossibleWhatModules(what, fromModule);
-      if (onModules != null && fromModule != null){
+      if (onModules != null && fromModule != null) {
         final RefModule refModule = myManager.getRefModule(fromModule);
         if (refModule != null) {
           HashSet<Module> modules = new HashSet<>(onModules);
@@ -93,8 +93,8 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
   }
 
   private static void collectRequiredModulesInHierarchy(RefElement refElement, Module currentModule, Set<? super Module> modules) {
-    if (refElement instanceof RefClass) {
-      processClassHierarchy(null, (RefClass)refElement, currentModule, modules);
+    if (refElement instanceof RefClass refClass) {
+      processClassHierarchy(null, refClass, currentModule, modules);
     }
     else if (refElement instanceof RefMethod refMethod) {
       UMethod uMethod = refMethod.getUastElement();
@@ -107,8 +107,8 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
         //todo thrown types
       }
     }
-    else if (refElement instanceof RefField) {
-      UField element = ((RefField)refElement).getUastElement();
+    else if (refElement instanceof RefField field) {
+      UField element = field.getUastElement();
       UClass aClass = UastContextKt.toUElement(PsiUtil.resolveClassInType(element.getType()), UClass.class);
       if (aClass != null) {
         processClassHierarchy(aClass, null, currentModule, modules);
@@ -155,7 +155,7 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
   }
 
   /**
-   * Returns all owner modules for a library or single module set for a source outside of the inspecting scope
+   * Returns all owner modules for a library or single module set for a source outside the inspecting scope
    */
   private static Set<Module> getAllPossibleWhatModules(@NotNull PsiElement what, Module currentModule) {
     VirtualFile vFile = PsiUtilCore.getVirtualFile(what);
@@ -188,7 +188,7 @@ public class UnnecessaryModuleDependencyAnnotator extends RefGraphAnnotator {
 
   private static synchronized Set<Module> getModules(RefModule refModule) {
     Set<Module> modules = refModule.getUserData(DEPENDENCIES);
-    if (modules == null){
+    if (modules == null) {
       modules = Collections.synchronizedSet(new HashSet<>());
       refModule.putUserData(DEPENDENCIES, modules);
     }
