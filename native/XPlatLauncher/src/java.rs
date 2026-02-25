@@ -246,10 +246,12 @@ fn get_jvm_init_args(vm_options: Vec<String>) -> Result<(jni::sys::JavaVMInitArg
 fn convert_vm_options(vm_options: Vec<String>) -> Result<Vec<CString>> {
     use {
         windows::core::{BOOL, HSTRING, PCSTR},
-        windows::Win32::Globalization::{GetACP, CP_ACP, CP_UTF8, WC_NO_BEST_FIT_CHARS, WideCharToMultiByte}
+        windows::Win32::Globalization::{GetACP, CP_ACP, CP_UTF8, WC_NO_BEST_FIT_CHARS, WideCharToMultiByte},
+        winreg::enums::*,
+        winreg::RegKey,
     };
 
-    let mut strings = Vec::<CString>::with_capacity(vm_options.len());
+    let mut strings = Vec::<CString>::with_capacity(vm_options.len() + 1);
     let acp = unsafe { GetACP() };
     debug!("[JVM] ACP={acp}");
 
@@ -272,6 +274,22 @@ fn convert_vm_options(vm_options: Vec<String>) -> Result<Vec<CString>> {
             CString::new(acp_bytes)
         }.with_context(|| format!("Invalid VM option string: '{opt}'"))?;
         strings.push(str);
+    }
+
+    if acp == CP_UTF8 {
+        let key = RegKey::predef(HKEY_LOCAL_MACHINE);
+        if let Ok(subkey) = key.open_subkey("SYSTEM\\CurrentControlSet\\Control\\Nls\\CodePage") {
+            if let Ok(sys_acp) = subkey.get_value::<String, _>("ACP") {
+                debug!("[JVM] system ACP={sys_acp}");
+                let value = match sys_acp.as_str() {
+                    "65001" => "UTF-8".to_string(),
+                    "1361" => "MS1361".to_string(),
+                    _ => "windows-".to_string() + sys_acp.as_str()
+                };
+                let property = jvm_property!("sun.jnu.encoding.sys", value);
+                strings.push(CString::new(property.as_bytes())?);
+            }
+        }
     }
 
     Ok(strings)
