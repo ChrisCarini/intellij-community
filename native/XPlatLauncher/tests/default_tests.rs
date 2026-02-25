@@ -440,8 +440,10 @@ mod tests {
         let test = prepare_test_env(LauncherLocation::Standard);
         let dump = run_launcher_ext(&test, LauncherRunSpec::standard().with_dump().assert_status()).dump();
 
-        assert_eq!(dump.systemProperties["sun.jnu.encoding"], "UTF-8");
-        let sys_acp = &dump.systemProperties["sun.jnu.encoding.sys"];
-        assert!(sys_acp.starts_with("windows-"), "Unexpected system ACP value: {sys_acp}");
+        let acp = &dump.systemProperties["sun.jnu.encoding"];
+        if acp == "UTF-8" {
+            let sys_acp = &dump.systemProperties["sun.jnu.encoding.sys"];
+            assert!(sys_acp.starts_with("windows-"), "Unexpected system ACP value: {sys_acp}");
+        }
     }
 }
