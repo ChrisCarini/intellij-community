@@ -97,12 +97,12 @@ import com.intellij.xdebugger.impl.inline.DebuggerInlayListener
 import com.intellij.xdebugger.impl.inline.InlineDebugRenderer
 import com.intellij.xdebugger.impl.mixedmode.XMixedModeCombinedDebugProcess
 import com.intellij.xdebugger.impl.proxy.asProxy
+import com.intellij.xdebugger.impl.rpc.models.RunnerLayoutUiBridge
+import com.intellij.xdebugger.impl.rpc.models.XDebugSessionAdditionalTabComponentManager
 import com.intellij.xdebugger.impl.rpc.models.XDebugTabLayouterModel
 import com.intellij.xdebugger.impl.rpc.models.XSuspendContextModel
 import com.intellij.xdebugger.impl.rpc.models.storeGlobally
 import com.intellij.xdebugger.impl.settings.XDebuggerSettingManagerImpl
-import com.intellij.xdebugger.impl.rpc.models.RunnerLayoutUiBridge
-import com.intellij.xdebugger.impl.rpc.models.XDebugSessionAdditionalTabComponentManager
 import com.intellij.xdebugger.impl.ui.XDebugSessionData
 import com.intellij.xdebugger.impl.ui.XDebugSessionTab
 import com.intellij.xdebugger.impl.ui.allowFramesViewCustomization
@@ -770,7 +770,7 @@ class XDebugSessionImpl @JvmOverloads constructor(
     temporary: Boolean,
   ) {
     if (register) {
-      val active = ReadAction.compute<Boolean, RuntimeException?>(ThrowableComputable { isBreakpointActive(b!!) })
+      val active = ReadAction.computeBlocking<Boolean, RuntimeException?>(ThrowableComputable { isBreakpointActive(b!!) })
       if (active) {
         synchronized(myRegisteredBreakpoints) {
           myRegisteredBreakpoints[b] = CustomizedBreakpointPresentation()

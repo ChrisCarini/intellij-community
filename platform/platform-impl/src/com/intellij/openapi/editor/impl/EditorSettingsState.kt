@@ -95,7 +95,7 @@ class EditorSettingsState(private val editor: EditorImpl?,
 
   // These come from CodeStyleSettings.
   var myUseTabCharacter: Boolean by property {
-    ReadAction.compute(ThrowableComputable {
+    ReadAction.computeBlocking(ThrowableComputable {
       val file = getVirtualFile()
 
       if (file == null || project == null) {
