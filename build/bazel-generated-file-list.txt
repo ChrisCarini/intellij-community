@@ -407,11 +407,17 @@ libraries/imgscalr
 libraries/ini4j
 libraries/io
 libraries/ion
+libraries/jackson/annotations
 libraries/jackson/databind
 libraries/jackson/dataformat-yaml
 libraries/jackson/jackson
 libraries/jackson/jr-objects
 libraries/jackson/module-kotlin
+libraries/jackson3/databind
+libraries/jackson3/dataformat-yaml
+libraries/jackson3/jackson
+libraries/jackson3/jr-objects
+libraries/jackson3/module-kotlin
 libraries/java-websocket
 libraries/javax/activation
 libraries/javax/annotation

@@ -6771,33 +6771,11 @@ copy_file(
   visibility = ["//visibility:public"]
 )
 
-copy_file(
-  name = "com.fasterxml.jackson.core/jackson-annotations-2.19.0.jar_copy",
-  src = "@com_fasterxml_jackson_core-jackson-annotations-2_19_0_http//file",
-  out = "com.fasterxml.jackson.core/jackson-annotations-2.19.0.jar",
-  allow_symlink = True,
-  visibility = ["//visibility:public"]
-)
-
-java_library(
+jvm_import(
   name = "jackson-databind",
-  exports = [
-    ":com_fasterxml_jackson_core-jackson-databind-2_19_0_http_import",
-    ":com_fasterxml_jackson_core-jackson-annotations-2_19_0_http_import",
-  ],
-  visibility = ["//visibility:public"]
-)
-
-jvm_import(
-  name = "com_fasterxml_jackson_core-jackson-databind-2_19_0_http_import",
   jar = "@com_fasterxml_jackson_core-jackson-databind-2_19_0_http//file",
-  source_jar = "@com_fasterxml_jackson_core-jackson-databind-2_19_0-sources_http//file"
-)
-
-jvm_import(
-  name = "com_fasterxml_jackson_core-jackson-annotations-2_19_0_http_import",
-  jar = "@com_fasterxml_jackson_core-jackson-annotations-2_19_0_http//file",
-  source_jar = "@com_fasterxml_jackson_core-jackson-annotations-2_19_0-sources_http//file"
+  source_jar = "@com_fasterxml_jackson_core-jackson-databind-2_19_0-sources_http//file",
+  visibility = ["//visibility:public"]
 )
 
 copy_file(
@@ -11685,6 +11663,21 @@ jvm_import(
 )
 
 copy_file(
+  name = "com.fasterxml.jackson.core/jackson-annotations-2.21.jar_copy",
+  src = "@com_fasterxml_jackson_core-jackson-annotations-2_21_http//file",
+  out = "com.fasterxml.jackson.core/jackson-annotations-2.21.jar",
+  allow_symlink = True,
+  visibility = ["//visibility:public"]
+)
+
+jvm_import(
+  name = "libraries-jackson-annotations-jackson-annotations",
+  jar = "@com_fasterxml_jackson_core-jackson-annotations-2_21_http//file",
+  source_jar = "@com_fasterxml_jackson_core-jackson-annotations-2_21-sources_http//file",
+  visibility = ["//visibility:public"]
+)
+
+copy_file(
   name = "com.fasterxml.jackson.jr/jackson-jr-objects-2.19.0.jar_copy",
   src = "@com_fasterxml_jackson_jr-jackson-jr-objects-2_19_0_http//file",
   out = "com.fasterxml.jackson.jr/jackson-jr-objects-2.19.0.jar",
@@ -11696,6 +11689,81 @@ jvm_import(
   name = "libraries-jackson-jr-objects-jackson-jr-objects",
   jar = "@com_fasterxml_jackson_jr-jackson-jr-objects-2_19_0_http//file",
   source_jar = "@com_fasterxml_jackson_jr-jackson-jr-objects-2_19_0-sources_http//file",
+  visibility = ["//visibility:public"]
+)
+
+copy_file(
+  name = "tools.jackson.core/jackson-databind-3.1.0-rc1.jar_copy",
+  src = "@tools_jackson_core-jackson-databind-3_1_0-rc1_http//file",
+  out = "tools.jackson.core/jackson-databind-3.1.0-rc1.jar",
+  allow_symlink = True,
+  visibility = ["//visibility:public"]
+)
+
+jvm_import(
+  name = "libraries-jackson3-databind-jackson3-databind",
+  jar = "@tools_jackson_core-jackson-databind-3_1_0-rc1_http//file",
+  source_jar = "@tools_jackson_core-jackson-databind-3_1_0-rc1-sources_http//file",
+  visibility = ["//visibility:public"]
+)
+
+copy_file(
+  name = "tools.jackson.dataformat/jackson-dataformat-yaml-3.1.0-rc1.jar_copy",
+  src = "@tools_jackson_dataformat-jackson-dataformat-yaml-3_1_0-rc1_http//file",
+  out = "tools.jackson.dataformat/jackson-dataformat-yaml-3.1.0-rc1.jar",
+  allow_symlink = True,
+  visibility = ["//visibility:public"]
+)
+
+jvm_import(
+  name = "libraries-jackson3-dataformat-yaml-jackson3-dataformat-yaml",
+  jar = "@tools_jackson_dataformat-jackson-dataformat-yaml-3_1_0-rc1_http//file",
+  source_jar = "@tools_jackson_dataformat-jackson-dataformat-yaml-3_1_0-rc1-sources_http//file",
+  visibility = ["//visibility:public"]
+)
+
+copy_file(
+  name = "tools.jackson.core/jackson-core-3.1.0-rc1.jar_copy",
+  src = "@tools_jackson_core-jackson-core-3_1_0-rc1_http//file",
+  out = "tools.jackson.core/jackson-core-3.1.0-rc1.jar",
+  allow_symlink = True,
+  visibility = ["//visibility:public"]
+)
+
+jvm_import(
+  name = "libraries-jackson3-jackson3",
+  jar = "@tools_jackson_core-jackson-core-3_1_0-rc1_http//file",
+  source_jar = "@tools_jackson_core-jackson-core-3_1_0-rc1-sources_http//file",
+  visibility = ["//visibility:public"]
+)
+
+copy_file(
+  name = "tools.jackson.jr/jackson-jr-objects-3.1.0-rc1.jar_copy",
+  src = "@tools_jackson_jr-jackson-jr-objects-3_1_0-rc1_http//file",
+  out = "tools.jackson.jr/jackson-jr-objects-3.1.0-rc1.jar",
+  allow_symlink = True,
+  visibility = ["//visibility:public"]
+)
+
+jvm_import(
+  name = "libraries-jackson3-jr-objects-jackson3-jr-objects",
+  jar = "@tools_jackson_jr-jackson-jr-objects-3_1_0-rc1_http//file",
+  source_jar = "@tools_jackson_jr-jackson-jr-objects-3_1_0-rc1-sources_http//file",
+  visibility = ["//visibility:public"]
+)
+
+copy_file(
+  name = "tools.jackson.module/jackson-module-kotlin-3.1.0-rc1.jar_copy",
+  src = "@tools_jackson_module-jackson-module-kotlin-3_1_0-rc1_http//file",
+  out = "tools.jackson.module/jackson-module-kotlin-3.1.0-rc1.jar",
+  allow_symlink = True,
+  visibility = ["//visibility:public"]
+)
+
+jvm_import(
+  name = "libraries-jackson3-module-kotlin-jackson3-module-kotlin",
+  jar = "@tools_jackson_module-jackson-module-kotlin-3_1_0-rc1_http//file",
+  source_jar = "@tools_jackson_module-jackson-module-kotlin-3_1_0-rc1-sources_http//file",
   visibility = ["//visibility:public"]
 )
 
