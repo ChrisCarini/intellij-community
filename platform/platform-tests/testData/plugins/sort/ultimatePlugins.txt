@@ -89,7 +89,6 @@
 + -org-intellij-groovy-
 + -cucumber-groovy-
 + -org-jetbrains-idea-maven-
-+ -Osmorc-
 + -com-intellij-flex-
 + -com-intellij-aspectj-
 + -org-jetbrains-plugins-gradle-

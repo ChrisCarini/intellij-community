@@ -758,12 +758,6 @@
     <depends optional="true">com.intellij.modules.java</depends>
     <depends optional="true">-XPathView-</depends>
   </idea-plugin>
-  <idea-plugin url="file://out/intellij.osgi/META-INF/plugin.xml">
-    <id>-Osmorc-</id>
-    <name>OSGi</name>
-    <depends>com.intellij.modules.java</depends>
-    <depends optional="true">-org-jetbrains-idea-maven-</depends>
-  </idea-plugin>
   <idea-plugin url="file://out/intellij.asp/META-INF/plugin.xml">
     <id>-com-jetbrains-plugins-asp-</id>
     <name>ASP</name>
