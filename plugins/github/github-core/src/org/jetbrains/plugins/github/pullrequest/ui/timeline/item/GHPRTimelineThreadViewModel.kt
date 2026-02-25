@@ -15,6 +15,7 @@ import com.intellij.collaboration.util.RefComparisonChange
 import com.intellij.collaboration.util.SingleCoroutineLauncher
 import com.intellij.collaboration.util.getOrNull
 import com.intellij.diff.util.LineRange
+import com.intellij.diff.util.Side
 import com.intellij.openapi.diagnostic.Attachment
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.diff.impl.patch.PatchHunk
@@ -211,10 +212,15 @@ internal class UpdateableGHPRTimelineThreadViewModel internal constructor(
     }
 
     val anchorLocation = thread.originalLine?.let { thread.side to it - 1 }
-    val startAnchorLocation = if (thread.startSide != null && thread.originalStartLine != null) {
-      thread.startSide to thread.originalStartLine - 1
+    val startAnchorLocation = thread.startSide?.let { side ->
+      thread.originalStartLine?.let { line ->
+        val hunkStartLine = when (side) {
+          Side.LEFT -> hunk.startLineBefore
+          Side.RIGHT -> hunk.startLineAfter
+        }
+        side to (line - 1).coerceAtLeast(hunkStartLine)
+      }
     }
-    else null
 
     val anchorLength = if (startAnchorLocation?.first == anchorLocation?.first) {
       ((anchorLocation?.second ?: 0) - (startAnchorLocation?.second ?: 0)).coerceAtLeast(0)
