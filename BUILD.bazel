@@ -465,6 +465,8 @@ jvm_library(
     "//plugins/maven/maven36-server-impl:server-m36-impl_test_lib",
     "//plugins/maven/maven40-server-impl:server-m40_test_lib",
     "//plugins/mcp-server:mcpserver_test_lib",
+    "//python/python-process-output/common",
+    "//python/python-process-output/common:common_test_lib",
     "//python/pluginCore:community-plugin_test_lib",
   ]
 )
@@ -672,8 +674,8 @@ jvm_library(
     "//platform/testFramework/monorepo:monorepo_test_lib",
     "//plugins/textmate/tests",
     "//plugins/textmate/tests:tests_test_lib",
-    "//python/python-process-output:processOutput",
-    "//python/python-process-output:processOutput_test_lib",
+    "//python/python-process-output/frontend",
+    "//python/python-process-output/frontend:frontend_test_lib",
     "//tools/intellij.tools.ide.starter.junit5:ide-starter-junit5",
     "//tools/intellij.tools.ide.starter.junit5:ide-starter-junit5_test_lib",
     "//platform/build-scripts/product-dsl",
