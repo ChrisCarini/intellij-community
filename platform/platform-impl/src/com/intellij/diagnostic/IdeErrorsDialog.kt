@@ -124,9 +124,6 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
   private var myMessageClusters = emptyList<ErrorMessageCluster>() // exceptions with the same stacktrace
   @Volatile
   private var myIndex: Int = 0
-    set(value) {
-      field = value.coerceIn(0, (myMessageClusters.size - 1).coerceAtLeast(0))
-    }
   private var myLastIndex = -1
   private var myUpdateControlsJob: Job = SupervisorJob()
 
@@ -399,9 +396,9 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
         return@invokeOnCompletion
       }
 
-      myMessageClusters = deferred.getCompleted()
-      myIndex = selectMessage(defaultMessage)
       UIUtil.invokeLaterIfNeeded {
+        myMessageClusters = deferred.getCompleted()
+        myIndex = selectMessage(defaultMessage)
         if (isShowing) {
           updateControls()
         }
@@ -657,8 +654,10 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     }
 
     override fun actionPerformed(e: AnActionEvent) {
-      myLastIndex = myIndex--
-      updateControls()
+      if (myIndex > 0) {
+        myLastIndex = myIndex--
+        updateControls()
+      }
     }
   }
 
@@ -677,8 +676,10 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     }
 
     override fun actionPerformed(e: AnActionEvent) {
-      myLastIndex = myIndex++
-      updateControls()
+      if (myIndex < myMessageClusters.size - 1) {
+        myLastIndex = myIndex++
+        updateControls()
+      }
     }
   }
 
@@ -686,13 +687,15 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
     override fun update(e: AnActionEvent) {
-      e.presentation.isEnabled = myIndex != myMessageClusters.size - 1
+      e.presentation.isEnabled = myIndex < myMessageClusters.size - 1
     }
 
     override fun actionPerformed(e: AnActionEvent) {
-      myLastIndex = myIndex
-      myIndex = myMessageClusters.size - 1
-      updateControls()
+      if (myIndex < myMessageClusters.size - 1) {
+        myLastIndex = myIndex
+        myIndex = myMessageClusters.size - 1
+        updateControls()
+      }
     }
   }
 
@@ -836,7 +839,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     }
   }
 
-  private val gratitudeMessagesInternal: List<String> = listOf(
+  private val gratitudeMessagesInternal: List<@NlsSafe String> = listOf(
     "You are breathtaking!",
     "The world is a better place because of you!",
     "I couldn’t have done this without you. Thank you for being there!",
