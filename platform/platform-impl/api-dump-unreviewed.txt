@@ -3266,7 +3266,6 @@ f:com.intellij.ide.plugins.PluginNode
 - setDocumentationUrl(java.lang.String):V
 - setDownloadUrl(java.lang.String):V
 - setDownloads(java.lang.String):V
-- setEnabled(Z):V
 - setExternalPluginId(java.lang.String):V
 - setExternalPluginIdForScreenShots(java.lang.String):V
 - setExternalUpdateId(java.lang.String):V
