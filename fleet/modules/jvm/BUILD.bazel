@@ -20,7 +20,7 @@ jvm_library(
   name = "jvm",
   module_name = "fleet.modules.jvm",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
   resources = [":jvm_resources"],
   kotlinc_opts = ":custom_jvm",
   deps = [
@@ -36,7 +36,7 @@ jvm_library(
   name = "jvm_test_lib",
   module_name = "fleet.modules.jvm",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   kotlinc_opts = ":custom_jvm",
   runtime_deps = [
     ":jvm",

@@ -34,7 +34,7 @@ jvm_library(
   name = "cli",
   module_name = "fleet.build.cli",
   visibility = ["//visibility:public"],
-  srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True),
   resources = [":cli_resources"],
   kotlinc_opts = ":custom_cli",
   deps = [
@@ -54,7 +54,7 @@ jvm_library(
   name = "cli_test_lib",
   module_name = "fleet.build.cli",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   kotlinc_opts = ":custom_cli",
   exports = [
     "@lib//:fleet-clikt-core",

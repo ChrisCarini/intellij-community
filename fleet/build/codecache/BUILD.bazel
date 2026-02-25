@@ -24,7 +24,7 @@ jvm_library(
   name = "codecache",
   module_name = "fleet.build.codecache",
   visibility = ["//visibility:public"],
-  srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True),
   resources = [":codecache_resources"],
   kotlinc_opts = ":custom_codecache",
   deps = [
@@ -45,7 +45,7 @@ jvm_library(
   name = "codecache_test_lib",
   module_name = "fleet.build.codecache",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   kotlinc_opts = ":custom_codecache",
   runtime_deps = [
     ":codecache",

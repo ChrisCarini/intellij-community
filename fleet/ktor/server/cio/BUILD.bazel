@@ -10,7 +10,7 @@ resourcegroup(
 jvm_library(
   name = "cio",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   resources = [":cio_resources"],
   exports = [
     "@lib//:fleet-io-ktor-server-cio",
@@ -53,7 +53,7 @@ jvm_library(
   name = "cio_test_lib",
   module_name = "fleet.ktor.server.cio",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   exports = [
     "@lib//:fleet-io-ktor-server-cio",
     "@lib//:fleet-io-ktor-server-host-common",

@@ -30,7 +30,7 @@ jvm_library(
   name = "fs",
   module_name = "fleet.build.fs",
   visibility = ["//visibility:public"],
-  srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True),
   resources = [":fs_resources"],
   kotlinc_opts = ":custom_fs",
   deps = [
@@ -47,7 +47,7 @@ jvm_library(
 jvm_library(
   name = "fs_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["srcJvmTest/**/*.kt", "srcJvmTest/**/*.java", "srcJvmTest/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["srcJvmTest/**/*.kt", "srcJvmTest/**/*.java", "srcJvmTest/**/*.form"], allow_empty = True),
   resources = [":fs_test_resources"],
   kotlinc_opts = ":custom_fs",
   associates = [":fs"],

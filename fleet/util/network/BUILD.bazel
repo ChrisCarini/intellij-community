@@ -29,7 +29,7 @@ jvm_library(
   name = "network",
   module_name = "fleet.util.network",
   visibility = ["//visibility:public"],
-  srcs = glob(["srcCommonMain/**/*.kt", "srcCommonMain/**/*.java", "srcCommonMain/**/*.form", "srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["srcCommonMain/**/*.kt", "srcCommonMain/**/*.java", "srcCommonMain/**/*.form", "srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True),
   resources = [":network_resources"],
   kotlinc_opts = ":custom_network",
   deps = [
@@ -62,7 +62,7 @@ jvm_library(
   name = "network_test_lib",
   module_name = "fleet.util.network",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   kotlinc_opts = ":custom_network",
   exports = [
     "@lib//:kotlin-stdlib",

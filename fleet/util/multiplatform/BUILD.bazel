@@ -20,7 +20,7 @@ jvm_library(
   name = "multiplatform",
   module_name = "fleet.util.multiplatform",
   visibility = ["//visibility:public"],
-  srcs = glob(["srcCommonMain/**/*.kt", "srcCommonMain/**/*.java", "srcCommonMain/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["srcCommonMain/**/*.kt", "srcCommonMain/**/*.java", "srcCommonMain/**/*.form"], allow_empty = True),
   resources = [":multiplatform_resources"],
   kotlinc_opts = ":custom_multiplatform",
   exported_compiler_plugins = ["@community//fleet/compiler-plugins/expects:expects-plugin"],
@@ -31,7 +31,7 @@ jvm_library(
   name = "multiplatform_test_lib",
   module_name = "fleet.util.multiplatform",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   kotlinc_opts = ":custom_multiplatform",
   runtime_deps = [":multiplatform"]
 )

@@ -10,7 +10,7 @@ resourcegroup(
 jvm_library(
   name = "core",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   resources = [":core_resources"],
   exports = [
     "@lib//:fleet-io-ktor-client-core",
@@ -51,7 +51,7 @@ jvm_library(
   name = "core_test_lib",
   module_name = "fleet.ktor.client.core",
   visibility = ["//visibility:public"],
-  srcs = glob([], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob([], allow_empty = True),
   exports = [
     "@lib//:fleet-io-ktor-client-core",
     "@lib//:fleet-io-ktor-events",

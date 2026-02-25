@@ -24,7 +24,7 @@ jvm_library(
   name = "s3",
   module_name = "fleet.build.s3",
   visibility = ["//visibility:public"],
-  srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["srcJvmMain/**/*.kt", "srcJvmMain/**/*.java", "srcJvmMain/**/*.form"], allow_empty = True),
   resources = [":s3_resources"],
   kotlinc_opts = ":custom_s3",
   deps = [
@@ -40,7 +40,7 @@ jvm_library(
 jvm_library(
   name = "s3_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["srcJvmTest/**/*.kt", "srcJvmTest/**/*.java", "srcJvmTest/**/*.form"], allow_empty = True, exclude = ["**/module-info.java"]),
+  srcs = glob(["srcJvmTest/**/*.kt", "srcJvmTest/**/*.java", "srcJvmTest/**/*.form"], allow_empty = True),
   kotlinc_opts = ":custom_s3",
   associates = [":s3"],
   deps = [
