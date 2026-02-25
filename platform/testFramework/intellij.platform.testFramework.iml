@@ -20,9 +20,9 @@
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.coroutines.core" />
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.coroutines.slf4j" scope="TEST" />
     <orderEntry type="module" module-name="intellij.libraries.http.client" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.libraries.jackson" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.libraries.jackson.databind" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.libraries.jackson.module.kotlin" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson3" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson3.databind" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson3.module.kotlin" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="okhttp" level="project" />
     <orderEntry type="module" module-name="intellij.idea.community.customization" scope="TEST" />
     <orderEntry type="module" module-name="intellij.java.resources.en" scope="RUNTIME" />
