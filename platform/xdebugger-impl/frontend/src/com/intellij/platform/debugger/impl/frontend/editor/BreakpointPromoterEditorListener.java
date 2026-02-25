@@ -8,6 +8,7 @@ import com.intellij.openapi.editor.EditorGutter;
 import com.intellij.openapi.editor.EditorKind;
 import com.intellij.openapi.editor.event.EditorMouseEvent;
 import com.intellij.openapi.editor.event.EditorMouseEventArea;
+import com.intellij.openapi.editor.event.EditorMouseListener;
 import com.intellij.openapi.editor.event.EditorMouseMotionListener;
 import com.intellij.openapi.editor.ex.EditorGutterComponentEx;
 import com.intellij.openapi.editor.ex.util.EditorUtil;
@@ -28,7 +29,7 @@ import java.awt.Cursor;
 import java.util.Objects;
 
 @ApiStatus.Internal
-public final class BreakpointPromoterEditorListener implements EditorMouseMotionListener {
+public final class BreakpointPromoterEditorListener implements EditorMouseMotionListener, EditorMouseListener {
   private XSourcePositionImpl myLastPosition = null;
   private Icon myLastIcon = null;
 
@@ -74,6 +75,20 @@ public final class BreakpointPromoterEditorListener implements EditorMouseMotion
         myLastPosition = null;
         lineChangeHandler.exitedGutter();
       }
+    }
+  }
+
+  @Override
+  public void mouseExited(@NotNull EditorMouseEvent e) {
+    if (!ExperimentalUI.isNewUI() || !ShowBreakpointsOverLineNumbersAction.isSelected()) return;
+    Editor editor = e.getEditor();
+    if (editor.getProject() != myProject || editor.getEditorKind() != EditorKind.MAIN_EDITOR) return;
+    EditorGutter editorGutter = editor.getGutter();
+    if (!(editorGutter instanceof EditorGutterComponentEx gutter)) return;
+    if (myLastIcon != null) {
+      clear(gutter);
+      myLastPosition = null;
+      lineChangeHandler.exitedGutter();
     }
   }
 
