@@ -8,9 +8,12 @@ import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeRe
 import com.intellij.testFramework.junit5.TestApplication
 import java.util.stream.Stream
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -81,9 +84,10 @@ internal class SearchEverywhereMlOldPathSmokeUnitTest {
   }
 
   @Test
-  fun `old path createFoundElementInfo throws before session started`() {
+  fun `old path createFoundElementInfo falls back before session started`() {
     val contributor = MockSearchEverywhereContributor("old-guard-provider")
-    assertThrows<IllegalStateException> {
+    assertNull(SearchEverywhereMlFacade.activeSession)
+    val result = assertDoesNotThrow {
       service.createFoundElementInfo(
         contributor = contributor,
         element = "guard-element",
@@ -91,6 +95,12 @@ internal class SearchEverywhereMlOldPathSmokeUnitTest {
         correction = SearchEverywhereSpellCheckResult.NoCorrection,
       )
     }
+
+    assertEquals(100, result.priority)
+    assertEquals("guard-element", result.element)
+    assertSame(contributor, result.contributor)
+    assertSame(SearchEverywhereSpellCheckResult.NoCorrection, result.correction)
+    assertNull(SearchEverywhereMlFacade.activeSession)
   }
 
   private fun startLegacySession(tabId: String) {

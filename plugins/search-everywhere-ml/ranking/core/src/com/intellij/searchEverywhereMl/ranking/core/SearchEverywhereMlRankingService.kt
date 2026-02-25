@@ -7,7 +7,9 @@ import com.intellij.ide.actions.searcheverywhere.SearchEverywhereMixedListInfo
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereMlService
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereSpellCheckResult
 import com.intellij.ide.actions.searcheverywhere.SearchRestartReason
+import com.intellij.openapi.diagnostic.ThrottledLogger
 import com.intellij.ide.util.scopeChooser.ScopeDescriptor
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.searchEverywhereMl.SearchEverywhereTab
 import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchResultAdapter
@@ -15,10 +17,15 @@ import com.intellij.searchEverywhereMl.ranking.core.adapters.SearchStateChangeRe
 import com.intellij.searchEverywhereMl.ranking.core.adapters.toSearchStateChangeReason
 import org.jetbrains.annotations.ApiStatus
 import java.util.UUID
+import java.util.concurrent.TimeUnit.MINUTES
 
 
 @ApiStatus.Internal
 class SearchEverywhereMlRankingService : SearchEverywhereMlService {
+  companion object {
+    internal val LOG = logger<SearchEverywhereMlRankingService>()
+  }
+
   override fun isEnabled(): Boolean {
     return SearchEverywhereMlFacade.isMlEnabled
   }
@@ -34,8 +41,16 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
                                       correction: SearchEverywhereSpellCheckResult): SearchEverywhereFoundElementInfo {
     val elementInfo = SearchEverywhereFoundElementInfo(UUID.randomUUID().toString(), element, priority, contributor, correction)
     val searchResultAdapter = SearchResultAdapter.createAdapterFor(elementInfo)
-
-    val processedSearchResult = SearchEverywhereMlFacade.processSearchResult(searchResultAdapter)
+    val processedSearchResult = try {
+      SearchEverywhereMlFacade.processSearchResult(searchResultAdapter)
+    }
+    catch (e: IllegalStateException) {
+      THROTTLED_LOG.warn(
+        "Missing active Search Everywhere ML session/state. Falling back to default ranking for contributor ${contributor.searchProviderId}",
+        e
+      )
+      return elementInfo
+    }
 
     if (processedSearchResult.mlProbability != null) {
       return elementInfo.withPriority(processedSearchResult.finalPriority)
@@ -117,3 +132,5 @@ class SearchEverywhereMlRankingService : SearchEverywhereMlService {
     }
   }
 }
+
+private val THROTTLED_LOG = ThrottledLogger(SearchEverywhereMlRankingService.LOG, MINUTES.toMillis(1))

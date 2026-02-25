@@ -1484,14 +1484,15 @@ public final class SearchEverywhereUI extends BigPopupUI implements UiDataProvid
 
   @Override
   public void closePopup() {
+    ActionMenu.showDescriptionInStatusBar(true, myResultsList, null);
+    stopSearching();
+
     if (isShowing() || ApplicationManager.getApplication().isUnitTestMode()) {
       if (myMlService != null) {
         myMlService.onSessionFinished();
       }
     }
 
-    ActionMenu.showDescriptionInStatusBar(true, myResultsList, null);
-    stopSearching();
     searchFinishedHandler.run();
   }
 
