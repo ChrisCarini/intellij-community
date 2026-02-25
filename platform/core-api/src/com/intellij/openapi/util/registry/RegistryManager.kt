@@ -46,10 +46,6 @@ interface RegistryManager {
   fun get(key: String): RegistryValue
 
   fun resetValueChangeListener()
-
-  @ApiStatus.Internal
-  @Deprecated("getInstanceAsync() already guarantees the loading, there's no need to call this.")
-  suspend fun awaitRegistryLoad()
 }
 
 @ApiStatus.Internal

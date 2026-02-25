@@ -50,9 +50,6 @@ class Registry {
     private set
 
   @Volatile
-  private var loadFuture = CompletableFuture<Void?>()  // cannot use `CompletableDeferred` - the coroutines lib may be not on the classpath
-
-  @Volatile
   var valueChangeListener: RegistryValueListener = EMPTY_VALUE_LISTENER
     private set
 
@@ -259,13 +256,6 @@ class Registry {
     @JvmStatic
     fun markAsLoaded() {
       registry.isLoaded = true
-      registry.loadFuture.complete(null)
-    }
-
-    @Internal
-    @Deprecated("Use `RegistryManager.getInstanceAsync()` instead.")
-    suspend fun awaitLoad() {
-      registry.loadFuture.asDeferred().join()
     }
 
     @Internal
@@ -348,7 +338,6 @@ class Registry {
       }
 
       registry.isLoaded = true
-      registry.loadFuture.complete(null)
       return userProperties
     }
   }
@@ -365,8 +354,6 @@ class Registry {
     userProperties.clear()
     values.clear()
     isLoaded = false
-    loadFuture.cancel(false)
-    loadFuture = CompletableFuture()
   }
 
   fun getBundleValueOrNull(key: String): @NlsSafe String? =
