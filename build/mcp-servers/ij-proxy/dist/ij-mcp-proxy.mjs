@@ -24228,7 +24228,8 @@ var TOOL_VARIANTS = [
     description: "Apply a patch using the Codex apply_patch format.",
     schemaFactory: () => createApplyPatchSchema(),
     handlerFactory: ({ projectPath, callUpstreamTool }) => (args) => handleApplyPatchTool(args, projectPath, callUpstreamTool),
-    upstreamNames: ["get_file_text_by_path"]
+    upstreamNames: ["get_file_text_by_path"],
+    expose: ({ readCapabilities }) => !readCapabilities.hasApplyPatch
   },
   {
     mode: TOOL_MODES.CC,
@@ -24341,7 +24342,12 @@ function resolveReadCapabilities(upstreamTools) {
     if (name)
       names.add(name);
   }
-  return { capabilities: { hasReadFile: names.has("read_file") } };
+  return {
+    capabilities: {
+      hasReadFile: names.has("read_file"),
+      hasApplyPatch: names.has("apply_patch")
+    }
+  };
 }
 function createProxyTooling({
   projectPath,
