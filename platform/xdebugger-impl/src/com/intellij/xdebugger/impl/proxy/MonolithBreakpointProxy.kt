@@ -84,6 +84,8 @@ internal open class MonolithBreakpointProxy @Deprecated("Use breakpoint.asProxy(
     breakpoint.suspendPolicy = suspendPolicy
   }
 
+  override fun supportsInterLinePlacement(): Boolean = false
+
   override fun getTimestamp(): Long = breakpoint.timeStamp
 
 

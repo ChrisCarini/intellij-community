@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl
 
+import com.intellij.openapi.actionSystem.DataKey
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.ex.util.EditorUtil
 import com.intellij.openapi.extensions.ExtensionPointName
@@ -33,9 +34,19 @@ private val INTER_LINE_BREAKPOINT_CONFIGS_KEY: Key<Map<String, InterLineBreakpoi
 class InterLineBreakpointConfiguration(
   val icon: Icon,
   val hoverTooltip: @Nls String,
+  val breakpointProperties: InterLineBreakpointProperties,
   val animator: InterLineShiftAnimator? = null,
   val availableAbove: (line: Int) -> Boolean = { false },
 )
+
+@ApiStatus.Internal
+data class InterLineBreakpointProperties(
+  val isLogging: Boolean,
+) {
+  companion object {
+    val KEY: DataKey<InterLineBreakpointProperties> = DataKey.create("interLineBreakpointProperties")
+  }
+}
 
 /**
  * Provides configuration for inter-line hit detection in the gutter.

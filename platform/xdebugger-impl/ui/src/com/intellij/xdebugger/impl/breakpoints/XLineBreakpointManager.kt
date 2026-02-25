@@ -31,6 +31,8 @@ import com.intellij.openapi.editor.event.EditorMouseListener
 import com.intellij.openapi.editor.event.EditorMouseMotionListener
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.editor.ex.util.EditorUtil
+import com.intellij.openapi.editor.impl.BreakpointArea
+import com.intellij.openapi.editor.impl.InterLineBreakpointProperties
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileDocumentManagerListener
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -385,11 +387,14 @@ class XLineBreakpointManager(
         val action = ActionManager.getInstance().getAction(IdeActions.ACTION_TOGGLE_LINE_BREAKPOINT)
         if (action == null) throw AssertionError("'" + IdeActions.ACTION_TOGGLE_LINE_BREAKPOINT + "' action not found")
         val baseContext = DataManager.getInstance().getDataContext(mouseEvent.component)
-        val dataContext = SimpleDataContext.builder()
-          .setParent(baseContext)
-          .add(BREAKPOINT_LINE_KEY, line)
-          .add(INTER_LINE_BREAKPOINT_KEY, isInterLine)
-          .build()
+        val dataContext = SimpleDataContext.builder().apply {
+          setParent(baseContext)
+          add(BREAKPOINT_LINE_KEY, line)
+          add(INTER_LINE_BREAKPOINT_KEY, isInterLine)
+          if (hitResult is BreakpointArea.InterLine) {
+            add(InterLineBreakpointProperties.KEY, hitResult.configuration.breakpointProperties)
+          }
+        }.build()
         val event = AnActionEvent.createFromAnAction(action, mouseEvent, ActionPlaces.EDITOR_GUTTER, dataContext)
         // TODO IJPL-185322 Introduce a better way to handle actions in the frontend
         // TODO We actually want to call the action directly, but dispatch it on frontend if possible

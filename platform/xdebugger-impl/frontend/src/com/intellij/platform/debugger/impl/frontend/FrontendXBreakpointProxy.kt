@@ -239,6 +239,12 @@ internal open class FrontendXBreakpointProxy(
     }
   }
 
+  override fun supportsInterLinePlacement(): Boolean {
+    val lineType = type as? XLineBreakpointTypeProxy ?: return false
+    if (!lineType.supportsInterLinePlacement()) return false
+    return FrontendXBreakpointInterLinePlacementDetector.shouldBePlacedBetweenLines(this)
+  }
+
   override fun getTimestamp(): Long = currentState.timestamp
 
   override fun isLogMessage(): Boolean = currentState.logMessage
