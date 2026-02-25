@@ -39,8 +39,9 @@ public final class WindowRoundedCornersManager {
 
   public static boolean isAvailable() {
     if (AppMode.isRemoteDevHost()) {
-      Boolean clientValue = ClientSystemInfo.isWindowRoundedCornersManagerAvailable();
-      // In case information about the client is unavailable we return 'true', as it's a more probably variant.
+      ClientSystemInfo clientSystemInfo = ClientSystemInfo.getInstance();
+      Boolean clientValue = clientSystemInfo == null ? null : clientSystemInfo.getWindowRoundedCornersManagerAvailable();
+      // In case information about the client is unavailable we return 'true', as it's a more probable variant.
       return clientValue == null || clientValue;
     }
     if (!JBR.isRoundedCornersManagerSupported()) {

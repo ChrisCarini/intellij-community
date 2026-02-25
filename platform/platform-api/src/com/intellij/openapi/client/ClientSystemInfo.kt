@@ -29,16 +29,8 @@ class ClientSystemInfo private constructor() {
       return getInstance()?.waylandToolkitClient ?: StartupUiUtil.isWaylandToolkit()
     }
 
-    /**
-     * This will return `null` if no information from the remote client is available,
-     * the caller should use information from `WindowRoundedCornersManager` in this case.
-     */
-    @JvmStatic
-    fun isWindowRoundedCornersManagerAvailable(): Boolean? {
-      return getInstance()?.windowRoundedCornersManagerAvailable
-    }
-
     @ApiStatus.Internal
+    @JvmStatic
     fun getInstance(): ClientSystemInfo? {
       return ApplicationManager.getApplication()?.currentSessionOrNull?.takeIf { it.isRemote }?.getUserData(CLIENT_INFO_KEY)
     }
