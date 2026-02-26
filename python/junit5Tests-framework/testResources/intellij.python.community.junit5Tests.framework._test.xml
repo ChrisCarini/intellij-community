@@ -1,6 +1,6 @@
 <idea-plugin>
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
   <dependencies>
-    <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
     <module name="intellij.community.wintools"/>
     <module name="intellij.libraries.junit4"/>
     <module name="intellij.libraries.junit5"/>
@@ -14,8 +14,9 @@
     <module name="intellij.platform.testFramework"/>
     <module name="intellij.platform.testFramework.junit5"/>
     <module name="intellij.platform.testFramework.junit5.projectStructure"/>
+    <module name="intellij.platform.util.coroutines"/>
     <module name="intellij.python.community.impl.poetry.common"/>
     <module name="intellij.python.psi.impl"/>
-    <!-- endregion -->
   </dependencies>
+  <!-- endregion -->
 </idea-plugin>
