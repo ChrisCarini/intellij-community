@@ -26,6 +26,7 @@ fleetModule {
 kotlin {
   sourceSets.wasmJsMain.dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-browser:0.3")
+    implementation("org.jetbrains.kotlin-wrappers:kotlin-web:2026.2.18")
   }
 
   // KOTLIN__MARKER_START
