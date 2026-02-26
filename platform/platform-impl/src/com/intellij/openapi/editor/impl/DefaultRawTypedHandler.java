@@ -1,8 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl;
 
-import com.intellij.openapi.editor.NonWriteAccessTypedHandler;
-import com.intellij.codeInsight.hint.HintManager;
+import com.intellij.openapi.editor.EditorModificationUtil;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.command.CommandProcessor;
@@ -20,9 +19,7 @@ import com.intellij.openapi.editor.actionSystem.EditorActionManager;
 import com.intellij.openapi.editor.actionSystem.TypedAction;
 import com.intellij.openapi.editor.actionSystem.TypedActionHandler;
 import com.intellij.openapi.editor.actionSystem.TypedActionHandlerEx;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.util.SlowOperations;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -57,7 +54,7 @@ public final class DefaultRawTypedHandler implements TypedActionHandlerEx {
     currentCommand = commandProcessor.startCommand(project, "", /*groupId=*/ document, UndoConfirmationPolicy.DEFAULT);
     isInOuterCommand = currentCommand == null;
     try {
-      boolean isWritable = isDocumentWritable(editor, charTyped, dataContext);
+      boolean isWritable = EditorModificationUtil.requestWriting(editor, charTyped, dataContext);
       if (isWritable) {
         EditorThreading.write(() -> {
           document.startGuardedBlockChecking();
@@ -98,26 +95,5 @@ public final class DefaultRawTypedHandler implements TypedActionHandlerEx {
   private static boolean isCommandRestartSupported(@Nullable Project project) {
     UndoManager undoManager = project == null ? UndoManager.getGlobalInstance() : UndoManager.getInstance(project);
     return ((UndoManagerImpl)undoManager).getUndoCapabilities().isCommandRestartSupported();
-  }
-
-  private static boolean isDocumentWritable(@NotNull Editor editor, char charTyped, @NotNull DataContext dataContext) {
-    var writeAccess = FileDocumentManager.getInstance().requestWritingStatus(editor.getDocument(), editor.getProject());
-    if (writeAccess.hasWriteAccess()) {
-      return true;
-    }
-    for (NonWriteAccessTypedHandler nonWritable : NonWriteAccessTypedHandler.EP_NAME.getExtensionList()) {
-      if (nonWritable.isApplicable(editor, charTyped, dataContext)) {
-        try (var ignored = SlowOperations.startSection(SlowOperations.ACTION_PERFORM)) {
-          nonWritable.handle(editor, charTyped, dataContext);
-        }
-        return false;
-      }
-    }
-    HintManager.getInstance().showInformationHint(
-      editor,
-      writeAccess.getReadOnlyMessage(),
-      writeAccess.getHyperlinkListener()
-    );
-    return false;
   }
 }
