@@ -19,7 +19,7 @@ To regenerate, run `node community/.ai/render-guides.mjs`.
 
 ### After Code Changes
 
-- {{COMPILATION_RULE}}
+- **Full Bazel compilation after code changes:** run `./bazel-build-all.cmd` from the shell/CLI. Skip if only `.js`, `.mjs`, `.md`, `.txt`, or `.json` files are modified.
 - After modifying `*.iml`, `BUILD.bazel`, or `.idea/` files: run `./build/jpsModelToBazel.cmd`.
 - Run affected tests: `./tests.cmd -Dintellij.build.test.patterns=<FQN or wildcard>` (**FQN required; simple class names do not match**), or `node --test <file>` for `*.test.mjs`.
   Module-specific rules may override the runner. Skip if plugin has no tests. See [TESTING-internals](../.agents/skills/testing-internals/SKILL.md).
