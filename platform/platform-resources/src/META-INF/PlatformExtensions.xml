@@ -1411,7 +1411,7 @@
                         serviceImplementation="com.intellij.net.ssl.CertificateWarningDialogProviderImpl"/>
 
     <!--suppress PluginXmlValidity -->
-    <rawEditorTypedHandler implementationClass="com.intellij.openapi.editor.impl.MyRawTypedHandler"/>
+    <rawEditorTypedHandler implementationClass="com.intellij.openapi.editor.impl.EditorRawTypedHandler"/>
 
     <postStartupActivity implementation="com.intellij.diagnostic.AnalyzePendingSnapshotActivity"/>
 
