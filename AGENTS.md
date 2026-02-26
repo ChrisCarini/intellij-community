@@ -90,7 +90,7 @@ Available via ijproxy or JetBrains MCP. Use these for semantic operations; avoid
 - Refactors: `rename` (ijproxy) / `rename_refactoring` (JetBrains MCP); use for renames and avoid manual search/replace.
 - Formatting: `reformat_file`
 - Concurrency checks: `find_threading_requirements_usages`, `find_lock_requirements_usages`
-- Project structure: `get_project_modules`, `get_project_dependencies`, `get_repositories`
+- Project structure & VCS: `get_project_modules`, `get_project_dependencies`, `get_repositories`, `git_status`
 - Run configs: `get_run_configurations`, `execute_run_configuration`
 
 ### Tooling rules
@@ -101,7 +101,7 @@ Available via ijproxy or JetBrains MCP. Use these for semantic operations; avoid
 
 - Never shell for file ops (`cat`, `sed`, `find`, `grep`) on repo paths, except the client fallback (`./tools/fd.cmd`, `./tools/rg.cmd`) when no MCP is available.
 
-- Shell OK for: git, build/test.
+- Shell OK for: git (prefer `git_status` if the tool is available), build/test.
 - Outside repo: native shell permitted.
 
 ## Individual Preferences
