@@ -256,9 +256,7 @@ class SePopupVm(
 
     return coroutineScope {
       indexedItems.map { item ->
-        async {
-          currentTab.itemSelected(item, areIndexesOriginal, modifiers, searchPattern.value)
-        }
+        async { currentTab.itemSelected(item, areIndexesOriginal, modifiers, searchPattern.value) }
       }.awaitAll()
     }
   }
