@@ -24,6 +24,8 @@ class IdeWithLambda(delegate: BackgroundRun, val rdSession: LambdaRdTestSession,
   val isRemoteDev: Boolean = rdSession.rdIdeType == LambdaRdIdeType.FRONTEND
   val defaultTimeout = 1.minutes
 
+  fun LambdaRdTestSession.getRdIdeTypePrefix(): String = if (rdIdeType != LambdaRdIdeType.MONOLITH) "${rdIdeType}: " else ""
+
   suspend inline fun <T : LambdaIdeContext, R : Serializable> LambdaRdTestSession.runGetResult(
     name: String,
     timeout: Duration = defaultTimeout,
@@ -46,8 +48,7 @@ class IdeWithLambda(delegate: BackgroundRun, val rdSession: LambdaRdTestSession,
                            serializedLambda.classPath.map { it.canonicalPath },
                            serializedLambda.parametersBase64,
                            globalTestScope)
-
-      return runLogged(lambdaRdSerialized.stepName, timeout) {
+      return runLogged(this@runGetResult.getRdIdeTypePrefix() + lambdaRdSerialized.stepName, timeout) {
         val returnValueBase64 = runSerializedLambda.startSuspending(protocol.lifetime, lambdaRdSerialized)
         loader.decodeObject(returnValueBase64)
       }
@@ -61,7 +62,11 @@ class IdeWithLambda(delegate: BackgroundRun, val rdSession: LambdaRdTestSession,
     timeout: Duration = defaultTimeout,
     lambdaConsumer: SerializedLambdaWithIdeContextHelper.SuspendingSerializableConsumer<LambdaFrontendContext, Serializable>,
   ): Serializable {
-    return rdSession.runGetResult(name, parameters = parameters, lambdaConsumer = lambdaConsumer, timeout = timeout, globalTestScope = globalTestScope)
+    return rdSession.runGetResult(name,
+                                  parameters = parameters,
+                                  lambdaConsumer = lambdaConsumer,
+                                  timeout = timeout,
+                                  globalTestScope = globalTestScope)
            ?: error("Run hasn't returned a Serializable result")
   }
 
