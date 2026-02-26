@@ -502,6 +502,8 @@ class McpServerService(val cs: CoroutineScope) {
     previousTools: List<McpTool>?,
     newTools: List<McpTool>
   ): List<McpTool> {
+    logger.trace { "updateMcpServerTools" }
+
     val previousToolNames = previousTools?.map { it.descriptor.name }?.toSet() ?: emptySet()
     val newToolNames = newTools.map { it.descriptor.name }.toSet()
 
