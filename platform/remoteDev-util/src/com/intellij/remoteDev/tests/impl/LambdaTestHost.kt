@@ -16,6 +16,7 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.asContextElement
+import com.intellij.openapi.application.impl.LaterInvocator
 import com.intellij.openapi.client.ClientKind
 import com.intellij.openapi.client.ClientSessionsManager
 import com.intellij.openapi.diagnostic.Logger
@@ -46,7 +47,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
@@ -228,12 +228,12 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
 
         session.beforeEach.setSuspend(sessionBgtDispatcher) { _, testName ->
           LOG.info("------------------------- Test '$testName' started -------------------------")
-          runLogged("Flush queue in between tests") {
+          runLogged("Flush queue in between tests", 30.seconds) {
             withContext(Dispatchers.EDT) {
               IdeEventQueue.getInstance().flushQueue()
             }
           }
-          runLogged("Sync front and back protocol events") {
+          runLogged("Sync front and back protocol events", 10.seconds) {
             LambdaTestBridge.getInstance().syncProtocolEvents()
           }
           ideContext = getLambdaIdeContext()
@@ -244,9 +244,16 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
           assert(ideContext?.coroutineContext?.isActive == true) { "Lambda task coroutine context should be active" }
           try {
             ideContext!!.runAfterEachCleanup()
-          }
-          catch (t: Throwable) {
-            LOG.error("Error during afterEach cleanup for test '$testName': ${t.message}", t)
+
+            runLogged("Cancelling scopes in after each", 20.seconds) {
+              ideContext!!.coroutineContext.job.cancel()
+            }
+
+            makeSureNoModals()
+
+            runLogged("Waiting scopes in after each are canceled", 20.seconds) {
+              ideContext!!.coroutineContext.job.join()
+            }
           }
           finally {
             ideContext = null
@@ -300,7 +307,7 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
         // Advice for processing events
         session.runSerializedLambda.setSuspend(sessionBgtDispatcher) { _, lambda ->
           suspend fun clientIdContextToRunLambda() = if (session.rdIdeType == LambdaRdIdeType.BACKEND && AppMode.isRemoteDevHost()) {
-            waitSuspendingNotNull("Got remote client id", 10.seconds) {
+            waitSuspendingNotNull("Got remote client id", 20.seconds) {
               ClientSessionsManager.getAppSessions(ClientKind.REMOTE).singleOrNull()?.clientId
             }.let { ClientIdContextElement(it) }
           }
@@ -360,4 +367,23 @@ open class LambdaTestHost(coroutineScope: CoroutineScope) {
       }
     }
   }
+
+  private suspend fun makeSureNoModals(): Boolean =
+    withContext(Dispatchers.EDT + ModalityState.any().asContextElement() + NonCancellable) {
+      repeat(10) {
+        if (ModalityState.current() == ModalityState.nonModal()) {
+          return@withContext true
+        }
+        delay(1.seconds)
+      }
+      LOG.warn("Unexpected modality: " + ModalityState.current())
+      LaterInvocator.forceLeaveAllModals("${this@LambdaTestHost::class.java.simpleName} - makeSureNoModals")
+      repeat(10) {
+        if (ModalityState.current() == ModalityState.nonModal()) {
+          return@withContext true
+        }
+        delay(1.seconds)
+      }
+      error("Failed to close modal dialog: " + ModalityState.current())
+    }
 }

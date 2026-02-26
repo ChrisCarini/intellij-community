@@ -2,11 +2,11 @@ package com.intellij.lambda.testFramework.utils
 
 import com.intellij.ide.starter.driver.engine.BackgroundRun
 import com.intellij.ide.starter.driver.engine.IBackgroundRun
-import com.intellij.lambda.testFramework.starter.IdeInstance.runContext
 import com.intellij.remoteDev.tests.LambdaBackendContext
 import com.intellij.remoteDev.tests.LambdaFrontendContext
 import com.intellij.remoteDev.tests.LambdaIdeContext
 import com.intellij.remoteDev.tests.impl.utils.SerializedLambdaWithIdeContextHelper
+import com.intellij.remoteDev.tests.impl.utils.getTimeoutHonouringDebug
 import com.intellij.remoteDev.tests.impl.utils.runLogged
 import com.intellij.remoteDev.tests.modelGenerated.LambdaRdIdeType
 import com.intellij.remoteDev.tests.modelGenerated.LambdaRdSerialized
@@ -110,32 +110,15 @@ class IdeWithLambda(delegate: BackgroundRun, val rdSession: LambdaRdTestSession,
     }
   }
 
-  suspend inline fun forEachSession(
-    stepNamePrefix: String,
+  internal suspend inline fun forEachSession(
+    stepName: String,
     crossinline action: suspend (LambdaRdTestSession) -> Unit,
   ) {
-    val inDebug = runContext.frontendContext.calculateVmOptions().isUnderDebug()
     listOfNotNull(rdSession, backendRdSession).forEach { session ->
-      runLogged("$stepNamePrefix for ${session.rdIdeType}", if (!inDebug) 30.seconds else 10.minutes) {
+      runLogged(session.getRdIdeTypePrefix() + stepName, getTimeoutHonouringDebug(30.seconds)) {
         action(session)
       }
     }
-  }
-
-  suspend inline fun beforeAll(testName: String) {
-    forEachSession("Before each container") { it.beforeAll.startSuspending(testName) }
-  }
-
-  suspend inline fun beforeEach(testClassName: String) {
-    forEachSession("Before each") { it.beforeEach.startSuspending(testClassName) }
-  }
-
-  suspend inline fun afterEach(testName: String) {
-    forEachSession("After each") { it.afterEach.startSuspending(testName) }
-  }
-
-  suspend inline fun afterAll(testClassName: String) {
-    forEachSession("After each container") { it.afterAll.startSuspending(testClassName) }
   }
 
   suspend inline operator fun invoke(block: suspend IdeWithLambda.() -> Unit) {
