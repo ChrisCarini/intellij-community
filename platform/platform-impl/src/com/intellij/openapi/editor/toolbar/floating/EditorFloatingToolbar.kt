@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.toolbar.floating
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.readAction
 import com.intellij.openapi.diagnostic.getOrLogException
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.event.EditorMouseEvent
@@ -52,9 +51,7 @@ class EditorFloatingToolbar(editor: EditorImpl) :
       context = Dispatchers.EDT,
     ) { providerScope, provider ->
       val dataContext = editor.dataContext
-      val providerApplicable = readAction {
-        provider.isApplicable(dataContext)
-      }
+      val providerApplicable = provider.isApplicableAsync(dataContext)
       if (providerApplicable) {
         val providerDisposable = providerScope.asDisposable()
         val component = EditorFloatingToolbarComponent(editor, provider, providerDisposable)
