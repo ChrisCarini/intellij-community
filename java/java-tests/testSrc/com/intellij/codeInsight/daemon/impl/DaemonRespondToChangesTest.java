@@ -53,6 +53,8 @@ import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.command.undo.UndoManager;
+import com.intellij.openapi.diagnostic.LogLevel;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorFactory;
@@ -61,6 +63,7 @@ import com.intellij.openapi.editor.EditorMouseHoverPopupManager;
 import com.intellij.openapi.editor.ScrollType;
 import com.intellij.openapi.editor.actionSystem.EditorActionManager;
 import com.intellij.openapi.editor.actionSystem.TypedAction;
+import com.intellij.openapi.editor.colors.EditorColorsUtil;
 import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.ex.MarkupModelEx;
 import com.intellij.openapi.editor.ex.RangeHighlighterEx;
@@ -973,7 +976,6 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
     configureByText(JavaFileType.INSTANCE, "class X{ void f() {" + body + "<caret>\n} }");
 
     Project alienProject = PlatformTestUtil.loadAndOpenProject(createTempDirectory().toPath().resolve("alien.ipr"), getTestRootDisposable());
-    DaemonCodeAnalyzer.getInstance(alienProject).setUpdateByTimerEnabled(true);
 
     DaemonProgressIndicator.runInDebugMode(() -> {
       try {
@@ -989,9 +991,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
         FileEditorManager fe = FileEditorManager.getInstance(alienProject);
         Editor alienEditor = Objects.requireNonNull(fe.openTextEditor(alienDescriptor, false));
         ((EditorImpl)alienEditor).setCaretActive();
-        PsiDocumentManager.getInstance(getProject()).commitAllDocuments();
-        PsiDocumentManager.getInstance(alienProject).commitAllDocuments();
-
+        myDaemonCodeAnalyzer.restart(getTestName(false));
         // start daemon in the main project. should check for its cancel when typing in alien
         AtomicBoolean checked = new AtomicBoolean();
         Runnable callbackWhileWaiting = () -> {
@@ -1160,8 +1160,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       PsiFile psiFile = getFile();
       Project project = psiFile.getProject();
       CodeInsightTestFixtureImpl.ensureIndexesUpToDate(project);
-      Runnable callbackWhileWaiting = () -> type(' ');
-      myTestDaemonCodeAnalyzer.waitForDaemonToFinish(getProject(), getEditor().getDocument(), callbackWhileWaiting);
+      myTestDaemonCodeAnalyzer.waitForDaemonToFinish(getProject(), getEditor().getDocument(), () -> type(' '));
     }
     catch (Exception ignored) {
       return;
@@ -1957,6 +1956,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
 
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
+      long start = System.currentTimeMillis();
       if (element instanceof PsiComment && element.getText().equals("//XXX")) {
         while (wait.get()) {
           Thread.onSpinWait();
@@ -1964,7 +1964,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
         holder.newAnnotation(HighlightSeverity.ERROR, SWEARING).range(element).create();
         iDidIt();
       }
-      LOG.debug(getClass()+".annotate("+element+") = "+didIDoIt());
+      LOG.debug(getClass().getSimpleName()+".annotate("+element+") = "+didIDoIt()+" ("+(System.currentTimeMillis()-start)+"ms)");
     }
     private static List<HighlightInfo> myHighlights(MarkupModel markupModel) {
       return Arrays.stream(markupModel.getAllHighlighters())
@@ -1981,6 +1981,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
   }
 
   public void testInvalidPSIElementsCreatedByTypingNearThemMustBeRemovedImmediatelyMeaningLongBeforeTheHighlightingPassFinished() {
+    //setTraceDaemonLoggerLevel();
     @Language("JAVA")
     String text = """
       class X {
@@ -2024,13 +2025,28 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       assertNotEmpty(highlightsWithDescription(markupModel, errorDescription));
       assertNotEmpty(MyVerySlowAnnotator.myHighlights(markupModel));
 
+      getProject().getMessageBus().connect(getTestRootDisposable()).subscribe(DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC, new DaemonCodeAnalyzer.DaemonListener() {
+        @Override
+        public void daemonStarting(@NotNull Collection<? extends @NotNull FileEditor> fileEditors) {
+          LOG.debug("daemonStarting("+fileEditors+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n"));
+        }
+
+        @Override
+        public void daemonFinished(@NotNull Collection<? extends @NotNull FileEditor> fileEditors) {
+          LOG.debug("daemonFinished("+fileEditors+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n"));
+        }
+
+        @Override
+        public void daemonCancelEventOccurred(@NotNull String reason) {
+          LOG.debug("daemonCancelEventOccurred("+reason+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n"));
+        }
+      });
       MyVerySlowAnnotator.wait.set(true);
       repairingChange.run(); //repair invalid psi
       AtomicBoolean success = new AtomicBoolean();
       // register very slow annotator and make sure the invalid PSI highlighting was removed before this annotator finished
       TestTimeOut n = TestTimeOut.setTimeout(100, TimeUnit.SECONDS);
       Runnable checkHighlighted = () -> {
-        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
         if (highlightsWithDescription(markupModel, errorDescription).isEmpty() && MyVerySlowAnnotator.wait.get()) {
           // removed before highlighting is finished
           MyVerySlowAnnotator.wait.set(false);
@@ -2338,23 +2354,22 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
     Document document = getDocument(getFile());
     assertEmpty(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR));
     List<Pair<DEvent,String>> eventLog = Collections.synchronizedList(new ArrayList<>());
-    getProject().getMessageBus().connect(getTestRootDisposable()).subscribe(DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC,
-            new DaemonCodeAnalyzer.DaemonListener() {
-              @Override
-              public void daemonStarting(@NotNull Collection<? extends @NotNull FileEditor> fileEditors) {
-                eventLog.add(Pair.create(DEvent.STARTED,""));
-              }
+    getProject().getMessageBus().connect(getTestRootDisposable()).subscribe(DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC, new DaemonCodeAnalyzer.DaemonListener() {
+      @Override
+      public void daemonStarting(@NotNull Collection<? extends @NotNull FileEditor> fileEditors) {
+        eventLog.add(Pair.create(DEvent.STARTED,""));
+      }
 
-              @Override
-              public void daemonFinished(@NotNull Collection<? extends @NotNull FileEditor> fileEditors) {
-                eventLog.add(Pair.create(DEvent.FINISHED, ""));
-              }
+      @Override
+      public void daemonFinished(@NotNull Collection<? extends @NotNull FileEditor> fileEditors) {
+        eventLog.add(Pair.create(DEvent.FINISHED, ""));
+      }
 
-              @Override
-              public void daemonCancelEventOccurred(@NotNull String reason) {
-                eventLog.add(Pair.create(DEvent.CANCELED, reason));
-              }
-            });
+      @Override
+      public void daemonCancelEventOccurred(@NotNull String reason) {
+        eventLog.add(Pair.create(DEvent.CANCELED, reason));
+      }
+    });
     for (int i=0; i<100; i++) {
       myTestDaemonCodeAnalyzer.waitForDaemonToFinish(getProject(), document);
       eventLog.clear();
@@ -2362,15 +2377,19 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       type("x");
       myTestDaemonCodeAnalyzer.waitForDaemonToStart(getProject(), document, 10_000);
       myDaemonCodeAnalyzer.disableUpdateByTimer(disposable);
-      {
-        long deadline = System.currentTimeMillis() + 10; // do something for awhile
-        while (System.currentTimeMillis() < deadline) {
-          PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
+      try {
+        {
+          long deadline = System.currentTimeMillis() + 10; // do something for awhile
+          while (System.currentTimeMillis() < deadline) {
+            PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
+          }
         }
-      }
 
-      type("y");
-      Disposer.dispose(disposable); //reenable DCA
+        type("y");
+      }
+      finally {
+        Disposer.dispose(disposable); //reenable DCA
+      }
       myTestDaemonCodeAnalyzer.waitForDaemonToFinish(getProject(), document);
 
       assertEventsArePaired(eventLog);
@@ -2463,8 +2482,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
 
     configureByText(JavaFileType.INSTANCE, text);
     myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
-    RangeHighlighter[] highlighters = getSortedHighs();
-    String h1 = StringUtil.join(Arrays.asList(highlighters), "\n");
+    String h1 = renderHighlighters(getSortedHighs());
 
     GCWatcher tracking = GCWatcher.tracking(myFile);
     myFile = null;
@@ -2474,10 +2492,13 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
     myFile = PsiDocumentManager.getInstance(myProject).getPsiFile(getEditor().getDocument());
     myDaemonCodeAnalyzer.restart(getTestName(false));
     myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
-    RangeHighlighter[] highlighters2 = getSortedHighs();
-    String h2 = StringUtil.join(Arrays.asList(highlighters2), "\n");
+    String h2 = renderHighlighters(getSortedHighs());
 
     assertEquals(h1, h2);
+  }
+
+  private static @NotNull String renderHighlighters(RangeHighlighter[] highlighters) {
+    return StringUtil.join(Arrays.asList(highlighters), h->h.getTextRange()+":"+h.getTextAttributes(EditorColorsUtil.getGlobalOrDefaultColorScheme()), "\n");
   }
 
   private RangeHighlighter @NotNull [] getSortedHighs() {
@@ -2488,5 +2509,20 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       return h1 == null || h2 == null ? Segment.BY_START_OFFSET_THEN_END_OFFSET.compare(o1, o2) : HighlightInfoUpdaterImpl.BY_OFFSETS_AND_HASH_ERRORS_FIRST.compare(h1, h2);
     });
     return highlighters;
+  }
+  public static void setTraceDaemonLoggerLevel() {
+    Logger.getInstance("#com.intellij.codeInsight.daemon.impl.BackgroundUpdateHighlightersUtil").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.codeInsight.daemon.impl.DaemonProgressIndicator").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.codeInsight.daemon.impl.FileStatusMap").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.codeInsight.daemon.impl.GeneralHighlightingPass").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.codeInsight.daemon.impl.HighlightInfoUpdaterImpl").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.codeInsight.daemon.impl.PassExecutorService").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.codeInsight.daemon.impl.UpdateHighlightersUtil").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.openapi.editor.impl.RangeHighlighterImpl").setLevel(LogLevel.TRACE);
+    Logger.getInstance("#com.intellij.openapi.editor.impl.IntervalTreeImpl").setLevel(LogLevel.TRACE);
+    // clear internal buffer
+    //TestLoggerFactory.onFixturesInitializationStarted(true);
+    //TestLoggerFactory.onTestStarted();
   }
 }
