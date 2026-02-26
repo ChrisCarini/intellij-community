@@ -140,7 +140,7 @@ object TeamCityClient {
     artifactDir.deleteRecursivelyQuietly()
     artifactDir.createDirectories()
 
-    val (artifactCiPattern, actualArtifactPathOnCi) = if (source.isDirectory()) {
+    val (artifactCiPattern, targetArtifactPathOnCi, actualArtifactPathOnCi) = if (source.isDirectory()) {
       Files.walk(source).use { files ->
         for (path in files) {
           path.copyTo(target = artifactDir.resolve(source.relativize(path)), overwrite = true)
@@ -153,22 +153,21 @@ object TeamCityClient {
         "$sanitizedArtifactPath$suffix"
       }
 
-      "${artifactDir.toRealPath()}/**" to artifactPathOnCi
+      Triple("${artifactDir.toRealPath()}/**", artifactPathOnCi, artifactPathOnCi)
     }
     else {
       val tempFile = artifactDir
       source.copyTo(tempFile, overwrite = true)
-      val artifactPathOnCi = if (zipContent) {
-        "$sanitizedArtifactPath/${sanitizedArtifactName + suffix}.zip"
+      if (zipContent) {
+        val artifactPath = "$sanitizedArtifactPath/${sanitizedArtifactName + suffix}.zip"
+        Triple("${tempFile.toRealPath()}", artifactPath, artifactPath)
       }
       else {
-        "$sanitizedArtifactPath/${tempFile.fileName}"
+        Triple("${tempFile.toRealPath()}", sanitizedArtifactPath, "$sanitizedArtifactPath/${tempFile.fileName}")
       }
-
-      "${tempFile.toRealPath()}" to artifactPathOnCi
     }
 
-    printTcArtifactsPublishMessage("$artifactCiPattern => $actualArtifactPathOnCi")
+    printTcArtifactsPublishMessage("$artifactCiPattern => $targetArtifactPathOnCi")
 
     return actualArtifactPathOnCi
   }
