@@ -75,9 +75,9 @@ public class ProjectAndLibrariesScope extends GlobalSearchScope {
       var second = pair.getSecond();
       if (first.getDependent().equals(second.getDependent())) {
         result = Integer.compare(second.getOrderNumber(), first.getOrderNumber());
-      }
-      if (result != 0) {
-        return result;
+        if (result != 0) {
+          return result;
+        }
       }
     }
     return result;
