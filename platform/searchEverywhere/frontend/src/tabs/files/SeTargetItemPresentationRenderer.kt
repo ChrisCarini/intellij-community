@@ -53,13 +53,28 @@ class SeTargetItemPresentationRenderer(private val resultList: JList<SeResultLis
     }
 
     val fontMetrics = resultList.getFontMetrics(resultList.font)
-    val presentableTextWidth = fontMetrics.stringWidth(presentation.presentableText)
+    var presentableTextWidth = fontMetrics.stringWidth(presentation.presentableText)
+
+    // Width for "<location>"
+    val locationTextWidth = presentation.locationText?.let { fontMetrics.stringWidth(it) } ?: 0
+    // Width for "<gap><location>"
+    val locationTextWidthWithGap = if (locationTextWidth > 0) locationTextWidth + defaultGapWidth else 0
+    val resultListWidth = resultList.width
+
+    val maxPresentableTextWidth = resultListWidth - accumulatedContentWidth - locationTextWidthWithGap.coerceAtMost(resultListWidth / 3)
+    val presentableText = if (presentableTextWidth > maxPresentableTextWidth) {
+      val newText = SETextShortener.getShortenText(presentation.presentableText, maxPresentableTextWidth) { fontMetrics.stringWidth(it) }
+      presentableTextWidth = fontMetrics.stringWidth(newText)
+      newText
+    }
+    else presentation.presentableText
+
     // Calculate the combined width without locationText.
     // If it is larger than the available space, we need to hide the locationIcon to avoid text overlap (IJPL-188565).
     // Width for "<border><icon><gap><text><gap><border>"
     accumulatedContentWidth += (presentableTextWidth + defaultGapWidth)
 
-    text(presentation.presentableText) {
+    text(presentableText) {
       accessibleName = presentation.presentableText + (presentation.containerText?.let { " $it" } ?: "")
 
       if (presentation.presentableTextStrikethrough) {
@@ -82,11 +97,6 @@ class SeTargetItemPresentationRenderer(private val resultList: JList<SeResultLis
     }
 
     weightTextIfEnabled(value)
-    // Width for "<location>"
-    val locationTextWidth = presentation.locationText?.let { fontMetrics.stringWidth(it) } ?: 0
-    // Width for "<gap><location>"
-    val locationTextWidthWithGap = if (locationTextWidth > 0) locationTextWidth + defaultGapWidth else 0
-    val resultListWidth = resultList.width
     val maxContainerTextWidth = resultListWidth - accumulatedContentWidth - locationTextWidthWithGap
 
     presentation.containerText?.takeIf {
