@@ -163,8 +163,8 @@ internal object TestsDurationBucketingUtils {
     println("*** Calculated bucket partitions, average bucket time is ${averageTime}")
     if (TeamCityLogger.isUnderTC) {
       println(String.format("##teamcity[buildStatisticValue key='buckets.averageMs' value='%d']", averageTime.inWholeMilliseconds))
-      val bucket = buckets[currentBucketIndex]
-      println(String.format("##teamcity[buildStatisticValue key='buckets.currentMs' value='%d']", bucket.totalTime.inWholeMilliseconds))
+      val bucket = buckets.getOrNull(currentBucketIndex)
+      println(String.format("##teamcity[buildStatisticValue key='buckets.currentMs' value='%d']", bucket?.totalTime?.inWholeMilliseconds ?: 0))
     }
     filters.forEachIndexed { index, filter ->
       val bucket = buckets[index]

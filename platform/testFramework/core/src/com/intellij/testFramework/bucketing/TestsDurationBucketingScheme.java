@@ -55,6 +55,11 @@ public class TestsDurationBucketingScheme implements BucketingScheme {
 
   @Override
   public boolean matchesCurrentBucket(@NotNull String testIdentifier) {
+    if (TestCaseLoader.TEST_RUNNER_INDEX > TestCaseLoader.TEST_RUNNERS_COUNT) {
+      // Valid case for transition to lower runners count, should not run anything, return false.
+      return false;
+    }
+
     String packageName = StringsKt.substringBeforeLast(testIdentifier, '.', "");
     for (TestsDurationBucketingUtils.BucketFilter filter : myBucketFilters) {
       if (!filter.getPackageClasses().containsKey(packageName)) continue;
