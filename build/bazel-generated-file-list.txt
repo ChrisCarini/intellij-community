@@ -1332,7 +1332,6 @@ plugins/kotlin/navigation
 plugins/kotlin/navigation/tests
 plugins/kotlin/onboarding
 plugins/kotlin/onboarding-gradle
-plugins/kotlin/onboarding-maven
 plugins/kotlin/onboarding-promoter
 plugins/kotlin/plugin
 plugins/kotlin/plugin-updater
