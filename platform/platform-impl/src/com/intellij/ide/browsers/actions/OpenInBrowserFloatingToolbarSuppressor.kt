@@ -15,7 +15,7 @@ interface OpenInBrowserFloatingToolbarSuppressor {
   /**
    * Determines if the browser floating toolbar should be suppressed.
    */
-  fun isSuppressed(provider: FloatingToolbarProvider, dataContext: DataContext): Boolean
+  suspend fun isSuppressed(provider: FloatingToolbarProvider, dataContext: DataContext): Boolean
 
   companion object {
 
