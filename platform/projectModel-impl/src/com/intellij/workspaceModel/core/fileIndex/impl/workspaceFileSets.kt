@@ -87,7 +87,17 @@ internal sealed interface StoredFileSet : StoredFileSetCollection {
     action(this)
   }
 
+  /**
+   * The method compares every property of [StoredFileSet] except for associated [WorkspaceEntity].
+   * For the associated [WorkspaceEntity] it compares class.
+   */
   fun hasSameProperties(other: StoredFileSet): Boolean
+
+  /**
+   * The method returns [Any.hashCode] for every property of [StoredFileSet] except for associated [WorkspaceEntity].
+   * For the associated [WorkspaceEntity] it computes hashcode for its class.
+   */
+  fun hashcodeOfProperties(): Int
 
   abstract override fun toString(): String
 }
@@ -141,6 +151,16 @@ internal class WorkspaceFileSetImpl(
            recursive == other.recursive &&
            entityStorageKind == other.entityStorageKind &&
            entityPointer.isPointerToEntityOfSameTypeAs(other.entityPointer)
+  }
+
+  override fun hashcodeOfProperties(): Int {
+    var result = recursive.hashCode()
+    result = 31 * result + root.hashCode()
+    result = 31 * result + kind.hashCode()
+    result = 31 * result + entityPointer.classHashcode()
+    result = 31 * result + entityStorageKind.hashCode()
+    result = 31 * result + data.hashCode()
+    return result
   }
 
   override fun toString(): String {
@@ -333,7 +353,16 @@ internal sealed interface ExcludedFileSet : StoredFileSet {
       if (other !is ByFileKind) return false
       return root == other.root &&
              mask == other.mask &&
+             entityStorageKind == other.entityStorageKind &&
              entityPointer.isPointerToEntityOfSameTypeAs(other.entityPointer)
+    }
+
+    override fun hashcodeOfProperties(): Int {
+      var result = mask
+      result = 31 * result + root.hashCode()
+      result = 31 * result + entityPointer.classHashcode()
+      result = 31 * result + entityStorageKind.hashCode()
+      return result
     }
 
     override fun toString(): String {
@@ -372,7 +401,16 @@ internal sealed interface ExcludedFileSet : StoredFileSet {
       if (other !is ByPattern) return false
       return root == other.root &&
              table == other.table &&
+             entityStorageKind == other.entityStorageKind &&
              entityPointer.isPointerToEntityOfSameTypeAs(other.entityPointer)
+    }
+
+    override fun hashcodeOfProperties(): Int {
+      var result = root.hashCode()
+      result = 31 * result + entityPointer.classHashcode()
+      result = 31 * result + entityStorageKind.hashCode()
+      result = 31 * result + table.hashCode()
+      return result
     }
 
     override fun toString(): String {
@@ -404,7 +442,16 @@ internal sealed interface ExcludedFileSet : StoredFileSet {
       if (other !is ByCondition) return false
       return root == other.root &&
              condition == other.condition &&
+             entityStorageKind == other.entityStorageKind &&
              entityPointer.isPointerToEntityOfSameTypeAs(other.entityPointer)
+    }
+
+    override fun hashcodeOfProperties(): Int {
+      var result = root.hashCode()
+      result = 31 * result + condition.hashCode()
+      result = 31 * result + entityPointer.classHashcode()
+      result = 31 * result + entityStorageKind.hashCode()
+      return result
     }
 
     override fun toString(): String {

@@ -208,4 +208,5 @@ private object NonIncrementalMarker : EntityPointer<WorkspaceEntity> {
   override fun resolve(storage: EntityStorage): WorkspaceEntity? = null
   override fun isPointerTo(entity: WorkspaceEntity): Boolean = false
   override fun isPointerToEntityOfSameTypeAs(other: EntityPointer<*>): Boolean = other === this
+  override fun classHashcode(): Int = 0
 }

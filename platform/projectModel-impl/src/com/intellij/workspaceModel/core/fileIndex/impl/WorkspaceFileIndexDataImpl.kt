@@ -37,7 +37,9 @@ import com.intellij.util.CollectionQuery
 import com.intellij.util.Query
 import com.intellij.util.concurrency.ThreadingAssertions
 import com.intellij.util.concurrency.annotations.RequiresReadLock
+import com.intellij.util.containers.CollectionFactory
 import com.intellij.util.containers.ConcurrentBitSet
+import com.intellij.util.containers.HashingStrategy
 import com.intellij.workspaceModel.core.fileIndex.DependencyDescription
 import com.intellij.workspaceModel.core.fileIndex.EntityStorageKind
 import com.intellij.workspaceModel.core.fileIndex.WorkspaceFileIndexChangedEvent
@@ -489,20 +491,20 @@ internal class WorkspaceFileIndexDataImpl(
     val iterator = registeredFileSets.iterator()
     while (iterator.hasNext()) {
       val registeredSet = iterator.next()
-      val removedSet = removedFileSets.find { it.hasSameProperties(registeredSet) }
-      if (removedSet != null) {
-        removedFileSets.remove(removedSet)
+      if (removedFileSets.remove(registeredSet)) {
         iterator.remove()
       }
     }
 
-    if (registeredFileSets.isNotEmpty() || removedFileSets.isNotEmpty()) {
-      val removedExclusions = removedFileSets.filterIsInstance<ExcludedFileSet>().map { it.root }
+    val removedExclusions = removedFileSets.filterIsInstance<ExcludedFileSet>().map { it.root }
+    val registeredFileSets = registeredFileSets.filterIsInstance<WorkspaceFileSet>()
+
+    if (registeredFileSets.isNotEmpty() || removedExclusions.isNotEmpty()) {
       val changeLog =
         WorkspaceFileIndexChangedEvent(
-          registeredFileSets = registeredFileSets.filterIsInstance<WorkspaceFileSet>(),
-          storageAfter = storageAfter,
+          registeredFileSets = registeredFileSets,
           removedExclusions = removedExclusions,
+          storageAfter = storageAfter,
         )
       project.messageBus.syncPublisher(WorkspaceFileIndexListener.TOPIC).workspaceFileIndexChanged(changeLog)
     }
@@ -682,7 +684,7 @@ private class RemoveFileSetsRegistrarImpl(
   private val fileSetsByPackagePrefix: PackagePrefixStorage,
 ) : WorkspaceFileSetRegistrar {
 
-  val removedFileSets = mutableSetOf<StoredFileSet>()
+  val removedFileSets = CollectionFactory.createCustomHashingStrategySet(StoredFileSetHashingStrategy)
 
   override fun registerFileSet(root: VirtualFileUrl, kind: WorkspaceFileKind, entity: WorkspaceEntity, customData: WorkspaceFileSetData?) {
     val rootFile = root.virtualFile
@@ -796,7 +798,7 @@ private class StoreFileSetsRegistrarImpl(
   private val fileSetsByPackagePrefix: PackagePrefixStorage,
 ) : WorkspaceFileSetRegistrar {
 
-  val registeredFileSets = mutableSetOf<StoredFileSet>()
+  val registeredFileSets = CollectionFactory.createCustomHashingStrategySet(StoredFileSetHashingStrategy)
 
   override fun registerFileSet(
     root: VirtualFileUrl,
@@ -921,5 +923,18 @@ private class StoreFileSetsRegistrarImpl(
       fileSets.putValue(rootFile, fileSet)
       registeredFileSets.add(fileSet)
     }
+  }
+}
+
+private object StoredFileSetHashingStrategy: HashingStrategy<StoredFileSet> {
+
+  override fun hashCode(set: StoredFileSet?): Int {
+    return set?.hashcodeOfProperties() ?: 0
+  }
+
+  override fun equals(set1: StoredFileSet?, set2: StoredFileSet?): Boolean {
+    if (set1 === set2) return true
+    if (set1 == null || set2 == null) return false
+    return set1.hasSameProperties(set2)
   }
 }

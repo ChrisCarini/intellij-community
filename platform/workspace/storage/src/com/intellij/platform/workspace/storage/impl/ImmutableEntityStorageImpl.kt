@@ -68,8 +68,11 @@ internal data class EntityPointerImpl<E : WorkspaceEntity>(internal val id: Enti
   }
 
   override fun isPointerToEntityOfSameTypeAs(other: EntityPointer<*>): Boolean {
-    other as EntityPointerImpl
-    return id.clazz == other.id.clazz
+    return other is EntityPointerImpl && id.clazz == other.id.clazz
+  }
+
+  override fun classHashcode(): Int {
+    return id.clazz.hashCode()
   }
 }
 
