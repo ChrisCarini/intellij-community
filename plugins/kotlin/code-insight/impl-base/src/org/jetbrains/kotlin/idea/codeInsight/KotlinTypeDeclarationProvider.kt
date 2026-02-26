@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.analysis.api.types.symbol
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunctionLiteral
 import org.jetbrains.kotlin.psi.KtTypeAlias
@@ -66,7 +67,8 @@ internal class KotlinTypeDeclarationProvider : TypeDeclarationPlaceAwareProvider
             is KtCallableDeclaration -> {
                 symbol.getTypeDeclarationFromCallable(callSiteReferenceProvider = {
                     if (editor != null && offset != null) {
-                        TargetElementUtil.findReference(editor, offset)
+                        val findReference = TargetElementUtil.findReference(editor, offset)
+                        findReference
                     } else {
                         null
                     }
@@ -104,9 +106,11 @@ internal class KotlinTypeDeclarationProvider : TypeDeclarationPlaceAwareProvider
     private fun KtCallableDeclaration.getTypeDeclarationFromCallable(callSiteReferenceProvider: (() -> PsiReference?)? = null, typeFromSymbol: (KaCallableSymbol) -> KaType?): Array<PsiElement> {
         analyze(this) {
             val symbol = symbol as? KaCallableSymbol ?: return PsiElement.EMPTY_ARRAY
-            val type = typeFromSymbol(symbol) ?: return PsiElement.EMPTY_ARRAY
+            val callSiteReferenceElement = callSiteReferenceProvider?.invoke()?.element as? KtElement
+            val smartCastType = (callSiteReferenceElement as? KtExpression)?.smartCastInfo?.smartCastType
+            val type = smartCastType ?: typeFromSymbol(symbol) ?: return PsiElement.EMPTY_ARRAY
             val targetPsiElement = type.upperBoundIfFlexible().abbreviationOrSelf.symbol?.psi
-                ?: (callSiteReferenceProvider?.invoke()?.element as? KtElement)?.resolvePsiOfTypeAtCallSite()
+                ?: callSiteReferenceElement?.resolvePsiOfTypeAtCallSite()
             targetPsiElement?.let { return arrayOf(it) }
         }
         return PsiElement.EMPTY_ARRAY
