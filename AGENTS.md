@@ -33,10 +33,11 @@ Special handling applies to the directories below. If a file you touch lives und
 
 ### After Code Changes
 
-- **Full Bazel compilation after code changes:** run `./bazel-build-all.cmd` from the shell/CLI. Skip if only `.js`, `.mjs`, `.md`, `.txt`, or `.json` files are modified.
+- **Bazel compilation after code changes:** use `bazel build <target>` for affected modules. Skip if only `.js`, `.mjs`, `.md`, `.txt`, or `.json` files are modified.
+- **Run affected tests:** `./tests.cmd -Dintellij.build.test.patterns=<FQN or wildcard>` (**FQN required; simple class names do not match**), or `node --test <file>` for `*.test.mjs`.
+  `tests.cmd` performs Bazel compilation internally, so a separate compilation step is not needed when tests will also be run.
 - After modifying `*.iml`, `BUILD.bazel`, or `.idea/` files: run `./build/jpsModelToBazel.cmd`.
-- Run affected tests: `./tests.cmd -Dintellij.build.test.patterns=<FQN or wildcard>` (**FQN required; simple class names do not match**), or `node --test <file>` for `*.test.mjs`.
-  Module-specific rules may override the runner. Skip if plugin has no tests. See [TESTING-internals](./.agents/skills/testing-internals/SKILL.md).
+-  Module-specific rules may override the runner. Skip if plugin has no tests. See [TESTING-internals](./.agents/skills/testing-internals/SKILL.md).
 
 ### After Writing Code
 
