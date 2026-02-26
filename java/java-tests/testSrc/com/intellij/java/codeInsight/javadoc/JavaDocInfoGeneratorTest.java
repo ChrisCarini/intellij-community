@@ -244,6 +244,7 @@ public class JavaDocInfoGeneratorTest extends JavaCodeInsightTestCase {
   public void testSeeTagWithNestedLink() { doTestClass(); }
   public void testSeeTagWithNestedLinkMarkdown() { doTestClass(); }
   public void testLinkInParamDescriptionMarkdown() { doTestAtCaret(); }
+  public void testSeeTagMarkdownDescription() { doTestClass(); }
   public void testAllTags() { doTestAtCaret(); }
   public void testAllTagsMarkdown() { doTestAtCaret(); }
   public void testFragmentReference()  { doTestClass(); }

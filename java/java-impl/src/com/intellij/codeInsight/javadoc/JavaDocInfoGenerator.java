@@ -2578,6 +2578,7 @@ public class JavaDocInfoGenerator {
     PsiDocTag[] tags = comment.findTagsByName("see");
     if (tags.length > 0) {
       startHeaderSection(buffer, JavaBundle.message("javadoc.see.also")).append("<p>");
+      StringBuilder subBuffer = new StringBuilder();
       for (int i = 0; i < tags.length; i++) {
         PsiDocTag tag = tags[i];
         PsiElement[] elements = dataElementWithSpaces(tag);
@@ -2585,16 +2586,17 @@ public class JavaDocInfoGenerator {
           PsiElement ref = getRefElement(elements);
           String linkLabel = getLinkLabel(elements, ref);
           if (StringUtil.startsWithChar(linkLabel, '<')) {
-            buffer.append(linkLabel);
+            subBuffer.append(linkLabel);
           }
           else if (StringUtil.startsWithChar(linkLabel, '"')) {
             appendPlainText(buffer, linkLabel);
           }
           else {
             boolean plain = hasLinkLabel(elements, ref);
-            generateLink(buffer, ref != null ? ref.getText() : tag.getText(), plain ? linkLabel : null, tag, plain);
+            generateLink(subBuffer, ref != null ? ref.getText() : tag.getText(), plain ? linkLabel : null, tag, plain);
           }
         }
+        flushSubBuffer(buffer, subBuffer, comment.isMarkdownComment());
         if (i < tags.length - 1) {
           buffer.append(",").append(BR_TAG);
         }
