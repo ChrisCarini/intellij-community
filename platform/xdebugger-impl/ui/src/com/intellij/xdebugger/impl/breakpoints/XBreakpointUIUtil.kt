@@ -58,7 +58,7 @@ object XBreakpointUIUtil {
       offset = textLength
     }
 
-    val breakpoint = findBreakpoint(project, editorDocument, offset)
+    val breakpoint = findBreakpoint(project, editorDocument, editorDocument.getLineNumber(offset))
     if (breakpoint != null) {
       return Pair.create(breakpoint.getGutterIconRenderer(), breakpoint)
     }
@@ -81,9 +81,8 @@ object XBreakpointUIUtil {
     return Pair.create(null, null)
   }
 
-  private fun findBreakpoint(project: Project, document: Document, offset: Int): XLineBreakpointProxy? {
+  fun findBreakpoint(project: Project, document: Document, line: Int): XLineBreakpointProxy? {
     val breakpointManager = XDebugManagerProxy.getInstance().getBreakpointManagerProxy(project)
-    val line = document.getLineNumber(offset)
     val file = FileDocumentManager.getInstance().getFile(document) ?: return null
     for (type in breakpointManager.getLineBreakpointTypes()) {
       val breakpoint = breakpointManager.findBreakpointAtLine(type, file, line)
@@ -91,7 +90,6 @@ object XBreakpointUIUtil {
         return breakpoint
       }
     }
-
     return null
   }
 

@@ -28,7 +28,7 @@ private val INTER_LINE_BREAKPOINT_CONFIGS_KEY: Key<Map<String, InterLineBreakpoi
  * @param hoverTooltip tooltip to show on hover
  * @param breakpointProperties properties for the breakpoint (e.g., logging)
  * @param animator optional animator for line shift effects (null for no animation)
- * @param availableAbove predicate to check if this config applies above the given line (for inter-line placement)
+ * @param availableFor predicate to check if this config applies to the given line (for inter-line placement)
  */
 @ApiStatus.Internal
 class InterLineBreakpointConfiguration(
@@ -36,7 +36,7 @@ class InterLineBreakpointConfiguration(
   val hoverTooltip: @Nls String,
   val breakpointProperties: InterLineBreakpointProperties,
   val animator: InterLineShiftAnimator? = null,
-  val availableAbove: (line: Int) -> Boolean = { false },
+  val availableFor: (line: Int) -> Boolean = { false },
 )
 
 @ApiStatus.Internal
@@ -53,7 +53,7 @@ data class InterLineBreakpointProperties(
  *
  * Inter-line hit detection allows distinguishing clicks/hovers between lines from those on line numbers.
  *
- * Configurations are collected once per editor and cached. The [InterLineBreakpointConfiguration.availableAbove]
+ * Configurations are collected once per editor and cached. The [InterLineBreakpointConfiguration.availableFor]
  * predicate is used to determine if a config applies to a specific line during hover/click detection.
  */
 @ApiStatus.Internal
@@ -90,11 +90,11 @@ interface InterLineBreakpointConfigurationProvider {
      *
      * @param editor the editor to check
      * @param line the logical line to check
-     * @return the first config where [InterLineBreakpointConfiguration.availableAbove] returns true, or null
+     * @return the first config where [InterLineBreakpointConfiguration.availableFor] returns true, or null
      */
     @JvmStatic
     fun findConfigurationForLine(editor: Editor, line: Int): InterLineBreakpointConfiguration? {
-      return findFirstConfiguration(editor) { it.availableAbove(line) }
+      return findFirstConfiguration(editor) { it.availableFor(line) }
     }
 
     private fun findFirstConfiguration(editor: Editor, predicate: (InterLineBreakpointConfiguration) -> Boolean): InterLineBreakpointConfiguration? {
