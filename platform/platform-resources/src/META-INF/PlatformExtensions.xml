@@ -953,7 +953,7 @@
       id="DefaultFloatingToolbarProvider"/>
 
     <editorFloatingToolbarProvider
-      implementation="com.intellij.ide.browsers.actions.OpenInBrowserBaseGroupAction$OpenInBrowserFloatingToolbarProvider"
+      implementation="com.intellij.ide.browsers.actions.OpenInBrowserFloatingToolbarProvider"
       id="OpenInBrowserFloatingToolbarProvider"/>
 
     <bundledKeymap file="$default.xml"/>

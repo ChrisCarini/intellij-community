@@ -232,13 +232,6 @@ c:com.intellij.ide.browsers.StartBrowserSettings
 - setStartJavaScriptDebugger(Z):V
 - setUrl(java.lang.String):V
 - writeExternal(org.jdom.Element):V
-c:com.intellij.ide.browsers.actions.OpenInBrowserBaseGroupAction$OpenInBrowserFloatingToolbarProvider
-- com.intellij.openapi.editor.toolbar.floating.AbstractFloatingToolbarProvider
-- <init>():V
-- isApplicable(com.intellij.openapi.actionSystem.DataContext):Z
-com.intellij.ide.browsers.actions.OpenInBrowserBaseGroupAction$OpenInBrowserFloatingToolbarSuppressor
-- sf:EP_NAME:com.intellij.openapi.extensions.ExtensionPointName
-- a:isSuppressed(com.intellij.openapi.editor.toolbar.floating.FloatingToolbarProvider,com.intellij.openapi.actionSystem.DataContext):Z
 com.intellij.ide.dnd.TransferableWrapper
 - com.intellij.ide.dnd.FileFlavorProvider
 - a:getPsiElements():com.intellij.psi.PsiElement[]
