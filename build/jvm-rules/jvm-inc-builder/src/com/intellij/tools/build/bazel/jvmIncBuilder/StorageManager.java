@@ -16,7 +16,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.dependency.DependencyGraph;
 import org.jetbrains.jps.dependency.GraphConfiguration;
+import org.jetbrains.jps.dependency.NodeSourcePathMapper;
 import org.jetbrains.jps.dependency.impl.DependencyGraphImpl;
+import org.jetbrains.jps.dependency.impl.GraphImpl;
 import org.jetbrains.jps.dependency.kotlin.KotlinSubclassesIndex;
 import org.jetbrains.jps.dependency.kotlin.LookupsIndex;
 
@@ -56,7 +58,6 @@ public class StorageManager implements CloseableExt {
   private CompositeZipOutputBuilder myComposite;
   private InstrumentationClassFinder myInstrumentationClassFinder;
   private FormBinding myFormBinding;
-  private boolean isKotlinCriDataGenerationEnabled;
 
   private final MVStore myDataSwapStore;
 
@@ -68,7 +69,6 @@ public class StorageManager implements CloseableExt {
       .cacheSize(8)
       .open();
     myDataSwapStore.setVersionsToKeep(0);
-    isKotlinCriDataGenerationEnabled = myContext.getKotlinCriStoragePath() != null;
   }
 
   public void cleanBuildState() throws IOException {
@@ -130,31 +130,43 @@ public class StorageManager implements CloseableExt {
 
   @NotNull
   public GraphConfiguration getGraphConfiguration() throws IOException {
-    if (myGraphConfig != null) {
-      return myGraphConfig;
+    GraphConfiguration config = myGraphConfig;
+    if (config == null) {
+      myGraphConfig = config = createDependencyGraph();
     }
-
-    DependencyGraphImpl graph = createDependencyGraph();
-    myGraphConfig = GraphConfiguration.create(graph, myContext.getPathMapper());
-    return myGraphConfig;
+    return config;
   }
 
   @NotNull
-  private DependencyGraphImpl createDependencyGraph() throws IOException {
-    var filePath = DataPaths.getDepGraphStoreFile(myContext).toString();
-    int maxBuilderThreads = Math.min(8, Runtime.getRuntime().availableProcessors());
-    var containerFactory = new PersistentMVStoreMapletFactory(filePath, maxBuilderThreads);
-
+  private GraphConfiguration createDependencyGraph() throws IOException {
     try {
-      if (isKotlinCriDataGenerationEnabled) {
-        return new DependencyGraphImpl(
-          containerFactory,
-          DependencyGraphImpl.IndexFactory.create(LookupsIndex::new, KotlinSubclassesIndex::new)
-        );
-      }
-      else {
-        return new DependencyGraphImpl(containerFactory);
-      }
+      int maxBuilderThreads = Math.min(8, Runtime.getRuntime().availableProcessors());
+      String storePath = DataPaths.getDepGraphStoreFile(myContext).toString();
+      boolean kotlinCriEnabled = myContext.getKotlinCriStoragePath() != null;
+
+      return new GraphConfiguration() {
+        private final PersistentMVStoreMapletFactory containerFactory = new PersistentMVStoreMapletFactory(storePath, maxBuilderThreads);
+        private final DependencyGraph graph = kotlinCriEnabled?
+          new DependencyGraphImpl(
+            containerFactory, GraphImpl.IndexFactory.create(LookupsIndex::new, KotlinSubclassesIndex::new)
+          )
+          : new DependencyGraphImpl(containerFactory);
+
+        @Override
+        public @NotNull NodeSourcePathMapper getPathMapper() {
+          return myContext.getPathMapper();
+        }
+
+        @Override
+        public @NotNull DependencyGraph getGraph() {
+          return graph;
+        }
+
+        @Override
+        public boolean isGraphUpdated() {
+          return containerFactory.hasUpdates();
+        }
+      };
     }
     catch (Throwable e) {
       // treat any unexpected exception on graph initialization as graph storage corruption
@@ -237,7 +249,7 @@ public class StorageManager implements CloseableExt {
     GraphConfiguration config = myGraphConfig;
     if (config != null) {
       myGraphConfig = null;
-        writeKotlinCriData(config.getGraph(), saveChanges);
+      writeKotlinCriData(config, saveChanges);
       safeClose(config.getGraph(), saveChanges);
     }
 
@@ -256,26 +268,36 @@ public class StorageManager implements CloseableExt {
     }
   }
 
-  private void writeKotlinCriData(DependencyGraph graph, Boolean saveChanges) {
-    if (!saveChanges || !isKotlinCriDataGenerationEnabled) return;
+  private void writeKotlinCriData(GraphConfiguration config, boolean saveChanges) {
     Path kotlinCriPath = myContext.getKotlinCriStoragePath();
+    if (kotlinCriPath == null) {
+      return; // CRI is disabled
+    }
 
     boolean moved = false;
     Path tempFile = null;
     try {
-      tempFile = Files.createTempFile(kotlinCriPath.getParent(), kotlinCriPath.getFileName().toString(), ".tmp");
-      Files.write(tempFile, KotlinCriUtilKt.prepareSerializedData(graph));
-      Files.move(tempFile, kotlinCriPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+      Path backup;
+      if ((!saveChanges || !config.isGraphUpdated()) && Files.exists(backup = DataPaths.getJarBackupStoreFile(myContext, kotlinCriPath))) {
+        // restore from backup
+        Files.move(backup, kotlinCriPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+      }
+      else {
+        tempFile = Files.createTempFile(kotlinCriPath.getParent(), kotlinCriPath.getFileName().toString(), ".tmp");
+        Files.write(tempFile, KotlinCriUtilKt.prepareSerializedData(config.getGraph()));
+        Files.move(tempFile, kotlinCriPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+      }
       moved = true;
     }
     catch (IOException e) {
       myContext.report(Message.create(null, e));
     }
     finally {
-      if (!moved) {
+      if (!moved && tempFile != null) {
         try {
           Utils.deleteIfExists(tempFile);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
           myContext.report(Message.create(null, e));
         }
       }
