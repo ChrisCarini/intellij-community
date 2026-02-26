@@ -90,9 +90,8 @@ sealed interface McpToolFilter {
        * @param maskList comma-separated list of mask patterns with +/- prefixes
        * @return a new MaskBased filter, or AllowAll if the mask list is empty
        */
-      @JvmStatic
-      fun fromMaskList(maskList: String): McpToolFilter {
-        return if (maskList.isBlank()) AllowAll else MaskBased(maskList)
+      fun fromMaskList(maskList: String?): McpToolFilter {
+        return if (maskList == null || maskList.isBlank()) AllowAll else MaskBased(maskList)
       }
     }
   }
