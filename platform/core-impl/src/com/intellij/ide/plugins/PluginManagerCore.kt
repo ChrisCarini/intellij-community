@@ -538,17 +538,17 @@ object PluginManagerCore {
   fun initializePlugins(
     descriptorLoadingErrors: List<PluginDescriptorLoadingError>,
     initContext: PluginInitializationContext,
-    discoveredPlugins: PluginDescriptorLoadingResult,
+    discoveredPlugins: PluginsDiscoveryResult,
     coreLoader: ClassLoader,
     parentActivity: Activity?,
   ): PluginManagerState {
     val excludedFromLoading = IdentityHashMap<PluginMainDescriptor, PluginNonLoadReason>()
-    val pluginsToLoad = initContext.selectPluginsToLoad(discoveredPlugins.discoveredPlugins) { plugin, reason ->
+    val pluginsToLoad = initContext.selectPluginsToLoad(discoveredPlugins.pluginLists) { plugin, reason ->
       excludedFromLoading.put(plugin, reason)
     }
     val incompletePlugins = HashMap<PluginId, PluginMainDescriptor>()
     val shadowedBundledIds = HashSet<PluginId>()
-    for (pluginList in discoveredPlugins.discoveredPlugins) {
+    for (pluginList in discoveredPlugins.pluginLists) {
       for (plugin in pluginList.plugins) {
         val exclusionReason = excludedFromLoading[plugin]
         if (exclusionReason != null) {
@@ -752,7 +752,7 @@ object PluginManagerCore {
   internal suspend fun initializeAndSetPlugins(
     descriptorLoadingErrors: List<PluginDescriptorLoadingError>,
     initContext: PluginInitializationContext,
-    discoveredPlugins: PluginDescriptorLoadingResult,
+    discoveredPlugins: PluginsDiscoveryResult,
   ): PluginManagerState {
     val tracerShim = CoroutineTracerShim.coroutineTracer
     return tracerShim.span("plugin initialization") {

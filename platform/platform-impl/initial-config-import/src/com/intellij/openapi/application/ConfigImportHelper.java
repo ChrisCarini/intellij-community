@@ -16,13 +16,13 @@ import com.intellij.ide.plugins.DisabledPluginsState;
 import com.intellij.ide.plugins.ExpiredPluginsState;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginDescriptorLoader;
-import com.intellij.ide.plugins.PluginDescriptorLoadingResult;
 import com.intellij.ide.plugins.PluginInitContextSelectPluginsToLoadKt;
 import com.intellij.ide.plugins.PluginInstaller;
 import com.intellij.ide.plugins.PluginMainDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.ide.plugins.PluginNode;
 import com.intellij.ide.plugins.PluginVersionIsSuperseded;
+import com.intellij.ide.plugins.PluginsDiscoveryResult;
 import com.intellij.ide.plugins.ProductPluginInitContext;
 import com.intellij.ide.plugins.marketplace.MarketplaceRequests;
 import com.intellij.ide.plugins.newui.PluginUiModel;
@@ -1050,7 +1050,7 @@ public final class ConfigImportHelper {
     @NotNull List<IdeaPluginDescriptor> pluginsToMigrate,
     @NotNull List<IdeaPluginDescriptor> pluginsToDownload
   ) {
-    @Nullable PluginDescriptorLoadingResult oldIdePlugins = null;
+    @Nullable PluginsDiscoveryResult oldIdePlugins = null;
     try {
       /* FIXME
        * in production, bundledPluginPath from the options is always null, it is set only in tests.
@@ -1077,7 +1077,7 @@ public final class ConfigImportHelper {
       var nonLoadablePlugins = new HashMap<PluginId, PluginMainDescriptor>();
       var loadablePlugins = PluginInitContextSelectPluginsToLoadKt.selectPluginsToLoad(
         initContext,
-        oldIdePlugins.getDiscoveredPlugins(),
+        oldIdePlugins.getPluginLists(),
         (plugin, reason) -> {
           if (reason instanceof PluginVersionIsSuperseded) {
             return Unit.INSTANCE;

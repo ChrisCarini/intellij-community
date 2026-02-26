@@ -364,7 +364,7 @@ class PluginManagerTest {
         descriptor.jarFiles = emptyList()
       }
       loadingContext.close()
-      val discoveredPlugins = PluginDescriptorLoadingResult.build(
+      val discoveredPlugins = PluginsDiscoveryResult.build(
         listOf(DiscoveredPluginsList(plugins, if (isBundled) PluginsSourceContext.Bundled else PluginsSourceContext.Custom))
       )
       return PluginManagerCore.initializePlugins(

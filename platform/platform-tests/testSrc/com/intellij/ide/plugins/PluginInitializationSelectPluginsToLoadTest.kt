@@ -72,7 +72,7 @@ class PluginInitializationSelectPluginsToLoadTest {
     productBuildNumber: BuildNumber = BuildNumber.fromString("241.0")!!,
     explicitPluginSubsetToLoad: Set<PluginId>? = null,
     disablePluginLoadingCompletely: Boolean = false,
-    discoveryResult: PluginDescriptorLoadingResult,
+    discoveryResult: PluginsDiscoveryResult,
   ): Pair<UnambiguousPluginSet, MutableList<ExcludedPluginInfo>> {
     val excludedPlugins = mutableListOf<ExcludedPluginInfo>()
     val initContext = createInitContext(
@@ -84,7 +84,7 @@ class PluginInitializationSelectPluginsToLoadTest {
     )
 
     val result = initContext.selectPluginsToLoad(
-      discoveryResult.discoveredPlugins,
+      discoveryResult.pluginLists,
       onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
     )
 
@@ -150,8 +150,8 @@ class PluginInitializationSelectPluginsToLoadTest {
       
       // Manually create discovery result with different sources
       val discoveredPlugins = listOf(
-        DiscoveredPluginsList(customPlugins.discoveredPlugins[0].plugins, PluginsSourceContext.Custom),
-        DiscoveredPluginsList(systemPlugins.discoveredPlugins[0].plugins, PluginsSourceContext.SystemPropertyProvided)
+        DiscoveredPluginsList(customPlugins.pluginLists[0].plugins, PluginsSourceContext.Custom),
+        DiscoveredPluginsList(systemPlugins.pluginLists[0].plugins, PluginsSourceContext.SystemPropertyProvided)
       )
       
       val result = initContext.selectPluginsToLoad(
@@ -177,11 +177,11 @@ class PluginInitializationSelectPluginsToLoadTest {
       val bundledPlugins = PluginSetTestBuilder.fromPath(bundledPath).discoverPlugins().second
       val customPlugins = PluginSetTestBuilder.fromPath(customPath).discoverPlugins().second
 
-      val bundledList = DiscoveredPluginsList(bundledPlugins.discoveredPlugins[0].plugins, PluginsSourceContext.Bundled)
-      val customList = DiscoveredPluginsList(customPlugins.discoveredPlugins[0].plugins, PluginsSourceContext.Custom)
+      val bundledList = DiscoveredPluginsList(bundledPlugins.pluginLists[0].plugins, PluginsSourceContext.Bundled)
+      val customList = DiscoveredPluginsList(customPlugins.pluginLists[0].plugins, PluginsSourceContext.Custom)
 
       fun assertBundledIsSuperseded(discoveryResult: List<DiscoveredPluginsList>) {
-        val discoveryResult = PluginDescriptorLoadingResult.build(discoveryResult)
+        val discoveryResult = PluginsDiscoveryResult.build(discoveryResult)
         val (result, excludedPlugins) = testPluginSelection(discoveryResult = discoveryResult)
 
         assertThat(result.plugins).hasSize(1)
@@ -335,7 +335,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val result = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -546,7 +546,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -569,7 +569,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -600,7 +600,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -633,7 +633,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -663,7 +663,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -687,7 +687,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       val initContext = createInitContext()
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -716,7 +716,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -755,7 +755,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -783,7 +783,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -817,7 +817,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -847,7 +847,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -875,7 +875,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -902,7 +902,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -937,7 +937,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       )
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -965,7 +965,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       val initContext = createInitContext(disablePluginLoadingCompletely = true)
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -988,7 +988,7 @@ class PluginInitializationSelectPluginsToLoadTest {
       val initContext = createInitContext(disablePluginLoadingCompletely = true)
 
       val filteredResult = initContext.selectPluginsToLoad(
-        discoveryResult.discoveredPlugins,
+        discoveryResult.pluginLists,
         onPluginExcluded = { plugin, reason -> excludedPlugins.add(ExcludedPluginInfo(plugin, reason)) }
       )
 
@@ -1102,7 +1102,7 @@ class PluginInitializationSelectPluginsToLoadTest {
 
     @Test
     fun `empty plugin list produces empty result`() {
-      val discoveryResult = PluginDescriptorLoadingResult.build(emptyList())
+      val discoveryResult = PluginsDiscoveryResult.build(emptyList())
       val (result, _) = testPluginSelection(discoveryResult = discoveryResult)
 
       assertThat(result.plugins).isEmpty()
