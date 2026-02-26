@@ -194,14 +194,6 @@ public final class CodeFoldingManagerImpl extends CodeFoldingManager implements 
     TRANSIENT_KEY.set(region, true);
   }
 
-  /**
-   * @deprecated use {@link #markTransient(FoldRegion)}
-   */
-  @Deprecated
-  public static void markAsNotPersistent(@NotNull FoldRegion region) {
-    markTransient(region);
-  }
-
   static boolean isTransient(@Nullable FoldRegion region) {
     return TRANSIENT_KEY.isIn(region);
   }
