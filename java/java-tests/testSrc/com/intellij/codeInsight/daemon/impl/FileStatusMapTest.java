@@ -197,7 +197,6 @@ public class FileStatusMapTest extends ProductionDaemonAnalyzerTestCase {
   }
 
   public void testFileStatusMapDirtyPSICachingWorks() {
-    PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
     @Language("JAVA")
     String text = "class <caret>S { int ffffff =  0;}";
     configureByText(JavaFileType.INSTANCE, text);
@@ -229,6 +228,8 @@ public class FileStatusMapTest extends ProductionDaemonAnalyzerTestCase {
     }
     TextEditorHighlightingPassRegistrar registrar = TextEditorHighlightingPassRegistrar.getInstance(getProject());
     registrar.registerTextEditorHighlightingPass(new Fac(), null, null, false, -1);
+    myDaemonCodeAnalyzer.restart(getTestName(false));
+    creation[0]=0;
     assertEmpty(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR));
     assertEquals(1, creation[0]);
 
