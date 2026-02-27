@@ -135,34 +135,34 @@ public class SvnFileSystemListener implements LocalFileOperationsHandler, Dispos
   }
 
   @Override
-  public @Nullable File copy(final @NotNull VirtualFile file, final @NotNull VirtualFile toDir, final @NotNull String copyName) {
-    if (!isMyVcs(toDir)) return null;
+  public boolean copyFile(@NotNull VirtualFile file, @NotNull VirtualFile toDir, @NotNull String copyName) {
+    if (!isMyVcs(toDir)) return false;
 
     startOperation(toDir);
     File srcFile = virtualToIoFile(file);
     File destFile = new File(virtualToIoFile(toDir), copyName);
     if (!SvnUtil.isSvnVersioned(myVcs, destFile.getParentFile()) && !isPendingAdd(toDir)) {
-      return null;
+      return false;
     }
 
     if (!SvnUtil.isSvnVersioned(myVcs, srcFile.getParentFile())) {
       myAddedFiles.add(new AddedFileInfo(toDir, copyName, null, false));
-      return null;
+      return false;
     }
 
     final Status fileStatus = getFileStatus(srcFile);
     if (fileStatus != null && fileStatus.is(StatusType.STATUS_ADDED)) {
       myAddedFiles.add(new AddedFileInfo(toDir, copyName, null, false));
-      return null;
+      return false;
     }
 
     if (sameRoot(file.getParent(), toDir)) {
       myAddedFiles.add(new AddedFileInfo(toDir, copyName, srcFile, false));
-      return null;
+      return false;
     }
 
     myAddedFiles.add(new AddedFileInfo(toDir, copyName, null, false));
-    return null;
+    return false;
   }
 
   private boolean sameRoot(@NotNull VirtualFile srcDir, @NotNull VirtualFile dstDir) {

@@ -809,7 +809,8 @@ com.intellij.openapi.ui.InputValidatorEx
 com.intellij.openapi.vfs.LocalFileOperationsHandler
 - afterDone(com.intellij.util.ThrowableConsumer):V
 - completed():V
-- a:copy(com.intellij.openapi.vfs.VirtualFile,com.intellij.openapi.vfs.VirtualFile,java.lang.String):java.io.File
+- copy(com.intellij.openapi.vfs.VirtualFile,com.intellij.openapi.vfs.VirtualFile,java.lang.String):java.io.File
+- copyFile(com.intellij.openapi.vfs.VirtualFile,com.intellij.openapi.vfs.VirtualFile,java.lang.String):Z
 - a:createDirectory(com.intellij.openapi.vfs.VirtualFile,java.lang.String):Z
 - a:createFile(com.intellij.openapi.vfs.VirtualFile,java.lang.String):Z
 - a:delete(com.intellij.openapi.vfs.VirtualFile):Z

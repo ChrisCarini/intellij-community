@@ -280,7 +280,7 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
 
   private boolean auxCopy(VirtualFile file, VirtualFile toDir, String copyName) throws IOException {
     for (var handler : handlers()) {
-      if (handler.copy(file, toDir, copyName) != null) return true;
+      if (handler.copyFile(file, toDir, copyName)) return true;
     }
     return false;
   }

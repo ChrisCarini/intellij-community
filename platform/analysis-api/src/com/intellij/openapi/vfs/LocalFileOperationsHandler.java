@@ -5,7 +5,6 @@ import com.intellij.util.ThrowableConsumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
 import java.io.IOException;
 
 /**
@@ -38,11 +37,18 @@ public interface LocalFileOperationsHandler {
    * @param file  the file being copied.
    * @param toDir the destination directory.
    * @param copyName the name for the copy
-   * @return the copy result if the handler has performed the copy, null if the copy needs to be performed through
-   * standard core logic.
+   * @return {@code true} if the handler has performed the copy, {@code false} if the copy needs to be performed by the platform
    */
-  @Nullable
-  File copy(@NotNull VirtualFile file, @NotNull VirtualFile toDir, @NotNull String copyName) throws IOException;
+  default boolean copyFile(@NotNull VirtualFile file, @NotNull VirtualFile toDir, @NotNull String copyName) throws IOException {
+    return copy(file, toDir, copyName) != null;
+  }
+
+  /** @deprecated obsolete; implement {@link #copyFile(VirtualFile, VirtualFile, String)} instead */
+  @Deprecated(forRemoval = true)
+  @SuppressWarnings({"IO_FILE_USAGE", "UnnecessaryFullyQualifiedName", "unused"})
+  default @Nullable java.io.File copy(@NotNull VirtualFile file, @NotNull VirtualFile toDir, @NotNull String copyName) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Intercepts the renaming of a file.
