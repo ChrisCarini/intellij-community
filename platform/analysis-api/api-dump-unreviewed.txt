@@ -2451,7 +2451,7 @@ a:com.intellij.openapi.vfs.LocalFileSystem
 - refreshFiles(java.lang.Iterable):V
 - a:refreshFiles(java.lang.Iterable,Z,Z,java.lang.Runnable):V
 - refreshIoFiles(java.lang.Iterable):V
-- a:refreshIoFiles(java.lang.Iterable,Z,Z,java.lang.Runnable):V
+- refreshIoFiles(java.lang.Iterable,Z,Z,java.lang.Runnable):V
 - f:refreshNioFiles(java.lang.Iterable):V
 - a:refreshNioFiles(java.lang.Iterable,Z,Z,java.lang.Runnable):V
 - a:registerAuxiliaryFileOperationsHandler(com.intellij.openapi.vfs.LocalFileOperationsHandler):V
