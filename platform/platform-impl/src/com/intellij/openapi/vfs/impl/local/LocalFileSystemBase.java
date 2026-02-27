@@ -620,11 +620,6 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
   }
 
   @Override
-  public int getRank() {
-    return 1;
-  }
-
-  @Override
   public boolean markNewFilesAsDirty() {
     return true;
   }
