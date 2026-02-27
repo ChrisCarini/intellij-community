@@ -299,9 +299,6 @@ public final class TypedHandler extends TypedActionHandlerBase {
                                        @NotNull Project project,
                                        @NotNull Editor editor,
                                        @NotNull PsiFile file) {
-    if (RuntimeFlagsKt.isEditorLockFreeTypingEnabled()) {
-      return false;
-    }
     boolean warned = false;
     for (TypedHandlerDelegate delegate : TypedHandlerDelegate.EP_NAME.getExtensionList()) {
       TypedHandlerDelegate.Result result = action.call(delegate, charTyped, project, editor, file);
