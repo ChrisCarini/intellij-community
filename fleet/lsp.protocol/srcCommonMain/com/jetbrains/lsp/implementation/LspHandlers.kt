@@ -62,7 +62,10 @@ fun lspHandlers(builder: LspHandlersBuilder.() -> Unit): LspHandlers {
             requestType: RequestType<Request, Response, Error>,
             handler: suspend context(LspHandlerContext) CoroutineScope.(Request) -> Response,
         ) {
-            requests[requestType.method] = LspRequestHandler(requestType, handler)
+            requests[requestType.method] = LspRequestHandler(requestType, suspend { request ->
+              // LOG.debug("request ${requestType.method}")
+              handler(request)
+            })
         }
 
         override fun <Notification> notification(
