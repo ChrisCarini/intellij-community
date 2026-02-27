@@ -112,7 +112,7 @@ public class IdeaMenuUI extends BasicMenuUI {
   @Override
   public void installUI(JComponent c) {
     super.installUI(c);
-    if (c instanceof JMenuItem && ShowMode.Companion.isMergedMainMenu()) {
+    if (isHeaderMenu()) {
       hoverListener.addTo(c);
     }
   }
