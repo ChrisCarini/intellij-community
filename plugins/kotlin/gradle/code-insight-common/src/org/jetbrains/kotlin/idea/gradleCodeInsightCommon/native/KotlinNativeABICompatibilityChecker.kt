@@ -89,7 +89,7 @@ internal class KotlinNativeABICompatibilityChecker : EditorNotificationProvider 
         val project = module.project
         return ModuleRootManager.getInstance(module).orderEntries.filterIsInstance<LibraryOrderEntry>()
             .flatMap { it.library?.toKaLibraryModules(project).orEmpty() }
-            .filterNot { libraryModule -> libraryModule.getKotlinLibraries(project).any { !it.compatibilityInfo.isCompatible} }
+            .filter { libraryModule -> libraryModule.getKotlinLibraries(project).any { !it.compatibilityInfo.isCompatible} }
     }
 
     private sealed class LibraryGroup(private val ordinal: Int) : Comparable<LibraryGroup> {
