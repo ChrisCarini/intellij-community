@@ -386,6 +386,7 @@ public final class TestDaemonCodeAnalyzerImpl {
         }
       }
     } while (daemonIsWorkingOrPending(project, document));
+    dispatchAllInvocationEventsInIdeEventQueueReleasingWIL();
     return progresses;
   }
 
