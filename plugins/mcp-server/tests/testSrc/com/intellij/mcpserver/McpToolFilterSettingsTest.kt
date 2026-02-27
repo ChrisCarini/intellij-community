@@ -2,8 +2,8 @@
 
 package com.intellij.mcpserver
 
-import com.intellij.mcpserver.impl.DisallowListBasedMcpToolFilterProvider.Companion.ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY
-import com.intellij.mcpserver.impl.DisallowListBasedMcpToolFilterProvider.Companion.ENABLE_GIT_STATUS_TOOL_REGISTRY_KEY
+import com.intellij.mcpserver.impl.ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY
+import com.intellij.mcpserver.impl.ENABLE_GIT_STATUS_TOOL_REGISTRY_KEY
 import com.intellij.mcpserver.impl.McpServerService
 import com.intellij.mcpserver.settings.McpToolFilterSettings
 import com.intellij.testFramework.junit5.RegistryKey

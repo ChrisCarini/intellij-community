@@ -4,7 +4,7 @@ package com.intellij.mcpserver.toolsets
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.mcpserver.McpToolsetTestBase
-import com.intellij.mcpserver.impl.DisallowListBasedMcpToolFilterProvider.Companion.ENABLE_GIT_STATUS_TOOL_REGISTRY_KEY
+import com.intellij.mcpserver.impl.ENABLE_GIT_STATUS_TOOL_REGISTRY_KEY
 import com.intellij.mcpserver.toolsets.vcs.VcsToolset
 import com.intellij.mcpserver.util.projectDirectory
 import com.intellij.openapi.vfs.LocalFileSystem

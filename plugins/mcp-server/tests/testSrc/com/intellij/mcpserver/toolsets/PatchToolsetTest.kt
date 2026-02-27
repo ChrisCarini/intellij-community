@@ -3,7 +3,7 @@
 package com.intellij.mcpserver.toolsets
 
 import com.intellij.mcpserver.McpToolsetTestBase
-import com.intellij.mcpserver.impl.DisallowListBasedMcpToolFilterProvider.Companion.ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY
+import com.intellij.mcpserver.impl.ENABLE_APPLY_PATCH_TOOL_REGISTRY_KEY
 import com.intellij.mcpserver.toolsets.general.FileToolset
 import com.intellij.mcpserver.toolsets.general.PatchToolset
 import com.intellij.mcpserver.toolsets.general.TextToolset
