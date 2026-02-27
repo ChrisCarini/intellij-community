@@ -36,7 +36,6 @@ import com.intellij.platform.eel.provider.LocalEelMachine;
 import com.intellij.util.PathUtilRt;
 import com.intellij.util.SlowOperations;
 import com.intellij.util.SystemProperties;
-import com.intellij.util.ThrowableConsumer;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.io.PreemptiveSafeFileOutputStream;
 import com.intellij.util.io.SafeFileOutputStream;
@@ -307,9 +306,9 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
     return false;
   }
 
-  private void auxNotifyCompleted(ThrowableConsumer<LocalFileOperationsHandler, IOException> consumer) {
+  private void auxNotifyCompleted() {
     for (var handler : handlers()) {
-      handler.afterDone(consumer);
+      handler.completed();
     }
   }
 
@@ -330,7 +329,7 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
       NioFiles.createDirectories(nioFile);
     }
 
-    auxNotifyCompleted(handler -> handler.createDirectory(parent, name));
+    auxNotifyCompleted();
 
     //FIXME RC: why we return FakeVirtualFile (extends StubVirtualFile) here?
     //          it is quite strange/surprising implementation to use
@@ -367,7 +366,7 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
       }
     }
 
-    auxNotifyCompleted(handler -> handler.createFile(parent, name));
+    auxNotifyCompleted();
 
     return new FakeVirtualFile(parent, name);
   }
@@ -417,7 +416,7 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
         EelFileUtils.deleteRecursively(nioFile);
       }
     }
-    auxNotifyCompleted(handler -> handler.delete(file));
+    auxNotifyCompleted();
   }
 
   @Override
@@ -515,7 +514,7 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
       }
     }
 
-    auxNotifyCompleted(handler -> handler.move(file, newParent));
+    auxNotifyCompleted();
   }
 
   @Override
@@ -546,7 +545,7 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
       }
     }
 
-    auxNotifyCompleted(handler -> handler.rename(file, newName));
+    auxNotifyCompleted();
   }
 
   @Override
@@ -575,7 +574,7 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
       NioFiles.copyRecursively(nioFile, nioTarget);
     }
 
-    auxNotifyCompleted(handler -> handler.copy(file, newParent, newName));
+    auxNotifyCompleted();
 
     return new FakeVirtualFile(newParent, newName);
   }

@@ -1,6 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-
-
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.idea.svn;
 
 import com.intellij.openapi.Disposable;
@@ -30,7 +28,6 @@ import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.newvfs.RefreshQueue;
 import com.intellij.util.Functions;
-import com.intellij.util.ThrowableConsumer;
 import com.intellij.vcsUtil.ActionWithTempFile;
 import com.intellij.vcsUtil.VcsUtil;
 import org.jetbrains.annotations.NotNull;
@@ -60,6 +57,7 @@ import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
 import static com.intellij.util.containers.ContainerUtil.map;
 import static org.jetbrains.idea.svn.SvnBundle.message;
 
+@SuppressWarnings("IO_FILE_USAGE")
 public class SvnFileSystemListener implements LocalFileOperationsHandler, Disposable, CommandListener {
   private static final Logger LOG = Logger.getInstance(SvnFileSystemListener.class);
 
@@ -974,7 +972,7 @@ public class SvnFileSystemListener implements LocalFileOperationsHandler, Dispos
   }
 
   @Override
-  public void afterDone(final @NotNull ThrowableConsumer<? super LocalFileOperationsHandler, ? extends IOException> invoker) {
+  public void completed() {
     if (!myIsInCommand && myIsOperationStarted) commandFinished();
   }
 }

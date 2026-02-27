@@ -807,7 +807,8 @@ com.intellij.openapi.ui.InputValidatorEx
 - a:getErrorText(java.lang.String):java.lang.String
 - getWarningText(java.lang.String):java.lang.String
 com.intellij.openapi.vfs.LocalFileOperationsHandler
-- a:afterDone(com.intellij.util.ThrowableConsumer):V
+- afterDone(com.intellij.util.ThrowableConsumer):V
+- completed():V
 - a:copy(com.intellij.openapi.vfs.VirtualFile,com.intellij.openapi.vfs.VirtualFile,java.lang.String):java.io.File
 - a:createDirectory(com.intellij.openapi.vfs.VirtualFile,java.lang.String):Z
 - a:createFile(com.intellij.openapi.vfs.VirtualFile,java.lang.String):Z

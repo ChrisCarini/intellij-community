@@ -1,4 +1,4 @@
-// Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.vfs;
 
 import com.intellij.util.ThrowableConsumer;
@@ -71,5 +71,15 @@ public interface LocalFileOperationsHandler {
    */
   boolean createDirectory(@NotNull VirtualFile dir, @NotNull String name) throws IOException;
 
-  void afterDone(@NotNull ThrowableConsumer<? super LocalFileOperationsHandler, ? extends IOException> invoker);
+  /** @deprecated the parameter is pointless; override {@link #completed()} instead if needed */
+  @Deprecated(forRemoval = true)
+  @SuppressWarnings({"DeprecatedIsStillUsed", "unused"})
+  default void afterDone(@NotNull ThrowableConsumer<? super LocalFileOperationsHandler, ? extends IOException> invoker) { }
+
+  /**
+   * Called after the operation is completed.
+   */
+  default void completed() {
+    afterDone(handler -> { });
+  }
 }
