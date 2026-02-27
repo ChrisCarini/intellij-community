@@ -3,7 +3,6 @@ package com.intellij.openapi.projectRoots.impl
 
 import com.intellij.codeInsight.codeVision.CodeVisionHost
 import com.intellij.codeInsight.codeVision.CodeVisionHost.LensInvalidateSignal
-import com.intellij.execution.wsl.WslPath
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.edtWriteAction
@@ -16,14 +15,14 @@ import com.intellij.openapi.extensions.ExtensionPointListener
 import com.intellij.openapi.extensions.PluginDescriptor
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.projectRoots.JdkFinder
 import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ProjectRootManager
-import com.intellij.openapi.util.SystemInfo
+import com.intellij.openapi.roots.ui.configuration.projectRoot.ProjectSdksModel
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.platform.backend.workspace.workspaceModel
+import com.intellij.platform.eel.provider.getEelMachine
 import com.intellij.platform.workspace.jps.entities.ContentRootEntity
 import com.intellij.platform.workspace.jps.entities.SdkEntity
 import com.intellij.terminal.ui.TerminalWidget
@@ -108,33 +107,31 @@ public class ExternalJavaConfigurationService(public val project: Project, priva
    * @return a matching JDK candidate for the release data among registered and detected JDKs.
    */
   public fun <T> findCandidate(releaseData: T, configProvider: ExternalJavaConfigurationProvider<T>): JdkCandidate<T>? {
-    val fileName = configProvider.getConfigurationFilePath(project).fileName
-
-    val wsl =  SystemInfo.isWindows && project.guessProjectDir()?.let { WslPath.isWslUncPath(it.path) } == true
+    val configFile = configProvider.getConfigurationFilePath(project)
+    val eelMachine = project.getEelMachine()
 
     // Match against the project SDK
     val projectSdk = ProjectRootManager.getInstance(project).projectSdk
     if (projectSdk != null && configProvider.matchAgainstSdk(releaseData, projectSdk)) {
       return JdkCandidate.Jdk(releaseData, projectSdk, true)
     } else {
-      LOG.info("[$fileName] $releaseData - Project JDK doesn't match (${projectSdk?.versionString})")
+      LOG.info("[${configFile.fileName}] $releaseData - Project JDK doesn't match (${projectSdk?.versionString})")
     }
 
     // Match against the project JDK table
     val jdks = ProjectJdkTable.getInstance(project).allJdks
     for (jdk in jdks) {
-      val path = jdk.homePath ?: continue
-      if (SystemInfo.isWindows && wsl != WslPath.isWslUncPath(path)) continue
+      if (!ProjectSdksModel.sdkMatchesEel(eelMachine, jdk)) continue
       if (configProvider.matchAgainstSdk(releaseData, jdk)) {
-        LOG.info("[$fileName] $releaseData - Candidate found: ${jdk.versionString}")
+        LOG.info("[$configFile.fileName] $releaseData - Candidate found: ${jdk.versionString}")
         return JdkCandidate.Jdk(releaseData, jdk, false)
       }
     }
 
     // Match against JdkFinder
     JdkFinder.getInstance().suggestHomePaths(project).forEach { path ->
-      if (configProvider.matchAgainstPath(releaseData, path) && (!SystemInfo.isWindows || wsl == WslPath.isWslUncPath(path))) {
-        LOG.info("[$fileName] $releaseData - Candidate found to register")
+      if (configProvider.matchAgainstPath(releaseData, path) && ProjectSdksModel.sdkMatchesEel(eelMachine, path)) {
+        LOG.info("[$configFile.fileName] $releaseData - Candidate found to register")
         return JdkCandidate.Path(releaseData, path)
       }
     }
