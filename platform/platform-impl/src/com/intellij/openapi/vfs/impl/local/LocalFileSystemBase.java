@@ -30,7 +30,9 @@ import com.intellij.openapi.vfs.newvfs.impl.FakeVirtualFile;
 import com.intellij.openapi.vfs.newvfs.impl.VirtualDirectoryImpl;
 import com.intellij.openapi.vfs.newvfs.persistent.PersistentFS;
 import com.intellij.openapi.vfs.newvfs.persistent.PersistentFSImpl;
+import com.intellij.platform.eel.fs.EelFileUtils;
 import com.intellij.platform.eel.provider.LocalEelDescriptor;
+import com.intellij.platform.eel.provider.LocalEelMachine;
 import com.intellij.util.PathUtilRt;
 import com.intellij.util.SlowOperations;
 import com.intellij.util.SystemProperties;
@@ -401,7 +403,7 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
       if (MOVE_TO_TRASH.get(file) == Boolean.TRUE) {
         TrashBin.moveToTrash(nioFile);
       }
-      else {
+      else if (LocalEelMachine.INSTANCE.ownsPath(nioFile)) {
         var callback = DELETE_CALLBACK.get(file);
         if (callback != null) {
           NioFiles.deleteRecursively(nioFile, callback);
@@ -410,6 +412,9 @@ public abstract class LocalFileSystemBase extends LocalFileSystem {
           //noinspection UseOptimizedEelFunctions
           NioFiles.deleteRecursively(nioFile);
         }
+      }
+      else {
+        EelFileUtils.deleteRecursively(nioFile);
       }
     }
     auxNotifyCompleted(handler -> handler.delete(file));
