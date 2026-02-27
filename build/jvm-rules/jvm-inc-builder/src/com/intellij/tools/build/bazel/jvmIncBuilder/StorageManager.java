@@ -3,6 +3,7 @@ package com.intellij.tools.build.bazel.jvmIncBuilder;
 
 import com.intellij.tools.build.bazel.jvmIncBuilder.impl.CompositeZipOutputBuilder;
 import com.intellij.tools.build.bazel.jvmIncBuilder.impl.KotlinCriUtilKt;
+import com.intellij.tools.build.bazel.jvmIncBuilder.impl.MVStoreSwapMap;
 import com.intellij.tools.build.bazel.jvmIncBuilder.impl.Utils;
 import com.intellij.tools.build.bazel.jvmIncBuilder.impl.ZipEntryIterator;
 import com.intellij.tools.build.bazel.jvmIncBuilder.impl.ZipOutputBuilderImpl;
@@ -69,6 +70,7 @@ public class StorageManager implements CloseableExt {
       .cacheSize(8)
       .open();
     myDataSwapStore.setVersionsToKeep(0);
+    myDataSwapStore.setRetentionTime(0); //  immediately reclaim old page versions after they're no longer referenced
   }
 
   public void cleanBuildState() throws IOException {
@@ -113,7 +115,7 @@ public class StorageManager implements CloseableExt {
   }
 
   public <K, V> Map<K, V> createOffHeapMap(String name) {
-    return myDataSwapStore.openMap(name);
+    return new MVStoreSwapMap<>(myDataSwapStore.openMap(name));
   }
 
   public FormBinding getFormsBinding() throws Exception {
@@ -237,10 +239,6 @@ public class StorageManager implements CloseableExt {
       closeDataStorages(saveChanges);
     }
     finally {
-      myDataSwapStore.rollback();
-      if (myDataSwapStore.getFileStore() instanceof OffHeapStore store) {
-        store.truncate(0); // forcibly clean byte buffers
-      }
       myDataSwapStore.close();
     }
   }

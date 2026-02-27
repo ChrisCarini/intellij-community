@@ -23,6 +23,7 @@ import org.jetbrains.jps.dependency.diff.Difference;
 import org.jetbrains.jps.dependency.java.GeneralJvmDifferentiateStrategy;
 import org.jetbrains.jps.dependency.kotlin.KotlinSourceOnlyDifferentiateStrategy;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -429,6 +430,14 @@ public final class DependencyGraphImpl extends GraphImpl implements DependencyGr
           return diff.unchanged();
         }
       });
+    }
+    
+    try {
+      // ensure updates are commited to backing storages, in case they require explicit data commit
+      flush();
+    }
+    catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 
