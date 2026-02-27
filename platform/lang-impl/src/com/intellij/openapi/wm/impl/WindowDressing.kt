@@ -17,6 +17,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectCloseListener
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.ui.mac.MacWinTabsHandler
+import org.jetbrains.annotations.ApiStatus.Internal
 import javax.swing.JFrame
 
 private fun getWindowActionGroup(): ProjectWindowActionGroup {
@@ -27,6 +28,7 @@ private suspend fun getWindowActionGroupAsync(): ProjectWindowActionGroup {
   return serviceAsync<ActionManager>().getAction("OpenProjectWindows") as ProjectWindowActionGroup
 }
 
+@Internal
 class WindowDressing : ProjectCloseListener, LightEditServiceListener {
   override fun projectClosed(project: Project) {
     getWindowActionGroup().removeProject(project)

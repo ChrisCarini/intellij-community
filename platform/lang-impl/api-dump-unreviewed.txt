@@ -12787,11 +12787,6 @@ f:com.intellij.openapi.vcs.changes.PsiChangeTracker
 com.intellij.openapi.vcs.impl.LineStatusTrackerSettingListener
 - sf:TOPIC:com.intellij.util.messages.Topic
 - a:settingsUpdated():V
-f:com.intellij.openapi.wm.impl.WindowDressing
-- com.intellij.ide.lightEdit.LightEditServiceListener
-- com.intellij.openapi.project.ProjectCloseListener
-- <init>():V
-- projectClosed(com.intellij.openapi.project.Project):V
 f:com.intellij.openapi.wm.impl.status.InspectionProfileWidgetFactory
 - com.intellij.openapi.wm.impl.status.widget.StatusBarEditorBasedWidgetFactory
 - <init>():V

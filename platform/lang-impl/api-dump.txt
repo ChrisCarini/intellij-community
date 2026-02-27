@@ -1057,9 +1057,6 @@ com.intellij.openapi.roots.ui.distribution.FileChooserInfo
 - a:getFileChooserDescriptor():com.intellij.openapi.fileChooser.FileChooserDescriptor
 - a:getFileChooserMacroFilter():kotlin.jvm.functions.Function1
 - getFileChooserTitle():java.lang.String
-f:com.intellij.openapi.wm.impl.WindowDressing
-- lightEditWindowClosed(com.intellij.openapi.project.Project):V
-- lightEditWindowOpened(com.intellij.openapi.project.Project):V
 com.intellij.packageDependencies.ui.Marker
 - a:isMarked(com.intellij.openapi.vfs.VirtualFile):Z
 com.intellij.platform.ModuleAttachListener
