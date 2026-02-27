@@ -1,8 +1,14 @@
 <idea-plugin>
   <dependencies>
-    <module name="intellij.platform.kernel.backend"/>
     <module name="intellij.platform.backend"/>
+    <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.ui"/>
     <module name="intellij.platform.find"/>
+    <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.kernel.backend"/>
+    <module name="intellij.platform.lang.impl"/>
+    <!-- endregion -->
   </dependencies>
 
   <extensions defaultExtensionNs="com.intellij">
