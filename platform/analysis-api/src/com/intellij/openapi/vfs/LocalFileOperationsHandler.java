@@ -18,8 +18,7 @@ public interface LocalFileOperationsHandler {
   /**
    * Intercepts the deletion of a file.
    * @param file the file being deleted.
-   * @return true if the handler has performed the deletion, false if the deletion needs to be performed through
-   * standard core logic.
+   * @return {@code true} if the handler has performed the deletion, {@code false} if the deletion needs to be performed by the platform.
    */
   boolean delete(@NotNull VirtualFile file) throws IOException;
 
@@ -27,8 +26,7 @@ public interface LocalFileOperationsHandler {
    * Intercepts the movement of a file.
    * @param file  the file being moved.
    * @param toDir the destination directory.
-   * @return true if the handler has performed the move, false if the move needs to be performed through
-   * standard core logic.
+   * @return {@code true} if the handler has performed the move, {@code false} if the move needs to be performed by the platform.
    */
   boolean move(@NotNull VirtualFile file, @NotNull VirtualFile toDir) throws IOException;
 
@@ -37,7 +35,7 @@ public interface LocalFileOperationsHandler {
    * @param file  the file being copied.
    * @param toDir the destination directory.
    * @param copyName the name for the copy
-   * @return {@code true} if the handler has performed the copy, {@code false} if the copy needs to be performed by the platform
+   * @return {@code true} if the handler has performed the copy, {@code false} if the copy needs to be performed by the platform.
    */
   default boolean copyFile(@NotNull VirtualFile file, @NotNull VirtualFile toDir, @NotNull String copyName) throws IOException {
     return copy(file, toDir, copyName) != null;
@@ -54,8 +52,7 @@ public interface LocalFileOperationsHandler {
    * Intercepts the renaming of a file.
    * @param file  the file being renamed.
    * @param newName the new name.
-   * @return true if the handler has performed the rename, false if the rename needs to be performed through
-   * standard core logic.
+   * @return {@code true} if the handler has performed the rename, {@code false} if the rename needs to be performed by the platform.
    */
   boolean rename(@NotNull VirtualFile file, @NotNull String newName) throws IOException;
 
@@ -63,8 +60,7 @@ public interface LocalFileOperationsHandler {
    * Intercepts the creation of a file.
    * @param dir  the directory in which the file is being created.
    * @param name the name of the new file.
-   * @return true if the handler has performed the file creation, false if the creation needs to be performed through
-   * standard core logic.
+   * @return {@code true} if the handler has performed the file creation, {@code false} if the creation needs to be performed by the platform.
    */
   boolean createFile(@NotNull VirtualFile dir, @NotNull String name) throws IOException;
 
@@ -72,8 +68,7 @@ public interface LocalFileOperationsHandler {
    * Intercepts the creation of a directory.
    * @param dir  the directory in which the directory is being created.
    * @param name the name of the new directory.
-   * @return true if the handler has performed the directory creation, false if the creation needs to be performed through
-   * standard core logic.
+   * @return {@code true} if the handler has performed the directory creation, {@code false} if the creation needs to be performed by the platform.
    */
   boolean createDirectory(@NotNull VirtualFile dir, @NotNull String name) throws IOException;
 
