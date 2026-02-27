@@ -139,24 +139,6 @@ public class DaemonInspectionsRespondToChangesTest extends ProductionDaemonAnaly
     return LanguageLevel.JDK_11;
   }
 
-
-  @Override
-  protected void configureByExistingFile(@NotNull VirtualFile virtualFile) {
-    super.configureByExistingFile(virtualFile);
-    setActiveEditors(getEditor());
-  }
-
-  @Override
-  protected VirtualFile configureByFiles(@Nullable File rawProjectRoot, VirtualFile @NotNull ... vFiles) throws IOException {
-    VirtualFile file = super.configureByFiles(rawProjectRoot, vFiles);
-    setActiveEditors(getEditor());
-    return file;
-  }
-
-  private void setActiveEditors(Editor @NotNull ... editors) {
-    EditorTracker.getInstance(myProject).setActiveEditorsInTests(Arrays.asList(editors));
-  }
-
   @Override
   protected LocalInspectionTool[] configureLocalInspectionTools() {
     return new LocalInspectionTool[] {
@@ -466,6 +448,7 @@ public class DaemonInspectionsRespondToChangesTest extends ProductionDaemonAnaly
       called.incrementAndGet();
       PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
       long highlighted = Arrays.stream(markupModel.getAllHighlighters())
+        .filter(h->h.isValid())
         .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
         .filter(Objects::nonNull)
         .filter(info -> SWEARING.equals(info.getDescription()))
@@ -485,7 +468,7 @@ public class DaemonInspectionsRespondToChangesTest extends ProductionDaemonAnaly
       PsiDocumentManager.getInstance(myProject).commitAllDocuments();
       long start = System.currentTimeMillis();
       myTestDaemonCodeAnalyzer.waitForDaemonToFinish(getProject(), getEditor().getDocument(), checkHighlighted);
-      List<RangeHighlighter> errors = ContainerUtil.filter(markupModel.getAllHighlighters(), highlighter -> HighlightInfo.fromRangeHighlighter(highlighter) != null && HighlightInfo.fromRangeHighlighter(highlighter).getSeverity() == HighlightSeverity.ERROR);
+      List<RangeHighlighter> errors = ContainerUtil.filter(markupModel.getAllHighlighters(), highlighter -> highlighter.isValid() && HighlightInfo.fromRangeHighlighter(highlighter) != null && HighlightInfo.fromRangeHighlighter(highlighter).getSeverity() == HighlightSeverity.ERROR);
       long elapsed = System.currentTimeMillis() - start;
 
       fail("should have been interrupted. toSleepMs: " + toSleepMs + "; highlights: " + errors + "; called: " + called+"; highlighted in "+elapsed+"ms");
@@ -1077,7 +1060,7 @@ public class DaemonInspectionsRespondToChangesTest extends ProductionDaemonAnaly
               // by this moment all highlights for invalid PSI must be removed
 
               List<RangeHighlighter> highlighters = List.of(DocumentMarkupModel.forDocument(getDocument(myFile), myProject, true).getAllHighlighters());
-              assertFalse(ContainerUtil.exists(highlighters, r -> HighlightInfo.fromRangeHighlighter(r) != null && getShortName().equals(HighlightInfo.fromRangeHighlighter(r).getInspectionToolId())));
+              assertFalse(ContainerUtil.exists(highlighters, r -> r.isValid() && HighlightInfo.fromRangeHighlighter(r) != null && getShortName().equals(HighlightInfo.fromRangeHighlighter(r).getInspectionToolId())));
 
               holder.registerProblem(identifier, "XXX", ProblemHighlightType.WARNING);
             }

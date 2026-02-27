@@ -63,13 +63,10 @@ import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.UIUtil;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.geom.Point2D;
-import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -117,23 +114,6 @@ public class DaemonAnnotatorsRespondToChangesTest extends ProductionDaemonAnalyz
     finally {
       super.tearDown();
     }
-  }
-
-  @Override
-  protected void configureByExistingFile(@NotNull VirtualFile virtualFile) {
-    super.configureByExistingFile(virtualFile);
-    setActiveEditors(getEditor());
-  }
-
-  @Override
-  protected VirtualFile configureByFiles(@Nullable File rawProjectRoot, VirtualFile @NotNull ... vFiles) throws IOException {
-    VirtualFile file = super.configureByFiles(rawProjectRoot, vFiles);
-    setActiveEditors(getEditor());
-    return file;
-  }
-
-  private void setActiveEditors(Editor @NotNull ... editors) {
-    EditorTracker.getInstance(myProject).setActiveEditorsInTests(Arrays.asList(editors));
   }
 
   @Override
@@ -382,6 +362,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends ProductionDaemonAnalyz
       called.incrementAndGet();
       PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
       long highlighted = Arrays.stream(markupModel.getAllHighlighters())
+        .filter(h->h.isValid())
         .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
         .filter(Objects::nonNull)
         .filter(info -> MyFastAnnotator.SWEARING.equals(info.getDescription()))
@@ -405,7 +386,7 @@ public class DaemonAnnotatorsRespondToChangesTest extends ProductionDaemonAnalyz
       throw new RuntimeException(e);
     }
     if (!success.get()) {
-      List<RangeHighlighter> errors = ContainerUtil.filter(markupModel.getAllHighlighters(), highlighter -> HighlightInfo.fromRangeHighlighter(highlighter) != null && HighlightInfo.fromRangeHighlighter(highlighter).getSeverity() == HighlightSeverity.ERROR);
+      List<RangeHighlighter> errors = ContainerUtil.filter(markupModel.getAllHighlighters(), highlighter -> highlighter.isValid() && HighlightInfo.fromRangeHighlighter(highlighter) != null && HighlightInfo.fromRangeHighlighter(highlighter).getSeverity() == HighlightSeverity.ERROR);
       long elapsed = System.currentTimeMillis() - start;
 
       fail("should have been interrupted. toSleepMs: " + toSleepMs + "; highlights: " + errors + "; called: " + called+"; highlighted in "+elapsed+"ms");
@@ -736,8 +717,8 @@ public class DaemonAnnotatorsRespondToChangesTest extends ProductionDaemonAnalyz
       assertTrue(infos.toString(), ContainerUtil.exists(infos, i -> i.getDescription().equals(MyFieldSlowAnnotator.fieldWarningText.get())));
       assertTrue(infos.toString(), ContainerUtil.exists(infos, i -> i.getDescription().equals(MyCommentFastAnnotator.fastToolText)));
       RangeHighlighter[] markers = model.getAllHighlighters();
-      assertTrue(Arrays.toString(markers), ContainerUtil.exists(markers, i -> HighlightInfo.fromRangeHighlighter(i) != null && MyFieldSlowAnnotator.fieldWarningText.get().equals(HighlightInfo.fromRangeHighlighter(i).getDescription())));
-      assertTrue(Arrays.toString(markers), ContainerUtil.exists(markers, i -> HighlightInfo.fromRangeHighlighter(i) != null && MyCommentFastAnnotator.fastToolText.equals(HighlightInfo.fromRangeHighlighter(i).getDescription())));
+      assertTrue(Arrays.toString(markers), ContainerUtil.exists(markers, i -> i.isValid() && HighlightInfo.fromRangeHighlighter(i) != null && MyFieldSlowAnnotator.fieldWarningText.get().equals(HighlightInfo.fromRangeHighlighter(i).getDescription())));
+      assertTrue(Arrays.toString(markers), ContainerUtil.exists(markers, i -> i.isValid() && HighlightInfo.fromRangeHighlighter(i) != null && MyCommentFastAnnotator.fastToolText.equals(HighlightInfo.fromRangeHighlighter(i).getDescription())));
     });
 
     MyFieldSlowAnnotator.fieldWarningText.set("Aha, field, finally!");

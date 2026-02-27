@@ -47,11 +47,7 @@ import com.intellij.util.ref.GCWatcher;
 import kotlin.Unit;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -100,23 +96,6 @@ public class FileStatusMapTest extends ProductionDaemonAnalyzerTestCase {
   @Override
   protected @NotNull LanguageLevel getProjectLanguageLevel() {
     return LanguageLevel.JDK_11;
-  }
-
-  @Override
-  protected void configureByExistingFile(@NotNull VirtualFile virtualFile) {
-    super.configureByExistingFile(virtualFile);
-    setActiveEditors(getEditor());
-  }
-
-  @Override
-  protected VirtualFile configureByFiles(@Nullable File rawProjectRoot, VirtualFile @NotNull ... vFiles) throws IOException {
-    VirtualFile file = super.configureByFiles(rawProjectRoot, vFiles);
-    setActiveEditors(getEditor());
-    return file;
-  }
-
-  private void setActiveEditors(Editor @NotNull ... editors) {
-    EditorTracker.getInstance(myProject).setActiveEditorsInTests(Arrays.asList(editors));
   }
 
   @Override

@@ -49,6 +49,7 @@ import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.IdeActions;
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.command.WriteCommandAction;
@@ -132,12 +133,9 @@ import kotlin.Unit;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.awt.Dimension;
 import java.awt.Point;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -203,21 +201,8 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
     return LanguageLevel.JDK_11;
   }
 
-  @Override
-  protected void configureByExistingFile(@NotNull VirtualFile virtualFile) {
-    super.configureByExistingFile(virtualFile);
-    setActiveEditors(getEditor());
-  }
-
-  @Override
-  protected VirtualFile configureByFiles(@Nullable File rawProjectRoot, VirtualFile @NotNull ... vFiles) throws IOException {
-    VirtualFile file = super.configureByFiles(rawProjectRoot, vFiles);
-    setActiveEditors(getEditor());
-    return file;
-  }
-
   private void setActiveEditors(Editor @NotNull ... editors) {
-    EditorTracker.getInstance(myProject).setActiveEditorsInTests(Arrays.asList(editors));
+    EditorTracker.getInstance(myProject).setActiveEditorsInTests(List.of(editors));
   }
 
   @Override
@@ -477,31 +462,36 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       XMLLanguage.INSTANCE.unregisterLanguageExtension(extension);
     }
 
-    String location = getTestName(false) + ".xsd";
-    final String url = "http://myschema/";
-    ExternalResourceManagerExBase.registerResourceTemporarily(url, location, getTestRootDisposable());
+    try {
+      String location = getTestName(false) + ".xsd";
+      final String url = "http://myschema/";
+      ExternalResourceManagerExBase.registerResourceTemporarily(url, location, getTestRootDisposable());
 
-    configureByFiles(null, BASE_PATH + getTestName(false) + ".xml", BASE_PATH + getTestName(false) + ".xsd");
+      configureByFiles(null, BASE_PATH + getTestName(false) + ".xml", BASE_PATH + getTestName(false) + ".xsd");
 
-    assertEmpty(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR));
+      assertEmpty(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR));
 
-    Editor[] allEditors = EditorFactory.getInstance().getAllEditors();
-    Editor schemaEditor = null;
-    for (Editor editor : allEditors) {
-      Document document = editor.getDocument();
-      PsiFile psiFile = PsiDocumentManager.getInstance(getProject()).getPsiFile(document);
-      if (psiFile == null) continue;
-      if (location.equals(psiFile.getName())) {
-        schemaEditor = editor;
-        break;
+      Editor[] allEditors = EditorFactory.getInstance().getAllEditors();
+      Editor schemaEditor = null;
+      for (Editor editor : allEditors) {
+        Document document = editor.getDocument();
+        PsiFile psiFile = PsiDocumentManager.getInstance(getProject()).getPsiFile(document);
+        if (psiFile == null) continue;
+        if (location.equals(psiFile.getName())) {
+          schemaEditor = editor;
+          break;
+        }
       }
+      delete(Objects.requireNonNull(schemaEditor));
+
+      List<HighlightInfo> errors =
+        myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
+      assertNotEmpty(errors);
     }
-    delete(Objects.requireNonNull(schemaEditor));
-
-    assertNotEmpty(myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR));
-
-    for (LanguageFilter extension : extensions) {
-      XMLLanguage.INSTANCE.registerLanguageExtension(extension);
+    finally {
+      for (LanguageFilter extension : extensions) {
+        XMLLanguage.INSTANCE.registerLanguageExtension(extension);
+      }
     }
   }
 
@@ -753,13 +743,18 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
   }
 
   private static TextRange @NotNull [] getHighlightersTextRange(@NotNull MarkupModel markup) {
-    RangeHighlighter[] highlighters = markup.getAllHighlighters();
+    List<RangeHighlighter> highlighters = getAllValidHighlighters(markup);
 
-    TextRange[] result = new TextRange[highlighters.length];
-    for (int i = 0; i < highlighters.length; i++) {
-      result[i] = ProperTextRange.create(highlighters[i]);
+    TextRange[] result = new TextRange[highlighters.size()];
+    for (int i = 0; i < highlighters.size(); i++) {
+      result[i] = ProperTextRange.create(highlighters.get(i));
     }
     return orderByHashCode(result); // markup.getAllHighlighters returns unordered array
+  }
+
+  private static List<RangeHighlighter> getAllValidHighlighters(@NotNull MarkupModel markup) {
+    // there might be invalid RH returned from markup.getAllHighlighters() because they added/removed concurrently
+    return ContainerUtil.filter(markup.getAllHighlighters(), h -> h.isValid());
   }
 
   private static <T extends Segment> T @NotNull [] orderByHashCode(T @NotNull [] highlighters) {
@@ -1372,15 +1367,12 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
 
       configureByText(PlainTextFileType.INSTANCE, "");
       Editor editor = getEditor();
-      EditorTracker editorTracker = EditorTracker.Companion.getInstance(myProject);
-      setActiveEditors(editor);
       while (HeavyProcessLatch.INSTANCE.isRunning()) {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
       }
       type("xxx"); // restart daemon
-      assertTrue(editorTracker.getActiveEditors().contains(editor));
+      assertTrue(EditorTracker.Companion.getInstance(myProject).getActiveEditors().contains(editor));
       assertSame(editor, FileEditorManager.getInstance(myProject).getSelectedTextEditor());
-
 
       // wait for the first pass to complete
       long start = System.currentTimeMillis();
@@ -1428,13 +1420,11 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
 
       configureByText(PlainTextFileType.INSTANCE, "");
       Editor editor = getEditor();
-      EditorTracker editorTracker = EditorTracker.Companion.getInstance(myProject);
-      setActiveEditors(editor);
       while (HeavyProcessLatch.INSTANCE.isRunning()) {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
       }
       type("xxx"); // restart daemon
-      assertTrue(editorTracker.getActiveEditors().contains(editor));
+      assertTrue(EditorTracker.Companion.getInstance(myProject).getActiveEditors().contains(editor));
       assertSame(editor, FileEditorManager.getInstance(myProject).getSelectedTextEditor());
 
 
@@ -1488,9 +1478,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
     DocumentUtil.executeInBulk(editor.getDocument(), () -> {
       registerFakePass(applied, collected);
 
-      EditorTracker editorTracker = EditorTracker.Companion.getInstance(myProject);
-      setActiveEditors(editor);
-      assertTrue(editorTracker.getActiveEditors().contains(editor));
+      assertTrue(EditorTracker.Companion.getInstance(myProject).getActiveEditors().contains(editor));
       assertSame(editor, FileEditorManager.getInstance(myProject).getSelectedTextEditor());
 
       applied.clear();
@@ -1967,17 +1955,19 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       LOG.debug(getClass().getSimpleName()+".annotate("+element+") = "+didIDoIt()+" ("+(System.currentTimeMillis()-start)+"ms)");
     }
     private static List<HighlightInfo> myHighlights(MarkupModel markupModel) {
-      return Arrays.stream(markupModel.getAllHighlighters())
+      return getAllValidHighlighters(markupModel)
+        .stream()
         .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
         .filter(Objects::nonNull)
         .filter(info -> SWEARING.equals(info.getDescription())).toList();
     }
   }
   private static List<HighlightInfo> highlightsWithDescription(MarkupModel markupModel, String description) {
-    return Arrays.stream(markupModel.getAllHighlighters())
-          .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
-          .filter(Objects::nonNull)
-          .filter(info -> description.equals(info.getDescription())).toList();
+    return getAllValidHighlighters(markupModel)
+      .stream()
+      .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
+      .filter(Objects::nonNull)
+      .filter(info -> description.equals(info.getDescription())).toList();
   }
 
   public void testInvalidPSIElementsCreatedByTypingNearThemMustBeRemovedImmediatelyMeaningLongBeforeTheHighlightingPassFinished() {
@@ -2028,17 +2018,20 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       getProject().getMessageBus().connect(getTestRootDisposable()).subscribe(DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC, new DaemonCodeAnalyzer.DaemonListener() {
         @Override
         public void daemonStarting(@NotNull Collection<? extends @NotNull FileEditor> fileEditors) {
-          LOG.debug("daemonStarting("+fileEditors+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n"));
+          ReadAction.run(()->
+          LOG.debug("daemonStarting("+fileEditors+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n")));
         }
 
         @Override
         public void daemonFinished(@NotNull Collection<? extends @NotNull FileEditor> fileEditors) {
-          LOG.debug("daemonFinished("+fileEditors+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n"));
+          ReadAction.run(()->
+          LOG.debug("daemonFinished("+fileEditors+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n")));
         }
 
         @Override
         public void daemonCancelEventOccurred(@NotNull String reason) {
-          LOG.debug("daemonCancelEventOccurred("+reason+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n"));
+          ReadAction.run(()->
+          LOG.debug("daemonCancelEventOccurred("+reason+"). errors=\n"+StringUtil.join(DaemonCodeAnalyzerImpl.getHighlights(getEditor().getDocument(), HighlightSeverity.ERROR, getProject()),"\n")));
         }
       });
       MyVerySlowAnnotator.wait.set(true);
@@ -2193,17 +2186,19 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
   }
 
   private static @NotNull List<HighlightInfo> getErrorsFromMarkup(@NotNull MarkupModel model) {
-    return Arrays.stream(model.getAllHighlighters())
+    return getAllValidHighlighters(model)
+      .stream()
       .map(m -> HighlightInfo.fromRangeHighlighter(m))
       .filter(Objects::nonNull)
       .filter(h -> h.getSeverity() == HighlightSeverity.ERROR)
       .toList();
   }
   private static void assertNoDuplicateInfosFromMarkup(@NotNull MarkupModel model) {
-    List<HighlightInfo> infos = Arrays.stream(model.getAllHighlighters())
-          .map(m -> HighlightInfo.fromRangeHighlighter(m))
-          .filter(Objects::nonNull)
-          .toList();
+    List<HighlightInfo> infos = getAllValidHighlighters(model)
+      .stream()
+      .map(m -> HighlightInfo.fromRangeHighlighter(m))
+      .filter(Objects::nonNull)
+      .toList();
     Map<TextRange, List<HighlightInfo>> byRange = infos.stream().collect(Collectors.groupingBy(info -> TextRange.create(info)));
     for (List<HighlightInfo> errors : byRange.values()) {
       Set<String> set = ContainerUtil.map2Set(errors, e -> e.getDescription());
@@ -2282,7 +2277,8 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       LOG.debug(getClass()+".annotate("+element+") = "+didIDoIt());
     }
     static List<HighlightInfo> myHighlights(MarkupModel markupModel) {
-      return Arrays.stream(markupModel.getAllHighlighters())
+      return getAllValidHighlighters(markupModel)
+        .stream()
         .map(highlighter -> HighlightInfo.fromRangeHighlighter(highlighter))
         .filter(Objects::nonNull)
         .filter(info -> MSG.equals(info.getDescription())).toList();
@@ -2482,7 +2478,7 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
 
     configureByText(JavaFileType.INSTANCE, text);
     myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
-    String h1 = renderHighlighters(getSortedHighs());
+    String h1 = renderHighlighters(getSortedHighlights());
 
     GCWatcher tracking = GCWatcher.tracking(myFile);
     myFile = null;
@@ -2492,23 +2488,22 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
     myFile = PsiDocumentManager.getInstance(myProject).getPsiFile(getEditor().getDocument());
     myDaemonCodeAnalyzer.restart(getTestName(false));
     myTestDaemonCodeAnalyzer.waitHighlighting(getProject(), getEditor().getDocument(), HighlightSeverity.ERROR);
-    String h2 = renderHighlighters(getSortedHighs());
+    String h2 = renderHighlighters(getSortedHighlights());
 
     assertEquals(h1, h2);
   }
 
-  private static @NotNull String renderHighlighters(RangeHighlighter[] highlighters) {
-    return StringUtil.join(Arrays.asList(highlighters), h->h.getTextRange()+":"+h.getTextAttributes(EditorColorsUtil.getGlobalOrDefaultColorScheme()), "\n");
+  private static @NotNull String renderHighlighters(List<RangeHighlighter> highlighters) {
+    return StringUtil.join(highlighters, h->h.getTextRange()+":"+h.getTextAttributes(EditorColorsUtil.getGlobalOrDefaultColorScheme()), "\n");
   }
 
-  private RangeHighlighter @NotNull [] getSortedHighs() {
-    RangeHighlighter[] highlighters = DocumentMarkupModel.forDocument(myEditor.getDocument(), myProject, true).getAllHighlighters();
-    Arrays.sort(highlighters, (o1, o2) -> {
+  private List<RangeHighlighter> getSortedHighlights() {
+    List<RangeHighlighter> highlighters = getAllValidHighlighters(DocumentMarkupModel.forDocument(myEditor.getDocument(), myProject, true));
+    return ContainerUtil.sorted(highlighters, (o1, o2) -> {
       HighlightInfo h1 = HighlightInfo.fromRangeHighlighter(o1);
       HighlightInfo h2 = HighlightInfo.fromRangeHighlighter(o2);
       return h1 == null || h2 == null ? Segment.BY_START_OFFSET_THEN_END_OFFSET.compare(o1, o2) : HighlightInfoUpdaterImpl.BY_OFFSETS_AND_HASH_ERRORS_FIRST.compare(h1, h2);
     });
-    return highlighters;
   }
   public static void setTraceDaemonLoggerLevel() {
     Logger.getInstance("#com.intellij.codeInsight.daemon.impl.BackgroundUpdateHighlightersUtil").setLevel(LogLevel.TRACE);
