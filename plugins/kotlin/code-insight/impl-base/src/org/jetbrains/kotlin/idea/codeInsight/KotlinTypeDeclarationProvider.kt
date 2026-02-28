@@ -67,8 +67,7 @@ internal class KotlinTypeDeclarationProvider : TypeDeclarationPlaceAwareProvider
             is KtCallableDeclaration -> {
                 symbol.getTypeDeclarationFromCallable(callSiteReferenceProvider = {
                     if (editor != null && offset != null) {
-                        val findReference = TargetElementUtil.findReference(editor, offset)
-                        findReference
+                        TargetElementUtil.findReference(editor, offset)
                     } else {
                         null
                     }
